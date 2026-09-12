@@ -82,6 +82,6 @@ export function planInformationNeed(profile: QuestionUnderstandingProfile): Info
     selectedRetrievalStrategies: Array.from(strategies),
     plannedOperations: operations,
     deterministicCalculation,
-    iterationLimit: reasoningMode === 'DEEP_REASONING' ? 3 : profile.requiresMultipleRetrievalPasses ? 2 : 1,
+    iterationLimit: profile.requiresMultipleRetrievalPasses ? 2 : 1,
   };
 }
