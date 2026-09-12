@@ -20,7 +20,7 @@ const TOKEN_EQUIVALENTS: Record<string, string[]> = {
   time: ['minute', 'minutes', 'duration'],
   minute: ['time', 'minutes', 'duration'],
   minutes: ['time', 'minute', 'duration'],
-  location: ['country', 'city', 'region', 'office'],
+  location: ['country', 'city', 'region'],
   country: ['location', 'located'],
   employee: ['employees', 'staff', 'staffing'],
   employees: ['employee', 'staff', 'staffing'],
@@ -166,11 +166,22 @@ function tablesFromEvidence(text: string): ParsedTable[] {
   return Array.from(keyed.values());
 }
 
-function headerScore(questionTokens: string[], question: string, header: string): number {
+function headerScore(
+  questionTokens: string[],
+  question: string,
+  header: string,
+  semanticIntents: string[]
+): number {
   const headerTokens = expandedTokens(header);
   const overlap = headerTokens.filter((token) => questionTokens.includes(token)).length;
   const exact = normalize(question).includes(normalize(header)) ? 5 : 0;
-  return overlap * 4 + exact;
+  let intentBoost = 0;
+
+  if (semanticIntents.includes('location') && /\b(country|city|region|location)\b/i.test(header)) intentBoost += 10;
+  if (semanticIntents.includes('minutes') && /\b(time|minute|minutes|duration)\b/i.test(header)) intentBoost += 8;
+  if (semanticIntents.includes('employees') && /\b(employee|employees|staff|count)\b/i.test(header)) intentBoost += 8;
+
+  return overlap * 4 + exact + intentBoost;
 }
 
 function tableLookup(
@@ -178,13 +189,12 @@ function tableLookup(
   profile: QuestionUnderstandingProfile,
   evidence: RerankedEvidenceItem[]
 ): string | null {
-  // Relational questions such as "Who receives the escalation?" should be answered
-  // from prose evidence even if the same chunk also contains a related table row.
   if (/^\s*who\b/i.test(question)) return null;
 
+  const semanticIntents = intentTokens(question, profile);
   const questionTokens = unique([
     ...expandedTokens(question),
-    ...intentTokens(question, profile),
+    ...semanticIntents,
     ...(profile.entities || []).flatMap(expandedTokens),
     ...(profile.attributes || []).flatMap(expandedTokens),
   ]);
@@ -197,7 +207,7 @@ function tableLookup(
       const columnScores = table.headers.map((header, index) => ({
         index,
         header,
-        score: headerScore(questionTokens, question, header),
+        score: headerScore(questionTokens, question, header, semanticIntents),
       }));
       const requestedColumn = columnScores.sort((a, b) => b.score - a.score)[0];
       if (!requestedColumn || requestedColumn.score <= 0) continue;
@@ -215,10 +225,7 @@ function tableLookup(
         const label = row[0] || 'Result';
         const value = row[requestedColumn.index];
         if (!value || value === label || isDividerCell(value)) continue;
-        matches.push({
-          answer: `${label}: ${requestedColumn.header} is ${value}.`,
-          score,
-        });
+        matches.push({ answer: `${label}: ${requestedColumn.header} is ${value}.`, score });
       }
     }
   }
@@ -291,8 +298,6 @@ export function deterministicSynthesizer(
 
   const question = profile.normalizedQuestion;
 
-  // WHO/action questions are relational and prose is usually more precise than a
-  // coincidentally matching table row. Other attribute lookups prefer table cells.
   if (/^\s*who\b/i.test(question)) {
     const relationalAnswer = sentenceLookup(question, profile, evidence);
     if (relationalAnswer) return relationalAnswer;
@@ -307,7 +312,6 @@ export function deterministicSynthesizer(
   const fallback = sentenceCandidates(evidence[0].chunk.text)[0];
   if (fallback) return fallback;
 
-  // A table-only chunk with no resolvable cell is not safe to dump verbatim.
   if (looksLikeFlattenedTable(evidence[0].chunk.text) || evidence[0].chunk.text.includes('| ---')) {
     return "I couldn't isolate a concise answer from the retrieved table evidence reliably.";
   }
