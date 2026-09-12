@@ -158,7 +158,7 @@ function sentenceLookup(
   return best.sentence;
 }
 
-export function synthesizeDeterministicAnswer(
+export function deterministicSynthesizer(
   profile: QuestionUnderstandingProfile,
   rerankedItems: RerankedEvidenceItem[]
 ): string {
