@@ -17,11 +17,25 @@ const documents: KnowledgeDocument[] = [
     }],
   },
   {
+    id: 'synthesis-support-doc',
+    filename: 'support.pdf',
+    fileType: 'application/pdf',
+    fileSize: 4096,
+    uploadTimestamp: 2,
+    processingStatus: 'processed',
+    pageCount: 1,
+    summary: 'Support tiers and escalation.',
+    pages: [{
+      pageNumber: 1,
+      text: `# CUSTOMER SUPPORT TIERS\n\nService Tier Matrix\n| Tier | Initial Response Minutes | Availability | Included Projects |\n| --- | --- | --- | --- |\n| Standard | 480 | Business hours | 2 |\n| Priority | 120 | 06:00-22:00 UTC | 6 |\n| Critical | 30 | 24/7 | 15 |\n\nCritical-tier incidents that remain unresolved for 90 minutes are escalated to the Incident Commander.`,
+    }],
+  },
+  {
     id: 'synthesis-office-doc',
     filename: 'office.pdf',
     fileType: 'application/pdf',
     fileSize: 4096,
-    uploadTimestamp: 2,
+    uploadTimestamp: 3,
     processingStatus: 'processed',
     pageCount: 1,
     summary: 'Office directory.',
@@ -39,8 +53,12 @@ const history: ChatMessage[] = [
 
 const cases = [
   { question: 'How many paid annual-leave days do full-time employees receive?', expected: ['24'], maxLength: 180 },
+  { question: 'What is the Critical support tier initial response time?', expected: ['Critical', '30'], maxLength: 140 },
+  { question: 'Who receives a Critical incident escalation after 90 minutes?', expected: ['Incident Commander'], maxLength: 180 },
   { question: 'Which country is Meridian Works located in?', expected: ['Meridian Works', 'Japan'], maxLength: 120 },
   { question: 'How many employees does it have?', expected: ['43'], maxLength: 120, chatHistory: history },
+  { question: '¿Dónde está la oficina Meridian Works?', expected: ['Japan'], maxLength: 160 },
+  { question: 'Meridian Works कहाँ छ?', expected: ['Japan'], maxLength: 160 },
 ];
 
 for (const testCase of cases) {
@@ -70,4 +88,4 @@ for (const testCase of cases) {
   }
 }
 
-console.log('Deterministic synthesis guard passed: concise direct fact, table lookup, and follow-up answers are grounded.');
+console.log('Deterministic synthesis guard passed for concise facts, flattened tables, relational questions, follow-ups, and multilingual lookups.');
