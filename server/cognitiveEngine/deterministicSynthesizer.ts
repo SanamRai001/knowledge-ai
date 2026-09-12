@@ -41,6 +41,28 @@ function expandedTokens(text: string): string[] {
   return unique(base.flatMap((token) => [token, ...(TOKEN_EQUIVALENTS[token] || [])]));
 }
 
+function intentTokens(question: string, profile: QuestionUnderstandingProfile): string[] {
+  const lower = question.toLowerCase();
+  const intents: string[] = [];
+
+  if (/\bwhere\b|\bd[oó]nde\b|कहाँ|कहा|कता/.test(lower) ||
+      (profile.attributes || []).some((attribute) => ['location', 'country', 'city', 'region'].includes(attribute))) {
+    intents.push('location', 'country', 'city', 'region');
+  }
+
+  if (/\b(response\s+time|initial\s+response|how\s+long)\b/.test(lower) ||
+      (profile.attributes || []).some((attribute) => ['time', 'response time', 'duration'].includes(attribute))) {
+    intents.push('time', 'minutes', 'duration');
+  }
+
+  if (/\b(how\s+many\s+employees?|employee\s+count|staff\s+count)\b/.test(lower) ||
+      (profile.attributes || []).some((attribute) => ['count', 'quantity'].includes(attribute))) {
+    intents.push('employee', 'employees', 'count', 'staff', 'staffing');
+  }
+
+  return unique(intents);
+}
+
 function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values));
 }
@@ -162,6 +184,7 @@ function tableLookup(
 
   const questionTokens = unique([
     ...expandedTokens(question),
+    ...intentTokens(question, profile),
     ...(profile.entities || []).flatMap(expandedTokens),
     ...(profile.attributes || []).flatMap(expandedTokens),
   ]);
@@ -204,6 +227,11 @@ function tableLookup(
   return matches[0]?.answer || null;
 }
 
+function looksLikeFlattenedTable(text: string): boolean {
+  const pipeCount = (text.match(/\|/g) || []).length;
+  return pipeCount >= 4 && /(?:^|\s)-{3,}(?:\s|$)/.test(text);
+}
+
 function sentenceCandidates(text: string): string[] {
   const withoutTables = text
     .split(/\r?\n/)
@@ -211,6 +239,7 @@ function sentenceCandidates(text: string): string[] {
       const trimmed = line.trim();
       if (!trimmed) return false;
       if (trimmed.startsWith('|')) return false;
+      if (looksLikeFlattenedTable(trimmed)) return false;
       if (/^#{1,6}\s/.test(trimmed)) return false;
       if (/^(structured table|section|specification):/i.test(trimmed)) return false;
       return true;
@@ -222,7 +251,7 @@ function sentenceCandidates(text: string): string[] {
   return withoutTables
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= 8 && sentence.length <= 420 && !/\|\s*-{3,}/.test(sentence));
+    .filter((sentence) => sentence.length >= 8 && sentence.length <= 420 && !looksLikeFlattenedTable(sentence));
 }
 
 function sentenceLookup(
@@ -230,7 +259,7 @@ function sentenceLookup(
   profile: QuestionUnderstandingProfile,
   evidence: RerankedEvidenceItem[]
 ): string | null {
-  const questionTokens = unique(expandedTokens(question));
+  const questionTokens = unique([...expandedTokens(question), ...intentTokens(question, profile)]);
   const entityTokens = unique((profile.entities || []).flatMap(expandedTokens));
   const attributeTokens = unique((profile.attributes || []).flatMap(expandedTokens));
 
@@ -277,6 +306,11 @@ export function deterministicSynthesizer(
 
   const fallback = sentenceCandidates(evidence[0].chunk.text)[0];
   if (fallback) return fallback;
+
+  // A table-only chunk with no resolvable cell is not safe to dump verbatim.
+  if (looksLikeFlattenedTable(evidence[0].chunk.text) || evidence[0].chunk.text.includes('| ---')) {
+    return "I couldn't isolate a concise answer from the retrieved table evidence reliably.";
+  }
 
   const compact = evidence[0].chunk.text.replace(/\s+/g, ' ').trim();
   return compact.slice(0, 280).trim();
