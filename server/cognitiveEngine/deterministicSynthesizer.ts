@@ -16,6 +16,16 @@ const STOP_WORDS = new Set([
   'those', 'about', 'tell', 'me', 'please', 'located', 'company', 'document', 'documents',
 ]);
 
+const TOKEN_EQUIVALENTS: Record<string, string[]> = {
+  time: ['minute', 'minutes', 'duration'],
+  minute: ['time', 'minutes', 'duration'],
+  minutes: ['time', 'minute', 'duration'],
+  location: ['country', 'city', 'region', 'office'],
+  country: ['location', 'located'],
+  employee: ['employees', 'staff', 'staffing'],
+  employees: ['employee', 'staff', 'staffing'],
+};
+
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}%$.-]+/gu, ' ').trim();
 }
@@ -24,6 +34,11 @@ function tokens(text: string): string[] {
   return normalize(text)
     .split(/\s+/)
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
+}
+
+function expandedTokens(text: string): string[] {
+  const base = tokens(text);
+  return unique(base.flatMap((token) => [token, ...(TOKEN_EQUIVALENTS[token] || [])]));
 }
 
 function unique<T>(values: T[]): T[] {
@@ -43,8 +58,97 @@ function parseTableRow(line: string): string[] {
     .map(cleanCell);
 }
 
+function isDividerCell(value: string): boolean {
+  return /^:?-{3,}:?$/.test(value.trim());
+}
+
 function isDividerRow(cells: string[]): boolean {
-  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+  return cells.length > 0 && cells.every(isDividerCell);
+}
+
+interface ParsedTable {
+  headers: string[];
+  rows: string[][];
+}
+
+function parseMultilineTables(text: string): ParsedTable[] {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const tables: ParsedTable[] = [];
+
+  for (let i = 0; i < lines.length - 2; i++) {
+    if (!lines[i].startsWith('|') || !lines[i + 1].startsWith('|')) continue;
+    const headers = parseTableRow(lines[i]);
+    const divider = parseTableRow(lines[i + 1]);
+    if (!isDividerRow(divider) || headers.length < 2) continue;
+
+    const rows: string[][] = [];
+    let cursor = i + 2;
+    while (cursor < lines.length && lines[cursor].startsWith('|')) {
+      const row = parseTableRow(lines[cursor]);
+      if (row.length === headers.length && !isDividerRow(row)) rows.push(row);
+      cursor += 1;
+    }
+    if (rows.length) tables.push({ headers, rows });
+  }
+
+  return tables;
+}
+
+/** Parse markdown tables after retrieval has flattened line breaks into spaces. */
+function parseFlattenedTables(text: string): ParsedTable[] {
+  if (!text.includes('|')) return [];
+  const cells = text.split('|').map(cleanCell).filter(Boolean);
+  const tables: ParsedTable[] = [];
+
+  for (let i = 0; i < cells.length; i++) {
+    if (!isDividerCell(cells[i])) continue;
+    let dividerEnd = i;
+    while (dividerEnd + 1 < cells.length && isDividerCell(cells[dividerEnd + 1])) dividerEnd += 1;
+    const width = dividerEnd - i + 1;
+    if (width < 2 || i < width) {
+      i = dividerEnd;
+      continue;
+    }
+
+    const headers = cells.slice(i - width, i);
+    if (headers.some((header) => !header || isDividerCell(header))) {
+      i = dividerEnd;
+      continue;
+    }
+
+    const rows: string[][] = [];
+    let cursor = dividerEnd + 1;
+    while (cursor + width <= cells.length) {
+      const row = cells.slice(cursor, cursor + width);
+      if (row.some(isDividerCell)) break;
+      rows.push(row);
+      cursor += width;
+      if (rows.length >= 50) break;
+    }
+
+    if (rows.length) tables.push({ headers, rows });
+    i = dividerEnd;
+  }
+
+  return tables;
+}
+
+function tablesFromEvidence(text: string): ParsedTable[] {
+  const multiline = parseMultilineTables(text);
+  const flattened = parseFlattenedTables(text);
+  const keyed = new Map<string, ParsedTable>();
+  for (const table of [...multiline, ...flattened]) {
+    const key = `${table.headers.join('|')}::${table.rows.map((row) => row.join('|')).join('::')}`;
+    keyed.set(key, table);
+  }
+  return Array.from(keyed.values());
+}
+
+function headerScore(questionTokens: string[], question: string, header: string): number {
+  const headerTokens = expandedTokens(header);
+  const overlap = headerTokens.filter((token) => questionTokens.includes(token)).length;
+  const exact = normalize(question).includes(normalize(header)) ? 5 : 0;
+  return overlap * 4 + exact;
 }
 
 function tableLookup(
@@ -52,43 +156,32 @@ function tableLookup(
   profile: QuestionUnderstandingProfile,
   evidence: RerankedEvidenceItem[]
 ): string | null {
+  // Relational questions such as "Who receives the escalation?" should be answered
+  // from prose evidence even if the same chunk also contains a related table row.
+  if (/^\s*who\b/i.test(question)) return null;
+
   const questionTokens = unique([
-    ...tokens(question),
-    ...(profile.entities || []).flatMap(tokens),
-    ...(profile.attributes || []).flatMap(tokens),
+    ...expandedTokens(question),
+    ...(profile.entities || []).flatMap(expandedTokens),
+    ...(profile.attributes || []).flatMap(expandedTokens),
   ]);
 
   type Match = { answer: string; score: number };
   const matches: Match[] = [];
 
   for (const item of evidence.slice(0, 6)) {
-    const lines = item.chunk.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-
-    for (let i = 0; i < lines.length - 2; i++) {
-      if (!lines[i].startsWith('|') || !lines[i + 1].startsWith('|')) continue;
-      const headers = parseTableRow(lines[i]);
-      const divider = parseTableRow(lines[i + 1]);
-      if (!isDividerRow(divider) || headers.length < 2) continue;
-
-      const rows: string[][] = [];
-      let cursor = i + 2;
-      while (cursor < lines.length && lines[cursor].startsWith('|')) {
-        const row = parseTableRow(lines[cursor]);
-        if (row.length === headers.length && !isDividerRow(row)) rows.push(row);
-        cursor += 1;
-      }
-
-      const columnScores = headers.map((header, index) => {
-        const headerTokens = tokens(header);
-        const overlap = headerTokens.filter((token) => questionTokens.includes(token)).length;
-        return { index, header, score: overlap * 4 + (normalize(question).includes(normalize(header)) ? 5 : 0) };
-      });
+    for (const table of tablesFromEvidence(item.chunk.text)) {
+      const columnScores = table.headers.map((header, index) => ({
+        index,
+        header,
+        score: headerScore(questionTokens, question, header),
+      }));
       const requestedColumn = columnScores.sort((a, b) => b.score - a.score)[0];
       if (!requestedColumn || requestedColumn.score <= 0) continue;
 
-      for (const row of rows) {
+      for (const row of table.rows) {
         const rowText = row.join(' ');
-        const rowTokens = tokens(rowText);
+        const rowTokens = expandedTokens(rowText);
         const entityMatches = (profile.entities || []).filter((entity) =>
           normalize(rowText).includes(normalize(entity))
         ).length;
@@ -98,7 +191,7 @@ function tableLookup(
 
         const label = row[0] || 'Result';
         const value = row[requestedColumn.index];
-        if (!value || value === label) continue;
+        if (!value || value === label || isDividerCell(value)) continue;
         matches.push({
           answer: `${label}: ${requestedColumn.header} is ${value}.`,
           score,
@@ -129,7 +222,7 @@ function sentenceCandidates(text: string): string[] {
   return withoutTables
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= 8 && sentence.length <= 420);
+    .filter((sentence) => sentence.length >= 8 && sentence.length <= 420 && !/\|\s*-{3,}/.test(sentence));
 }
 
 function sentenceLookup(
@@ -137,13 +230,13 @@ function sentenceLookup(
   profile: QuestionUnderstandingProfile,
   evidence: RerankedEvidenceItem[]
 ): string | null {
-  const questionTokens = unique(tokens(question));
-  const entityTokens = unique((profile.entities || []).flatMap(tokens));
-  const attributeTokens = unique((profile.attributes || []).flatMap(tokens));
+  const questionTokens = unique(expandedTokens(question));
+  const entityTokens = unique((profile.entities || []).flatMap(expandedTokens));
+  const attributeTokens = unique((profile.attributes || []).flatMap(expandedTokens));
 
   const candidates = evidence.slice(0, 6).flatMap((item, evidenceIndex) =>
     sentenceCandidates(item.chunk.text).map((sentence) => {
-      const sentenceTokens = tokens(sentence);
+      const sentenceTokens = expandedTokens(sentence);
       const questionOverlap = questionTokens.filter((token) => sentenceTokens.includes(token)).length;
       const entityOverlap = entityTokens.filter((token) => sentenceTokens.includes(token)).length;
       const attributeOverlap = attributeTokens.filter((token) => sentenceTokens.includes(token)).length;
@@ -168,6 +261,14 @@ export function deterministicSynthesizer(
   }
 
   const question = profile.normalizedQuestion;
+
+  // WHO/action questions are relational and prose is usually more precise than a
+  // coincidentally matching table row. Other attribute lookups prefer table cells.
+  if (/^\s*who\b/i.test(question)) {
+    const relationalAnswer = sentenceLookup(question, profile, evidence);
+    if (relationalAnswer) return relationalAnswer;
+  }
+
   const tableAnswer = tableLookup(question, profile, evidence);
   if (tableAnswer) return tableAnswer;
 
