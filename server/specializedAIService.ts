@@ -76,10 +76,13 @@ export class SpecializedAIService {
     }
 
     const { ai, kb } = lookup;
+    const kbAccountId = kb.accountId || 'acc_default';
+    const effectiveAccountId = accountId || kbAccountId;
 
     // 2. Tenant & Account Isolation
-    if (accountId && kb.accountId && kb.accountId !== 'acc_default' && kb.accountId !== accountId && accountId !== 'acc_phase4_tester') {
-      // Forbidden: Account A cannot query Account B's Specialized AI
+    // Exact ownership is mandatory whenever a caller supplies account context.
+    // There are no default-account or test-account bypasses in the production service.
+    if (accountId && kbAccountId !== accountId) {
       throw new SpecializedAIError(
         'FORBIDDEN',
         403,
@@ -91,7 +94,7 @@ export class SpecializedAIService {
     if (conversationId) {
       const existingConv = conversationOwnership.get(conversationId);
       if (existingConv) {
-        if (accountId && existingConv.accountId !== accountId) {
+        if (existingConv.accountId !== effectiveAccountId) {
           throw new SpecializedAIError(
             'FORBIDDEN',
             403,
@@ -108,7 +111,7 @@ export class SpecializedAIService {
       } else {
         // Register conversation ownership
         conversationOwnership.set(conversationId, {
-          accountId: accountId || kb.accountId || 'acc_default',
+          accountId: effectiveAccountId,
           aiId,
         });
       }
@@ -149,7 +152,6 @@ export class SpecializedAIService {
     }
 
     // 6. Retrieve Eligible Verified Memory (Phase 4 Governed Memory Subsystem)
-    const effectiveAccountId = kb.accountId || accountId || 'acc_default';
     const retrievedMemory = memoryRetrievalService.retrieveRelevantMemories({
       query: message.trim(),
       aiId: ai.id,
