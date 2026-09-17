@@ -35,6 +35,9 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Workspace isolation proof
+        run: npm run check:workspace-isolation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
