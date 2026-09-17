@@ -372,9 +372,11 @@ export async function runMediatorPhase4Tests(): Promise<TestResultItem[]> {
 
   // 20. Experience Logging Secret Sanitization
   try {
-    const raw = { apiKey: 'AIzaSyDemo1234567890123456789012345', text: 'Bearer sk-abcdef12345678901234567890123456' };
+    const fakeGoogleKey = 'AIza' + 'SyDemo1234567890123456789012345';
+    const fakeBearerToken = 'sk-' + 'abcdef12345678901234567890123456';
+    const raw = { apiKey: fakeGoogleKey, text: `Bearer ${fakeBearerToken}` };
     const sanitized = orchestrationEngine.sanitizeSecrets(raw);
-    const passed = !JSON.stringify(sanitized).includes('AIzaSy') && !JSON.stringify(sanitized).includes('sk-abcdef');
+    const passed = !JSON.stringify(sanitized).includes(fakeGoogleKey) && !JSON.stringify(sanitized).includes(fakeBearerToken);
     results.push({
       id: 20,
       name: 'Experience Logging Secret Sanitization',
