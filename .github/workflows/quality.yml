@@ -26,6 +26,9 @@ jobs:
       - name: Benchmark leakage guard
         run: npm run check:benchmark-leakage
 
+      - name: LLM provider boundary guard
+        run: npm run check:provider-boundary
+
       - name: TypeScript check
         run: npm run lint
 
