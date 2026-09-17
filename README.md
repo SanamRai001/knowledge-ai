@@ -122,3 +122,5 @@ The product should be evaluated on metrics such as:
 See `docs/PRODUCT_DIRECTION.md` and `docs/EFFECTIVENESS_AUDIT.md` for the current product contract and audit findings.
 
 For the larger destination beyond the current document-assistant milestone, see `docs/LONG_TERM_PRODUCT_VISION.md`. It defines the long-term direction toward a living company intelligence layer that can **read, understand, act, and watch** while preserving evidence, permissions, history, and safe approvals.
+
+For the implementation sequence and phase exit gates, see `docs/IMPLEMENTATION_ROADMAP.md`. It defines the ordered path from the current trustworthy knowledge foundation through structured data, discovery, living company knowledge, safe actions, proactive Watch, integrations, controlled automation, and the eventual platform layer.
