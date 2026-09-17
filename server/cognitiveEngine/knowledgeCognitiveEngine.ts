@@ -7,7 +7,6 @@
  */
 
 import crypto from 'crypto';
-import { GoogleGenAI } from '@google/genai';
 import { ChatMessage, KnowledgeDocument, SpecializedAI } from '../../src/types.js';
 import {
   QuestionUnderstandingProfile,
@@ -37,20 +36,8 @@ import { phase95RagSubordinateModule, Phase95RagSubordinateModule } from './phas
 import { deterministicSynthesizer } from './deterministicSynthesizer.js';
 import { tenantGovernanceService } from '../mediator/tenantGovernanceService.js';
 import { quotaAndBillingService } from '../mediator/quotaAndBillingService.js';
+import { providerRouter } from '../providers/providerRouter.js';
 import { multilingualEngine } from './multilingualEngine.js';
-
-let geminiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI | null {
-  if (geminiClient) return geminiClient;
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || !key.trim()) return null;
-  try {
-    geminiClient = new GoogleGenAI({ apiKey: key });
-    return geminiClient;
-  } catch {
-    return null;
-  }
-}
 
 export class KnowledgeCognitiveEngine {
   private subordinateRag: Phase95RagSubordinateModule = phase95RagSubordinateModule;
@@ -455,8 +442,8 @@ export class KnowledgeCognitiveEngine {
 
     if (forceDeterministic) return deterministicFallback();
 
-    const ai = getGeminiClient();
-    if (!ai) return deterministicFallback();
+    const primaryProvider = providerRouter.getPrimaryProvider();
+    if (!primaryProvider?.isConfigured()) return deterministicFallback();
 
     const evidenceBlock = evidence
       .map(
@@ -468,16 +455,26 @@ export class KnowledgeCognitiveEngine {
     const systemInstruction = `You are Knowledge AI, a private document assistant.\nUse ONLY the supplied evidence.\nDo not use outside knowledge.\nIf the evidence does not support the answer, say you do not have enough evidence.\nFor corrections, comparisons, lists, and calculations, derive the response only from the evidence.\nDo not invent numbers, dates, names, policies, or causal explanations.\nReturn concise markdown with factual wording.`;
 
     try {
-      const response = await ai.models.generateContent({
+      const generation = await providerRouter.generate({
         model: 'gemini-3.8-flash',
-        contents: `Evidence:\n${evidenceBlock}\n\nQuestion: ${profile.normalizedQuestion}`,
-        config: { systemInstruction },
+        prompt: `Evidence:\n${evidenceBlock}\n\nQuestion: ${profile.normalizedQuestion}`,
+        systemInstruction,
+        responseFormat: 'text',
       });
-      const text = response.text?.trim();
+
+      if (!generation.ok) {
+        console.warn(
+          `Cognitive provider generation failed (${generation.failure?.category || 'PROVIDER_ERROR'}); using evidence-only fallback:`,
+          generation.failure?.message || 'Unknown provider failure'
+        );
+        return deterministicFallback();
+      }
+
+      const text = generation.text.trim();
       if (!text) return deterministicFallback();
       return { answer: text, engineUsed: 'gemini-3.8-flash' };
     } catch (error: any) {
-      console.warn('Cognitive Gemini generation failed; using evidence-only fallback:', error?.message || error);
+      console.warn('Cognitive provider router failed; using evidence-only fallback:', error?.message || error);
       return deterministicFallback();
     }
   }
