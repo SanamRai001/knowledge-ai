@@ -29,6 +29,9 @@ jobs:
       - name: LLM provider boundary guard
         run: npm run check:provider-boundary
 
+      - name: Secret and runtime-state hygiene guard
+        run: npm run check:secret-hygiene
+
       - name: TypeScript check
         run: npm run lint
 
