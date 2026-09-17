@@ -119,4 +119,6 @@ The product should be evaluated on metrics such as:
 - multilingual retrieval quality
 - latency and provider failure rate
 
-See `docs/PRODUCT_DIRECTION.md` and `docs/EFFECTIVENESS_AUDIT.md` for the product contract and current audit findings.
+See `docs/PRODUCT_DIRECTION.md` and `docs/EFFECTIVENESS_AUDIT.md` for the current product contract and audit findings.
+
+For the larger destination beyond the current document-assistant milestone, see `docs/LONG_TERM_PRODUCT_VISION.md`. It defines the long-term direction toward a living company intelligence layer that can **read, understand, act, and watch** while preserving evidence, permissions, history, and safe approvals.
