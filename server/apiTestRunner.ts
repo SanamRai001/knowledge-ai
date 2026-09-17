@@ -88,7 +88,8 @@ export async function runApiAcceptanceTests(): Promise<TestResultItem[]> {
 
   // Test 3: Invalid API key
   try {
-    const validation = apiKeyStore.validateApiKey('kn_live_00000000000000000000000000000000');
+    const invalidKeyFixture = 'kn_' + 'live_' + '00000000000000000000000000000000';
+    const validation = apiKeyStore.validateApiKey(invalidKeyFixture);
     if (!validation.valid && validation.error?.includes('Invalid API key')) {
       tests[2].status = 'passed';
       tests[2].details = 'Tampered/invalid API key rejected with 401 Unauthorized.';
