@@ -9,13 +9,12 @@
  * 3. Multi-Tenant Hybrid Index & Semantic Search
  * 4. Multi-Factor Second-Stage Reranking
  * 5. Evidence Sufficiency Gating
- * 6. Evidence-First Answer Generation (Gemini 3.8-flash or local deterministic engine)
+ * 6. Evidence-First Answer Generation (provider-routed LLM or local deterministic engine)
  * 7. Claim-Level Grounding Verification
  * 8. Verifiable Citations with Document, Page, Section, and Snippet
  * 9. Diagnostic Telemetry Recording
  */
 
-import { GoogleGenAI } from '@google/genai';
 import { KnowledgeDocument, Citation, ChatMessage, SpecializedAI } from '../src/types.js';
 import { resolveConversationalQuery } from './ragQueryResolver.js';
 import {
@@ -26,26 +25,7 @@ import {
 } from './ragPipeline.js';
 import { generateEvidenceFirstAnswer } from './ragGenerator.js';
 import { ragTelemetryStore, RetrievalDiagnosticTrace, RagFailureClassification } from './ragTelemetryStore.js';
-
-let genAIClient: GoogleGenAI | null = null;
-
-function getGenAI(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.trim() === '') {
-    return null;
-  }
-  if (!genAIClient) {
-    genAIClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-  }
-  return genAIClient;
-}
+import { providerRouter } from './providers/providerRouter.js';
 
 export interface GroundedAnswerResult {
   answer: string;
@@ -214,9 +194,9 @@ export async function answerQuestionWithGroundedDocs(
   // 7. Evidence-First Answer Generation
   let answerText = '';
   let engineUsed: 'gemini-3.8-flash' | 'grounded-local-engine' = 'grounded-local-engine';
-  const ai = getGenAI();
+  const primaryProvider = providerRouter.getPrimaryProvider();
 
-  if (ai) {
+  if (primaryProvider?.isConfigured()) {
     try {
       // Build strictly grounded context containing ONLY reranked chunks
       let evidencePrompt = '=== RETRIEVED AUTHORITATIVE EVIDENCE CHUNKS ===\n\n';
@@ -243,7 +223,7 @@ export async function answerQuestionWithGroundedDocs(
 Your ONLY source of authoritative truth is the RETRIEVED AUTHORITATIVE EVIDENCE CHUNKS.
 Do NOT use pretrained general knowledge or extrapolate facts not present in the evidence.
 If the evidence does NOT contain the exact answer, refuse by setting isFoundInDocuments to false.
-Preserve exact entity names (e.g., AR-40, Singapore Central Logistics Hub) and exact numerical quantities.
+Preserve exact entity names and exact numerical quantities.
 ${styleInstruction}
 Return response in strict JSON:
 {
@@ -265,36 +245,43 @@ Return response in strict JSON:
       }
       userPrompt += `Question: ${retrievalQuery}\nProvide your grounded response in JSON format.`;
 
-      const response = await ai.models.generateContent({
+      const generation = await providerRouter.generate({
         model: 'gemini-3.8-flash',
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-        },
+        prompt: userPrompt,
+        systemInstruction,
+        responseFormat: 'json',
+        temperature: 0.1,
       });
 
-      const responseText = response.text || '';
-      let parsed: any;
-      try {
-        parsed = JSON.parse(responseText);
-      } catch {
-        const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        parsed = JSON.parse(cleanJson);
-      }
-
-      if (parsed && typeof parsed.answer === 'string' && parsed.isFoundInDocuments !== false) {
-        answerText = parsed.answer;
-        engineUsed = 'gemini-3.8-flash';
-      } else {
-        // Fallback to deterministic synthesizer
+      if (!generation.ok) {
+        console.warn(
+          `LLM provider generation failed (${generation.failure?.category || 'PROVIDER_ERROR'}), falling back to deterministic synthesizer:`,
+          generation.failure?.message || 'Unknown provider failure'
+        );
         const genResult = generateEvidenceFirstAnswer(retrievalQuery, reranked, specializedAi, memoryContext);
         answerText = genResult.answer;
         engineUsed = 'grounded-local-engine';
+      } else {
+        const responseText = generation.text || '';
+        let parsed: any;
+        try {
+          parsed = JSON.parse(responseText);
+        } catch {
+          const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          parsed = JSON.parse(cleanJson);
+        }
+
+        if (parsed && typeof parsed.answer === 'string' && parsed.isFoundInDocuments !== false) {
+          answerText = parsed.answer;
+          engineUsed = 'gemini-3.8-flash';
+        } else {
+          const genResult = generateEvidenceFirstAnswer(retrievalQuery, reranked, specializedAi, memoryContext);
+          answerText = genResult.answer;
+          engineUsed = 'grounded-local-engine';
+        }
       }
     } catch (err: any) {
-      console.warn('Gemini API generation failed, falling back to deterministic synthesizer:', err.message);
+      console.warn('Provider-routed generation failed, falling back to deterministic synthesizer:', err.message);
       const genResult = generateEvidenceFirstAnswer(retrievalQuery, reranked, specializedAi, memoryContext);
       answerText = genResult.answer;
       engineUsed = 'grounded-local-engine';
