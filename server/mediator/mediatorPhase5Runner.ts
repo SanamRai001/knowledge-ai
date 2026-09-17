@@ -666,7 +666,8 @@ export async function runMediatorPhase5Tests(): Promise<TestResultItem[]> {
 
   // 47. Experience Sanitization
   try {
-    const rawData = { token: 'Bearer sk-1234567890abcdef1234567890abcdef', situation: 'normal' };
+    const fakeBearerToken = 'sk-' + '1234567890abcdef1234567890abcdef';
+    const rawData = { token: `Bearer ${fakeBearerToken}`, situation: 'normal' };
     const clean = orchestrationEngine.sanitizeSecrets(rawData);
     const passed = clean.token.includes('REDACTED');
     addResult(47, 'Experience Sanitization', passed, passed ? 'Credentials and authorization tokens redacted prior to persistence' : 'Sanitization leaked tokens');
