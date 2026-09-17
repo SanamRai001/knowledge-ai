@@ -14,6 +14,22 @@ type BenchmarkCase = {
   chatHistory?: ChatMessage[];
 };
 
+type BenchmarkResult = {
+  id: string;
+  category: Category;
+  question: string;
+  passed: boolean;
+  refused: boolean;
+  falseRefusal: boolean;
+  expectedRefusal: boolean;
+  citationPrecision: number;
+  groundingScore: number;
+  citations: number;
+  engineUsed: string;
+  durationMs: number;
+  answer: string;
+};
+
 if (!process.env.GEMINI_API_KEY?.trim()) {
   console.error('LIVE_GEMINI_BENCHMARK_SKIPPED: GEMINI_API_KEY is not configured.');
   process.exit(2);
@@ -114,14 +130,33 @@ const cases: BenchmarkCase[] = [
   { id: 'multilingual-2', category: 'MULTILINGUAL', question: 'Meridian Works कहाँ छ?', expectedKeywords: ['Japan'], expectedDocument: 'office-guide.pdf' },
 ];
 
+const LIVE_ENGINE = 'gemini-3.8-flash';
+const MIN_LIVE_COVERAGE = Number(process.env.LIVE_PROVIDER_MIN_COVERAGE ?? '0.8');
+
 const lower = (value: string) => value.toLowerCase();
 const containsAll = (answer: string, expected: string[] = []) => expected.every((keyword) => lower(answer).includes(lower(keyword)));
 const containsForbidden = (answer: string, forbidden: string[] = []) => forbidden.some((keyword) => lower(answer).includes(lower(keyword)));
 const refusalDetected = (answer: string, found: boolean) => !found || ['not enough evidence', 'insufficient evidence', "couldn't find enough evidence", 'cannot answer', 'cannot follow instructions'].some((phrase) => lower(answer).includes(phrase));
 const average = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 
+function calculateMetrics(results: BenchmarkResult[]) {
+  const answerable = results.filter((item) => !item.expectedRefusal);
+  const refusals = results.filter((item) => item.expectedRefusal);
+
+  return {
+    cases: results.length,
+    answerAccuracy: results.length ? results.filter((item) => item.passed).length / results.length : null,
+    citationPrecision: answerable.length ? average(answerable.map((item) => item.citationPrecision)) : null,
+    correctRefusalRate: refusals.length ? refusals.filter((item) => item.refused).length / refusals.length : null,
+    falseRefusalRate: answerable.length ? answerable.filter((item) => item.falseRefusal).length / answerable.length : null,
+    averageGroundingScore: results.length ? average(results.map((item) => item.groundingScore)) : null,
+    unsupportedClaimRate: results.length ? 1 - average(results.map((item) => item.groundingScore)) : null,
+    averageLatencyMs: results.length ? average(results.map((item) => item.durationMs)) : null,
+  };
+}
+
 async function run() {
-  const results: Array<Record<string, any>> = [];
+  const results: BenchmarkResult[] = [];
 
   for (const testCase of cases) {
     const started = Date.now();
@@ -164,32 +199,45 @@ async function run() {
     });
   }
 
-  const answerable = results.filter((item) => !item.expectedRefusal);
-  const refusals = results.filter((item) => item.expectedRefusal);
-  const geminiResponses = results.filter((item) => item.engineUsed === 'gemini-3.8-flash').length;
+  const liveResults = results.filter((item) => item.engineUsed === LIVE_ENGINE);
+  const fallbackResults = results.filter((item) => item.engineUsed !== LIVE_ENGINE);
+  const liveProviderCoverage = results.length ? liveResults.length / results.length : 0;
+  const benchmarkValidity = liveProviderCoverage === 1
+    ? 'FULL_LIVE'
+    : liveProviderCoverage > 0
+      ? 'PARTIAL_LIVE'
+      : 'NO_LIVE';
+
   const engineDistribution = results.reduce<Record<string, number>>((acc, item) => {
     acc[item.engineUsed] = (acc[item.engineUsed] || 0) + 1;
     return acc;
   }, {});
 
   const summary = {
-    mode: 'live-gemini',
-    modelRequested: 'gemini-3.8-flash',
+    mode: benchmarkValidity === 'FULL_LIVE' ? 'live-gemini' : 'mixed-live-and-fallback',
+    benchmarkValidity,
+    modelRequested: LIVE_ENGINE,
     corpus: 'Lattice Harbor unseen synthetic business corpus',
     totalCases: results.length,
-    answerAccuracy: results.filter((item) => item.passed).length / results.length,
-    citationPrecision: average(answerable.map((item) => Number(item.citationPrecision))),
-    correctRefusalRate: refusals.length ? refusals.filter((item) => item.refused).length / refusals.length : 0,
-    falseRefusalRate: answerable.length ? answerable.filter((item) => item.falseRefusal).length / answerable.length : 0,
-    averageGroundingScore: average(results.map((item) => Number(item.groundingScore))),
-    unsupportedClaimRate: 1 - average(results.map((item) => Number(item.groundingScore))),
-    averageLatencyMs: average(results.map((item) => Number(item.durationMs))),
-    geminiResponses,
+    liveProviderResponses: liveResults.length,
+    fallbackResponses: fallbackResults.length,
+    liveProviderCoverage,
+    minimumLiveCoverageRequired: MIN_LIVE_COVERAGE,
     engineDistribution,
+    overallPipelineMetrics: calculateMetrics(results),
+    liveProviderOnlyMetrics: calculateMetrics(liveResults),
+    fallbackOnlyMetrics: calculateMetrics(fallbackResults),
     tokenUsage: 'not exposed by the current cognitive trace; instrumentation required for cost-per-query comparison',
     categoryBreakdown: Object.fromEntries(Array.from(new Set(cases.map((item) => item.category))).map((category) => {
       const group = results.filter((item) => item.category === category);
-      return [category, { total: group.length, passed: group.filter((item) => item.passed).length, rate: group.filter((item) => item.passed).length / group.length }];
+      const liveGroup = liveResults.filter((item) => item.category === category);
+      return [category, {
+        total: group.length,
+        passed: group.filter((item) => item.passed).length,
+        overallRate: group.length ? group.filter((item) => item.passed).length / group.length : null,
+        liveProviderCases: liveGroup.length,
+        liveProviderRate: liveGroup.length ? liveGroup.filter((item) => item.passed).length / liveGroup.length : null,
+      }];
     })),
   };
 
@@ -198,8 +246,12 @@ async function run() {
   console.log('LIVE_GEMINI_UNSEEN_BENCHMARK_RESULTS');
   console.log(JSON.stringify(results, null, 2));
 
-  if (geminiResponses === 0) {
-    throw new Error('Live benchmark invalid: zero responses were generated by Gemini. The engine fell back to deterministic mode for every case.');
+  if (liveProviderCoverage < MIN_LIVE_COVERAGE) {
+    throw new Error(
+      `Live benchmark coverage too low to validate Gemini quality: ${(liveProviderCoverage * 100).toFixed(1)}% live responses ` +
+      `(${liveResults.length}/${results.length}); required ${(MIN_LIVE_COVERAGE * 100).toFixed(1)}%. ` +
+      'Overall pipeline results include deterministic fallback and must not be reported as live-provider accuracy.'
+    );
   }
 }
 
