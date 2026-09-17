@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "check:benchmark-leakage": "node scripts/check-benchmark-leakage.mjs",
     "check:provider-boundary": "node scripts/check-provider-boundary.mjs",
+    "check:secret-hygiene": "node scripts/check-secret-hygiene.mjs",
     "check:workspace-isolation": "tsx scripts/check-workspace-isolation.ts",
     "benchmark:unseen": "tsx scripts/run-unseen-benchmark.ts",
     "benchmark:unseen:gemini": "tsx scripts/run-live-gemini-benchmark.ts"
