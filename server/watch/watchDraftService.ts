@@ -84,6 +84,19 @@ function cleanReference(value: string): string {
     .trim();
 }
 
+function parseExplicitReminderTime(value: string): number | null {
+  const text = value.trim();
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      text
+    )
+  ) {
+    return null;
+  }
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function normalizeHeader(value: string): string {
   return value
     .trim()
@@ -201,6 +214,58 @@ function deterministicParse(instruction: string): ParsedWatchDraft | null {
     ''
   );
 
+  const dateWindow = text.match(
+    /^(?:please\s+)?(?:remind me|tell me|warn me|alert me|notify me)\s+(\d{1,4})\s+days?\s+before\s+(order|invoice)\s+([A-Za-z0-9._\/-]+)\s+(?:is\s+)?due$/i
+  );
+  if (dateWindow) {
+    const daysBefore = Number(dateWindow[1]);
+    if (Number.isInteger(daysBefore) && daysBefore >= 0 && daysBefore <= 3650) {
+      const entityType =
+        dateWindow[2].toLowerCase() === 'invoice'
+          ? 'INVOICE'
+          : 'ORDER';
+      const reference = cleanReference(dateWindow[3]);
+      return {
+        request: {
+          kind: 'ENTITY_DATE_WINDOW',
+          entityType,
+          entityReference: reference,
+          predicate: 'DUE_DATE',
+          daysBefore,
+        },
+        proposedName:
+          String(daysBefore) +
+          ' day' +
+          (daysBefore === 1 ? '' : 's') +
+          ' before ' +
+          entityType.toLowerCase() +
+          ' ' +
+          reference +
+          ' is due',
+        parserSource: 'DETERMINISTIC',
+      };
+    }
+  }
+
+  const explicitTime = text.match(
+    /^(?:please\s+)?(?:remind me|tell me|alert me|notify me)\s+(?:at|on)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2}))$/i
+  );
+  if (explicitTime) {
+    const triggerAt = parseExplicitReminderTime(explicitTime[1]);
+    if (triggerAt !== null) {
+      return {
+        request: {
+          kind: 'TIME_REACHED',
+          triggerAt,
+          rawDateText: explicitTime[1],
+        },
+        proposedName:
+          'Reminder for ' + new Date(triggerAt).toISOString(),
+        parserSource: 'DETERMINISTIC',
+      };
+    }
+  }
+
   const stock = body.match(
     /^(.+?)\s+(?:current\s+)?stock\s+(drops below|falls below|at or below|no more than|below|under|less than|exceeds?|above|over|greater than|more than|at least)\s+((?:NPR|Rs\.?)?\s*[0-9][0-9,]*(?:\.[0-9]+)?\s*(?:k|m|l|lac|lakh)?)$/i
   );
@@ -310,6 +375,67 @@ function validateLlmParsed(raw: unknown): {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const value = raw as Record<string, unknown>;
 
+  const proposedName =
+    typeof value.proposedName === 'string' &&
+    value.proposedName.trim()
+      ? value.proposedName.trim().slice(0, 120)
+      : 'Business condition watch';
+
+  if (value.kind === 'ENTITY_DATE_WINDOW') {
+    const entityType =
+      value.entityType === 'ORDER' || value.entityType === 'INVOICE'
+        ? value.entityType
+        : null;
+    const entityReference =
+      typeof value.entityReference === 'string'
+        ? value.entityReference.trim()
+        : '';
+    const daysBefore =
+      typeof value.daysBefore === 'number' &&
+      Number.isInteger(value.daysBefore) &&
+      value.daysBefore >= 0 &&
+      value.daysBefore <= 3650
+        ? value.daysBefore
+        : null;
+
+    if (!entityType || !entityReference || daysBefore === null) {
+      return null;
+    }
+
+    return {
+      request: {
+        kind: 'ENTITY_DATE_WINDOW',
+        entityType,
+        entityReference,
+        predicate: 'DUE_DATE',
+        daysBefore,
+      },
+      proposedName,
+    };
+  }
+
+  if (value.kind === 'TIME_REACHED') {
+    const rawDateText =
+      typeof value.rawDateText === 'string'
+        ? value.rawDateText.trim()
+        : '';
+    const triggerAt = parseExplicitReminderTime(rawDateText);
+    if (triggerAt === null) return null;
+
+    return {
+      request: {
+        kind: 'TIME_REACHED',
+        triggerAt,
+        rawDateText,
+        timezone:
+          typeof value.timezone === 'string' && value.timezone.trim()
+            ? value.timezone.trim()
+            : undefined,
+      },
+      proposedName,
+    };
+  }
+
   const operator =
     typeof value.operator === 'string'
       ? (value.operator.toUpperCase() as WatchComparisonOperator)
@@ -327,12 +453,6 @@ function validateLlmParsed(raw: unknown): {
       ? value.threshold
       : null;
   if (threshold === null) return null;
-
-  const proposedName =
-    typeof value.proposedName === 'string' &&
-    value.proposedName.trim()
-      ? value.proposedName.trim().slice(0, 120)
-      : 'Business condition watch';
 
   if (value.kind === 'ENTITY_NUMERIC_THRESHOLD') {
     const entityType =
@@ -477,15 +597,33 @@ export class WatchDraftService {
           '  "proposedName":"short business-facing name"',
           '}',
           '',
-          '3) Unsupported:',
+          '3) Source-relative due-date reminder:',
+          '{',
+          '  "kind":"ENTITY_DATE_WINDOW",',
+          '  "entityType":"ORDER | INVOICE",',
+          '  "entityReference":"exact wording from user",',
+          '  "daysBefore":3,',
+          '  "proposedName":"short business-facing name"',
+          '}',
+          '',
+          '4) Explicit timestamp reminder:',
+          '{',
+          '  "kind":"TIME_REACHED",',
+          '  "rawDateText":"exact ISO-8601 timestamp with Z or numeric offset from the user",',
+          '  "timezone":"optional label only if explicitly stated",',
+          '  "proposedName":"short business-facing name"',
+          '}',
+          '',
+          '5) Unsupported:',
           '{"kind":"UNSUPPORTED"}',
           '',
           'Rules:',
           '- Never invent a product/order/invoice reference.',
           '- Convert explicit shorthand such as 500k to 500000.',
           '- Do not choose a dataset.',
-          '- Do not calculate stock, balances, or totals.',
-          '- Use UNSUPPORTED for deadlines, anomalies, arbitrary prose conditions, or unsupported rule types.',
+          '- Do not calculate stock, balances, totals, or due dates.',
+          '- For TIME_REACHED, accept only an explicit ISO-8601 timestamp that already appears in the user request. Never invent or convert a vague time.',
+          '- Use UNSUPPORTED for anomalies, vague dates/times, arbitrary prose conditions, or unsupported rule types.',
           '',
           'User request:',
           instruction,
@@ -613,7 +751,8 @@ export class WatchDraftService {
       condition,
       origin: 'NATURAL_LANGUAGE',
       evaluationMode: 'INTERVAL',
-      intervalMinutes: 60,
+      intervalMinutes:
+        condition.kind === 'TIME_REACHED' ? 5 : 60,
     });
 
     const savedDraft = watchStore.updateDraft(
@@ -665,7 +804,33 @@ export class WatchDraftService {
     const expiresAt = Date.now() + WATCH_DRAFT_TTL_MS;
     const request = params.parsed.request;
 
-    if (request.kind === 'ENTITY_NUMERIC_THRESHOLD') {
+    if (request.kind === 'TIME_REACHED') {
+      const condition: WatchCondition = {
+        kind: 'TIME_REACHED',
+        triggerAt: request.triggerAt,
+        timezone: request.timezone,
+      };
+      const validated = watchService.validateCondition(
+        params.accountId,
+        condition
+      );
+
+      return watchStore.createDraft({
+        accountId: params.accountId,
+        instruction: params.instruction,
+        status: 'PROPOSED',
+        parserSource: params.parsed.parserSource,
+        proposedName: params.parsed.proposedName,
+        parsedRequest: request,
+        condition: validated,
+        expiresAt,
+      });
+    }
+
+    if (
+      request.kind === 'ENTITY_NUMERIC_THRESHOLD' ||
+      request.kind === 'ENTITY_DATE_WINDOW'
+    ) {
       const exact = exactEntityMatches(
         params.accountId,
         request.entityType,
@@ -673,13 +838,18 @@ export class WatchDraftService {
       );
 
       if (exact.length === 1) {
-        const condition: WatchCondition = {
-          kind: 'ENTITY_NUMERIC_THRESHOLD',
+        const candidate: WatchDraftCandidate = {
+          key: exact[0].id,
+          kind: 'ENTITY',
+          label: exact[0].canonicalName,
           entityId: exact[0].id,
-          predicate: request.predicate,
-          operator: request.operator,
-          threshold: request.threshold,
+          reason: 'Exact entity match.',
         };
+        const condition = this.conditionFromCandidate(
+          params.accountId,
+          request,
+          candidate
+        );
         const validated = watchService.validateCondition(
           params.accountId,
           condition
@@ -780,7 +950,10 @@ export class WatchDraftService {
     request: ParsedWatchRequest,
     candidate: WatchDraftCandidate
   ): WatchCondition {
-    if (request.kind === 'ENTITY_NUMERIC_THRESHOLD') {
+    if (
+      request.kind === 'ENTITY_NUMERIC_THRESHOLD' ||
+      request.kind === 'ENTITY_DATE_WINDOW'
+    ) {
       if (
         candidate.kind !== 'ENTITY' ||
         !candidate.entityId
