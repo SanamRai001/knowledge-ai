@@ -15,13 +15,19 @@ export interface InsightRowReference {
 }
 
 export interface InsightEvidence {
-  datasetId: string;
-  datasetVersionId: string;
-  datasetVersionNumber: number;
+  sourceType: 'DATASET' | 'DOCUMENT';
   sourceFilename: string;
-  sourceSha256: string;
-  tableId: string;
-  tableName: string;
+  sourceSha256?: string;
+  datasetId?: string;
+  datasetVersionId?: string;
+  datasetVersionNumber?: number;
+  tableId?: string;
+  tableName?: string;
+  knowledgeBaseId?: string;
+  knowledgeVersionTag?: string;
+  documentId?: string;
+  pageNumber?: number;
+  excerpt?: string;
   detectorId: string;
   detectorVersion: string;
   calculation: string;
@@ -33,8 +39,10 @@ export interface Insight {
   id: string;
   fingerprint: string;
   accountId: string;
-  datasetId: string;
-  datasetVersionId: string;
+  datasetId?: string;
+  datasetVersionId?: string;
+  knowledgeBaseId?: string;
+  documentId?: string;
   analysisRunId: string;
   type: InsightType;
   severity: InsightSeverity;
@@ -57,8 +65,11 @@ export interface Insight {
 export interface AnalysisRun {
   id: string;
   accountId: string;
-  datasetId: string;
-  datasetVersionId: string;
+  sourceType: 'DATASET' | 'DOCUMENT';
+  datasetId?: string;
+  datasetVersionId?: string;
+  knowledgeBaseId?: string;
+  knowledgeVersionTag?: string;
   status: 'RUNNING' | 'COMPLETED' | 'FAILED';
   startedAt: number;
   completedAt?: number;
@@ -71,6 +82,14 @@ export interface AnalysisRun {
 export interface DetectorContext {
   accountId: string;
   datasetId: string;
+  analysisRunId: string;
+  referenceTime: number;
+}
+
+export interface DocumentDetectorContext {
+  accountId: string;
+  knowledgeBaseId: string;
+  knowledgeVersionTag: string;
   analysisRunId: string;
   referenceTime: number;
 }
