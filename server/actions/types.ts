@@ -92,6 +92,8 @@ export interface ActionExecution {
   intent: ActionIntent;
   claimIds: string[];
   eventIds: string[];
+  downstreamAnalysisRunIds?: string[];
+  downstreamWarnings?: string[];
   executedAt: number;
 }
 
