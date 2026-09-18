@@ -14,6 +14,7 @@ import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowled
 import { SOURCE_AUTHORITIES } from '../server/companyKnowledge/sourceAuthority.js';
 import { structuredKnowledgeProjectionService } from '../server/companyKnowledge/structuredKnowledgeProjectionService.js';
 import { datasetService } from '../server/datasets/datasetService.js';
+import { datasetRouter } from '../server/datasets/datasetRouter.js';
 import { structuredAnalyticsEngine } from '../server/datasets/structuredAnalyticsEngine.js';
 import { discoveryService } from '../server/discovery/discoveryService.js';
 
@@ -47,6 +48,7 @@ function resolvedNumber(
 async function main() {
   const accountA = 'acc_actions_phase4_a';
   const accountB = 'acc_actions_phase4_b';
+  const accountC = 'acc_actions_phase4_auto_projection';
   const now = new Date('2026-09-18T12:00:00Z');
 
   const ordersCsv = [
@@ -573,6 +575,7 @@ async function main() {
 
   const app = express();
   app.use(express.json());
+  app.use('/api/datasets', datasetRouter);
   app.use('/api/actions', actionRouter);
   const server = app.listen(0, '127.0.0.1');
 
@@ -597,6 +600,72 @@ async function main() {
       accountId: accountB,
       environment: 'test',
     });
+
+    const { secret: secretC } = apiKeyStore.createApiKey({
+      name: 'Phase 4 Actions Auto Projection',
+      accountId: accountC,
+      environment: 'test',
+    });
+
+    const autoProjectionCsv = [
+      'order_id,order_date,customer_id,customer_name,grand_total,amount_paid,balance_due,status',
+      'AUTO-1,2026-09-18,AC-1,Auto Customer,10000,2000,8000,OPEN',
+    ].join('\n');
+    const form = new FormData();
+    form.append(
+      'file',
+      new Blob([autoProjectionCsv], { type: 'text/csv' }),
+      'auto-actions.csv'
+    );
+    form.append('datasetName', 'Auto Action Source');
+
+    const importResponse = await fetch(
+      baseUrl + '/api/datasets/import',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + secretC },
+        body: form,
+      }
+    );
+    assert(
+      importResponse.status === 201,
+      'HTTP dataset import for auto-projection proof failed.'
+    );
+    const importBody = await importResponse.json();
+    assert(
+      importBody.knowledgeProjection?.status === 'COMPLETED',
+      'Successful HTTP dataset import must project its current version into living company knowledge automatically.'
+    );
+
+    const autoProposalResponse = await fetch(
+      baseUrl + '/api/actions/propose',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + secretC,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instruction: 'Auto Customer paid 1k today.',
+          allowLlmParsing: false,
+        }),
+      }
+    );
+    assert(
+      autoProposalResponse.status === 201,
+      'Action proposal should work immediately after an HTTP data import without a manual Knowledge refresh.'
+    );
+    const autoProposalBody = await autoProposalResponse.json();
+    assert(
+      autoProposalBody.proposal?.status === 'PROPOSED' &&
+        autoProposalBody.proposal?.mutations?.some(
+          (mutation: any) =>
+            mutation.predicate === 'BALANCE_DUE' &&
+            mutation.beforeValue === 8000 &&
+            mutation.afterValue === 7000
+        ),
+      'Auto-projected import must be immediately usable by the safe action resolver.'
+    );
 
     const ownDetail = await fetch(
       baseUrl + '/api/actions/' + paymentProposal.id,
