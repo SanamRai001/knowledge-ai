@@ -17,7 +17,7 @@ The Discovery Engine must calculate candidate findings deterministically first. 
 2B Ranking, deduplication, prioritization    COMPLETE
 2C Deadlines + version change detection      COMPLETE
 2D Richer anomaly/opportunity detectors      COMPLETE
-2E Insights UI + final Phase 2 audit         IN PROGRESS
+2E Insights UI + final Phase 2 audit         COMPLETE
 ```
 
 ## Phase 2A — Insight + analysis-run foundation
@@ -142,17 +142,42 @@ Verified:
 
 ## Phase 2E — Insights UI + final gate
 
-Add a user-facing **Insights** surface focused on a few important findings rather than a BI dashboard.
+Implemented a first-class **Insights** workspace focused on a prioritized attention feed rather than a BI dashboard.
 
-Each insight must support:
+The product surface includes:
 
-- title and concise explanation
-- type/severity/confidence
-- “why this matters”
-- evidence/provenance
-- related dataset/source
-- generated time
-- drill into supporting records/calculation
-- status lifecycle when Phase 2B is complete
+- “Things worth your attention” positioning
+- source filtering across datasets and the active document workspace
+- type filters for risks, anomalies, changes, opportunities, deadlines, and data quality
+- OPEN / ACKNOWLEDGED / RESOLVED lifecycle filters
+- deterministic priority ordering without exposing raw detector internals
+- confidence, severity, source, last-seen time, and occurrence count
+- calculation/evidence drill-down
+- exact document excerpts/page evidence
+- dataset version/hash provenance
+- supporting row references where available
+- Analyze now across one source or all available sources
+- acknowledge / resolve / reopen actions
+- direct dataset evidence deep-linking
 
-The UI should hide detector/architecture jargon from normal users.
+## Phase 2E verification
+
+Final Quality Gate run `35366183054` passed on the integrated Phase 2 product surface.
+
+It passed:
+
+- TypeScript
+- production build
+- workspace and dataset isolation
+- Phase 1 ingestion/analytics/routing/UI regression gates
+- Phase 2A discovery proof
+- Phase 2B prioritization/lifecycle proof
+- Phase 2C version-change/deadline proof
+- Phase 2D richer detector proof
+- Phase 2E Insights UI contract proof
+- arithmetic grounding
+- deterministic synthesis
+- unseen-corpus benchmark
+- live Gemini unseen-corpus benchmark step
+
+**Phase 2 status: COMPLETE.**
