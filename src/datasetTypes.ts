@@ -107,6 +107,12 @@ export interface AnalyticalProvenance {
   selectedColumns: string[];
   firstPeriodMatchedRowCount?: number;
   secondPeriodMatchedRowCount?: number;
+  companyStateOverlay?: {
+    applied: boolean;
+    applicationCount: number;
+    claimIds: string[];
+    authorityLevels: string[];
+  };
 }
 
 export interface UnifiedAnalyticsResponse {
