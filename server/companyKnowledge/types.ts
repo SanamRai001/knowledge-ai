@@ -133,3 +133,16 @@ export interface KnowledgeSnapshotCounts {
   currentClaims: number;
   events: number;
 }
+
+
+export interface KnowledgeConflict {
+  id: string;
+  accountId: string;
+  subjectEntityId: string;
+  predicate: string;
+  claimIds: string[];
+  distinctValues: KnowledgeClaimValue[];
+  highestAuthorityRank: number;
+  preferredClaimId?: string;
+  resolution: 'HIGHER_AUTHORITY_AVAILABLE' | 'AUTHORITY_TIE';
+}
