@@ -71,6 +71,9 @@ jobs:
       - name: Phase 2B prioritization proof
         run: npm run check:phase2b-prioritization
 
+      - name: Phase 2C change and deadline proof
+        run: npm run check:phase2c-change-deadline
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
