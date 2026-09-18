@@ -4,6 +4,7 @@ import {
   DatasetTable,
   DatasetVersion,
 } from '../datasets/types.js';
+import { datasetStore } from '../datasets/datasetStore.js';
 import {
   companyKnowledgeStore,
   normalizeEntityName,
@@ -287,6 +288,14 @@ export class EffectiveDatasetOverlayService {
   }): EffectiveDatasetView {
     const version = structuredClone(params.version);
     const overlays: EffectiveDatasetOverlayApplication[] = [];
+
+    const dataset = datasetStore.requireDataset(
+      params.accountId,
+      params.datasetId
+    );
+    if (dataset.currentVersionId !== params.version.id) {
+      return { version, overlays };
+    }
     const minimumOverlayAuthority =
       SOURCE_AUTHORITIES.STRUCTURED_SOURCE.rank + 1;
 
