@@ -44,7 +44,17 @@ export class DiscoveryStore {
       ) as Partial<PersistedDiscoveryState>;
 
       for (const run of parsed.runs || []) this.runs.set(run.id, run);
-      for (const insight of parsed.insights || []) this.insights.set(insight.id, insight);
+      for (const insight of parsed.insights || []) {
+        const normalized: Insight = {
+          ...insight,
+          priorityScore: insight.priorityScore ?? 0,
+          priorityReasons: insight.priorityReasons || [],
+          firstSeenAt: insight.firstSeenAt ?? insight.createdAt,
+          lastSeenAt: insight.lastSeenAt ?? insight.createdAt,
+          occurrenceCount: insight.occurrenceCount ?? 1,
+        };
+        this.insights.set(normalized.id, normalized);
+      }
     } catch (error) {
       console.warn(
         'Could not load discovery runtime state; starting with an empty discovery store:',
@@ -74,9 +84,36 @@ export class DiscoveryStore {
   }
 
   public saveInsights(insights: Insight[]): Insight[] {
-    for (const insight of insights) this.insights.set(insight.id, clone(insight));
+    const persisted: Insight[] = [];
+
+    for (const insight of insights) {
+      const existing = Array.from(this.insights.values()).find(
+        (candidate) =>
+          candidate.accountId === insight.accountId &&
+          candidate.fingerprint === insight.fingerprint
+      );
+
+      if (existing) {
+        const updated: Insight = {
+          ...insight,
+          id: existing.id,
+          status: existing.status,
+          statusUpdatedAt: existing.statusUpdatedAt,
+          createdAt: existing.createdAt,
+          firstSeenAt: existing.firstSeenAt,
+          lastSeenAt: insight.lastSeenAt,
+          occurrenceCount: existing.occurrenceCount + 1,
+        };
+        this.insights.set(updated.id, clone(updated));
+        persisted.push(updated);
+      } else {
+        this.insights.set(insight.id, clone(insight));
+        persisted.push(insight);
+      }
+    }
+
     this.save();
-    return insights.map(clone);
+    return persisted.map(clone);
   }
 
   public listRuns(accountId: string, datasetId?: string): AnalysisRun[] {
@@ -121,8 +158,28 @@ export class DiscoveryStore {
           (!params.runId || insight.analysisRunId === params.runId) &&
           (!params.status || insight.status === params.status)
       )
-      .sort((a, b) => b.createdAt - a.createdAt)
+      .sort(
+        (a, b) =>
+          b.priorityScore - a.priorityScore ||
+          b.lastSeenAt - a.lastSeenAt
+      )
       .map(clone);
+  }
+
+  public updateInsightStatus(
+    accountId: string,
+    insightId: string,
+    status: InsightStatus
+  ): Insight {
+    const insight = this.requireInsight(accountId, insightId);
+    const updated: Insight = {
+      ...insight,
+      status,
+      statusUpdatedAt: Date.now(),
+    };
+    this.insights.set(updated.id, clone(updated));
+    this.save();
+    return clone(updated);
   }
 
   public getInsight(accountId: string, insightId: string): Insight | null {
