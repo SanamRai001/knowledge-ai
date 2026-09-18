@@ -62,7 +62,10 @@ Key commits include:
 - `50ae7f83349a0f193350e6045e5bdd3bff212322` — account-scoped KB store
 - `01828927f14e7e80a7547ed4df8d8f68282324d1` — account scope through workspace access
 - `8282505cdefbb0d1bbf44ffaacfb5d267e00ce95` / `a36f229b92fd57d342943642537af42c996fba1f` — executable isolation proof
-- `b998021ad230512fb2313517c8e5d676e554d8db` — CI enforcement
+- `b998021ad230512fb2313517c8e5d676e554d8db` — service/store CI enforcement
+- `d220381300a34ae89767f351a3ce108ca2023849` — account-scoped workspace HTTP router
+- `184109d926efdf5ee049d01ccbe1fb47cdbc7fc7` — mounted secure router before legacy handlers
+- `20c2a09840a511817655814d1a6827174d195a6e` / `3656162c35db62fbcae40ee3c8e6f4482d4f0b08` — executable HTTP isolation proof + CI enforcement
 
 CI now proves that a caller cannot use a foreign KB/workspace identifier to:
 
@@ -73,7 +76,9 @@ CI now proves that a caller cannot use a foreign KB/workspace identifier to:
 - leak evidence through retrieval indexes
 - spoof account identity through an untrusted header
 
-The isolation rule is enforced at backend service/store boundaries rather than only in UI routing.
+The isolation rule is enforced at backend service/store boundaries and the mounted normal HTTP API rather than only in UI routing.
+
+Final HTTP-boundary verification: Quality Gate run `35356012529` passed.
 
 ## Phase 0D — COMPLETE
 
