@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import { datasetStore } from '../datasets/datasetStore.js';
+import { workspaceAccessService } from '../workspaceAccessService.js';
 import { detectOutstandingBalances } from './balanceDetector.js';
 import { detectDataQuality } from './dataQualityDetector.js';
+import { detectDocumentDeadlines } from './documentDeadlineDetector.js';
 import { discoveryStore } from './discoveryStore.js';
 import { detectInventoryThresholds } from './inventoryDetector.js';
 import { detectTrendChanges } from './trendDetector.js';
@@ -113,14 +115,81 @@ export class DiscoveryService {
     }
   }
 
-  public listRuns(accountId: string, datasetId?: string): AnalysisRun[] {
+  public analyzeKnowledgeBase(params: {
+    accountId: string;
+    knowledgeBaseId: string;
+    referenceTime?: number;
+  }): { run: AnalysisRun; insights: Insight[] } {
+    const kb = workspaceAccessService.requireKB(
+      params.accountId,
+      params.knowledgeBaseId
+    );
+    const referenceTime = params.referenceTime || Date.now();
+
+    const run: AnalysisRun = {
+      id: 'anr_' + crypto.randomBytes(8).toString('hex'),
+      accountId: params.accountId,
+      sourceType: 'DOCUMENT',
+      knowledgeBaseId: kb.id,
+      knowledgeVersionTag: kb.currentVersion,
+      status: 'RUNNING',
+      startedAt: Date.now(),
+      referenceTime,
+      detectorIds: ['document.deadline.v1'],
+      insightIds: [],
+    };
+    discoveryStore.saveRun(run);
+
+    try {
+      const insights = discoveryStore.saveInsights(
+        detectDocumentDeadlines(
+          {
+            accountId: params.accountId,
+            knowledgeBaseId: kb.id,
+            knowledgeVersionTag: kb.currentVersion,
+            analysisRunId: run.id,
+            referenceTime,
+          },
+          kb
+        )
+      );
+
+      const completed: AnalysisRun = {
+        ...run,
+        status: 'COMPLETED',
+        completedAt: Date.now(),
+        insightIds: insights.map((insight) => insight.id),
+      };
+      discoveryStore.saveRun(completed);
+      return { run: completed, insights };
+    } catch (error: any) {
+      const failed: AnalysisRun = {
+        ...run,
+        status: 'FAILED',
+        completedAt: Date.now(),
+        error: error?.message || 'Document discovery analysis failed.',
+      };
+      discoveryStore.saveRun(failed);
+      throw error;
+    }
+  }
+
+  public listRuns(
+    accountId: string,
+    datasetId?: string,
+    knowledgeBaseId?: string
+  ): AnalysisRun[] {
     if (datasetId) datasetStore.requireDataset(accountId, datasetId);
-    return discoveryStore.listRuns(accountId, datasetId);
+    if (knowledgeBaseId) {
+      workspaceAccessService.requireKB(accountId, knowledgeBaseId);
+    }
+    return discoveryStore.listRuns(accountId, datasetId, knowledgeBaseId);
   }
 
   public listInsights(params: {
     accountId: string;
     datasetId?: string;
+    knowledgeBaseId?: string;
     runId?: string;
     status?: InsightStatus;
     latestRunOnly?: boolean;
@@ -128,6 +197,12 @@ export class DiscoveryService {
   }): Insight[] {
     if (params.datasetId) {
       datasetStore.requireDataset(params.accountId, params.datasetId);
+    }
+    if (params.knowledgeBaseId) {
+      workspaceAccessService.requireKB(
+        params.accountId,
+        params.knowledgeBaseId
+      );
     }
 
     let insights: Insight[];
@@ -140,6 +215,8 @@ export class DiscoveryService {
         .filter(
           (insight) =>
             (!params.datasetId || insight.datasetId === params.datasetId) &&
+            (!params.knowledgeBaseId ||
+              insight.knowledgeBaseId === params.knowledgeBaseId) &&
             (!params.status || insight.status === params.status)
         )
         .sort(
@@ -147,10 +224,14 @@ export class DiscoveryService {
             b.priorityScore - a.priorityScore ||
             b.lastSeenAt - a.lastSeenAt
         );
-    } else if (params.latestRunOnly !== false && params.datasetId) {
+    } else if (
+      params.latestRunOnly !== false &&
+      (params.datasetId || params.knowledgeBaseId)
+    ) {
       const latestRun = discoveryStore.listRuns(
         params.accountId,
-        params.datasetId
+        params.datasetId,
+        params.knowledgeBaseId
       )[0];
       if (!latestRun) return [];
       insights = latestRun.insightIds
@@ -166,6 +247,7 @@ export class DiscoveryService {
       insights = discoveryStore.listInsights({
         accountId: params.accountId,
         datasetId: params.datasetId,
+        knowledgeBaseId: params.knowledgeBaseId,
         status: params.status,
       });
     }
