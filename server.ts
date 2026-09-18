@@ -62,6 +62,7 @@ import { ChatMessage, ApiChatRequest, ApiChatResponse, ApiErrorResponse, MemoryS
 import { workspaceRouter } from './server/workspaceRouter.js';
 import { datasetRouter } from './server/datasets/datasetRouter.js';
 import { queryRouter } from './server/querying/queryRouter.js';
+import { discoveryRouter } from './server/discovery/discoveryRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -97,6 +98,7 @@ const upload = multer({
 app.use('/api/kb', workspaceRouter);
 app.use('/api/datasets', datasetRouter);
 app.use('/api/query', queryRouter);
+app.use('/api/insights', discoveryRouter);
 
 // --- API ROUTES ---
 
