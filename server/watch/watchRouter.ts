@@ -347,6 +347,24 @@ watchRouter.post('/rules/:id/archive', (req, res) => {
   }
 });
 
+watchRouter.get('/jobs', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      jobs: watchStore.listJobs({
+        accountId,
+        watchRuleId:
+          typeof req.query.watchRuleId === 'string'
+            ? req.query.watchRuleId
+            : undefined,
+        limit: limitFrom(req.query.limit, 100),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
 watchRouter.get('/alerts', (req, res) => {
   try {
     const { accountId } = identity(res);
