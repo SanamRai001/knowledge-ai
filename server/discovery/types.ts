@@ -45,6 +45,12 @@ export interface Insight {
   detectorId: string;
   detectorVersion: string;
   evidence: InsightEvidence;
+  priorityScore: number;
+  priorityReasons: string[];
+  firstSeenAt: number;
+  lastSeenAt: number;
+  occurrenceCount: number;
+  statusUpdatedAt?: number;
   createdAt: number;
 }
 
