@@ -11,7 +11,7 @@ import { actionStore } from './actionStore.js';
 import {
   EffectiveKnowledgeResolution,
   effectiveCompanyStateService,
-} from './effectiveCompanyStateService.js';
+} from '../companyKnowledge/effectiveCompanyStateService.js';
 import {
   ActionParserSource,
   ActionProposal,
