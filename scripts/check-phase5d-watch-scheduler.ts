@@ -78,12 +78,6 @@ async function main() {
     maxJobs: 20,
   });
 
-  assert(
-    firstCycle.enqueuedJobIds.length === 1 &&
-      firstCycle.completedJobIds.length === 1,
-    'Due interval rule must enqueue and complete one durable job.'
-  );
-
   const firstJob = watchStore.listJobs({
     accountId: accountA,
     watchRuleId: dueRule.id,
@@ -91,7 +85,14 @@ async function main() {
   })[0];
 
   assert(
-    firstJob?.status === 'COMPLETED' &&
+    firstJob &&
+      firstCycle.enqueuedJobIds.includes(firstJob.id) &&
+      firstCycle.completedJobIds.includes(firstJob.id),
+    'Due interval rule must enqueue and complete its durable job even when other persisted watches are also due.'
+  );
+
+  assert(
+    firstJob.status === 'COMPLETED' &&
       firstJob.attemptCount === 1 &&
       Boolean(firstJob.evaluationId),
     'Completed WatchJob must record one attempt and the resulting evaluation ID.'
@@ -134,13 +135,13 @@ async function main() {
     maxJobs: 20,
   });
   assert(
-    repeatedCycle.processedJobIds.length === 0 &&
+    !repeatedCycle.processedJobIds.includes(firstJob.id) &&
       watchStore.listJobs({
         accountId: accountA,
         watchRuleId: dueRule.id,
         limit: 20,
       }).length === 1,
-    'Repeating the scheduler cycle at the same time must not duplicate or re-run the completed slot.'
+    'Repeating the scheduler cycle at the same time must not duplicate or re-run this completed schedule slot.'
   );
 
   const restartRule = watchService.createRule({
