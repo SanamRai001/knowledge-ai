@@ -24,7 +24,7 @@ import {
   ActionRefinementError,
   actionRefinementService,
 } from './actionRefinementService.js';
-import { EffectiveStateError } from './effectiveCompanyStateService.js';
+import { EffectiveStateError } from '../companyKnowledge/effectiveCompanyStateService.js';
 import { ActionProposalStatus } from './types.js';
 
 export const actionRouter = express.Router();
