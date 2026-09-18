@@ -47,6 +47,17 @@ export type WatchCondition =
       }>;
       operator: WatchComparisonOperator;
       threshold: number;
+    }
+  | {
+      kind: 'ENTITY_DATE_WINDOW';
+      entityId: string;
+      predicate: string;
+      daysBefore: number;
+    }
+  | {
+      kind: 'TIME_REACHED';
+      triggerAt: number;
+      timezone?: string;
     };
 
 export interface WatchRule {
@@ -126,6 +137,26 @@ export type WatchEvidence =
         claimIds: string[];
         authorityLevels: string[];
       };
+    }
+  | {
+      sourceType: 'ENTITY_DATE';
+      entityId: string;
+      entityLabel: string;
+      predicate: string;
+      effectiveClaimId: string;
+      dateValue: string;
+      targetAt: number;
+      evaluatedAt: number;
+      daysUntil: number;
+      authorityLevel: string;
+      sourceName: string;
+      sourceVersionId?: string;
+    }
+  | {
+      sourceType: 'TIME';
+      triggerAt: number;
+      evaluatedAt: number;
+      timezone?: string;
     };
 
 export interface WatchEvaluation {
