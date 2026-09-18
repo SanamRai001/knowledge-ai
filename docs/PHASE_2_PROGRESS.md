@@ -15,9 +15,9 @@ The Discovery Engine must calculate candidate findings deterministically first. 
 ```text
 2A Insight + analysis-run foundation         COMPLETE
 2B Ranking, deduplication, prioritization    COMPLETE
-2C Deadlines + version change detection      IN PROGRESS
-2D Richer anomaly/opportunity detectors      NOT STARTED
-2E Insights UI + final Phase 2 audit         NOT STARTED
+2C Deadlines + version change detection      COMPLETE
+2D Richer anomaly/opportunity detectors      COMPLETE
+2E Insights UI + final Phase 2 audit         IN PROGRESS
 ```
 
 ## Phase 2A — Insight + analysis-run foundation
@@ -98,6 +98,24 @@ Add:
 - “what materially changed?” candidates
 - explicit distinction between fact, calculation, and inference
 
+## Phase 2C verification
+
+Quality Gate run `35365820123` passed the Phase 2C proof after two useful regressions were found and fixed:
+
+- single-table CSV versions are treated as the same logical table even when the re-import filename changes
+- workspace ownership failures now preserve their authoritative 404 status through the discovery HTTP router instead of being converted to 500
+
+Verified behavior includes:
+
+- consecutive immutable dataset-version row-count changes
+- added/removed schema columns
+- previous/current version IDs and source hashes in evidence
+- explicit document deadlines only when a parseable date appears with deadline/due/expiry/renewal language
+- exact document ID, page number, excerpt, knowledge version, date, and days-until evidence
+- historical dates are excluded
+- repeated deadline findings deduplicate canonically
+- document discovery remains knowledge-base/account scoped
+
 ## Phase 2D — Richer detectors
 
 Add measured detector families only where the available schema supports them:
@@ -109,6 +127,18 @@ Add measured detector families only where the available schema supports them:
 - inventory movement/risk where temporal inventory data exists
 
 Do not fabricate business semantics when the source schema does not support them.
+
+## Phase 2D verification
+
+Quality Gate run `35365820123` also passed the dedicated richer-detector proof.
+
+Verified:
+
+- time-series anomaly detection against a measured recent baseline
+- customer revenue concentration without implying future customer loss
+- product margin opportunity only when explicit product, revenue, and cost fields exist
+- exact baseline mean/deviation, concentration share, weighted margin, margin lift, and source provenance
+- richer findings participate in the same deterministic prioritization pipeline
 
 ## Phase 2E — Insights UI + final gate
 
