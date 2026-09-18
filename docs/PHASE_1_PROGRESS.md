@@ -11,7 +11,7 @@ Phase 1 turns structured business files into first-class queryable company data.
 1B XLSX + schema correction                COMPLETE
 1C Deterministic analytical query layer    COMPLETE
 1D Analytical routing + provenance         COMPLETE
-1E Dataset UI + final Phase 1 audit        NEXT
+1E Dataset UI + final Phase 1 audit        COMPLETE
 ```
 
 ## Phase 1A — Dataset foundation + CSV ingestion
@@ -127,14 +127,53 @@ Add:
 
 ## Phase 1E — UI + final gate
 
-Add **Knowledge > Datasets**:
+Implemented a first-class **Datasets** workspace with:
 
-- upload
-- preview
-- schema
-- import status
+- CSV/XLSX drag-and-drop and file selection
+- preview before import
+- inferred schema inspection
+- user type corrections with validation
+- missing/duplicate warnings
+- import progress/error/success states
 - data preview
-- versions/history
-- provenance drill-down
+- source filename/format/hash metadata
+- immutable version history
+- lightweight summary/history APIs so the UI does not download full 50k-row datasets just to render a preview
+- direct **Ask this dataset** handoff
 
-The UI is not a spreadsheet editor.
+The primary **Ask** workspace now uses `POST /api/query/ask` rather than the legacy document-only chat endpoint. It:
+
+- carries both dataset and document source context
+- automatically distinguishes structured analytics from document knowledge
+- displays deterministic analytical results and provenance
+- displays document evidence separately
+- exposes the hybrid trust model: LLM for language, deterministic code for business calculations
+
+The UI remains an intelligence/query experience rather than a spreadsheet editor.
+
+## Phase 1E verification
+
+Final Quality Gate run `35363150876` passed on the latest main commit.
+
+The run passed:
+
+- benchmark leakage guard
+- provider-boundary guard
+- secret/runtime-state hygiene
+- telemetry integrity
+- TypeScript
+- production build
+- workspace service isolation
+- workspace HTTP isolation
+- structured-data foundation
+- dataset HTTP isolation, including lightweight UI summary/history endpoints
+- XLSX/schema correction proof
+- deterministic structured analytics
+- analytical question routing
+- Phase 1 UI contract proof
+- arithmetic grounding
+- deterministic synthesis
+- unseen-corpus benchmark
+- live Gemini unseen-corpus benchmark step
+
+**Phase 1 status: COMPLETE.**
