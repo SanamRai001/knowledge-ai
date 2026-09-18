@@ -110,6 +110,9 @@ jobs:
       - name: Phase 5E alert lifecycle proof
         run: npm run check:phase5e-alert-lifecycle
 
+      - name: Phase 5F smart reminder proof
+        run: npm run check:phase5f-smart-reminders
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
