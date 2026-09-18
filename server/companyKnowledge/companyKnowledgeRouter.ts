@@ -13,6 +13,7 @@ import {
 import { structuredKnowledgeProjectionService } from './structuredKnowledgeProjectionService.js';
 import { documentKnowledgeProjectionService } from './documentKnowledgeProjectionService.js';
 import { knowledgeConflictService } from './knowledgeConflictService.js';
+import { companyKnowledgeChangeService, KnowledgeChangeError } from './companyKnowledgeChangeService.js';
 import { CompanyEntityType } from './types.js';
 
 export const companyKnowledgeRouter = express.Router();
@@ -44,7 +45,8 @@ function handleError(res: express.Response, error: any): void {
     error instanceof RequestIdentityError ||
     error instanceof DatasetAccessError ||
     error instanceof WorkspaceAccessError ||
-    error instanceof CompanyKnowledgeAccessError
+    error instanceof CompanyKnowledgeAccessError ||
+    error instanceof KnowledgeChangeError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -144,6 +146,65 @@ companyKnowledgeRouter.post('/project/documents', (req, res) => {
     res.status(201).json({
       run,
       summary: companyKnowledgeStore.snapshotCounts(accountId),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+companyKnowledgeRouter.get('/changes/compare', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const fromRunId =
+      typeof req.query.fromRunId === 'string'
+        ? req.query.fromRunId.trim()
+        : '';
+    const toRunId =
+      typeof req.query.toRunId === 'string'
+        ? req.query.toRunId.trim()
+        : '';
+
+    if (!fromRunId || !toRunId) {
+      res.status(400).json({
+        error: 'fromRunId and toRunId are required.',
+        code: 'CHANGE_RUN_IDS_REQUIRED',
+      });
+      return;
+    }
+
+    res.json({
+      changes: companyKnowledgeChangeService.compareProjectionRuns({
+        accountId,
+        fromRunId,
+        toRunId,
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+companyKnowledgeRouter.get('/changes/since', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const since =
+      typeof req.query.since === 'string'
+        ? Number(req.query.since)
+        : Number.NaN;
+
+    if (!Number.isFinite(since)) {
+      res.status(400).json({
+        error: 'since must be a timestamp.',
+        code: 'INVALID_CHANGE_WINDOW',
+      });
+      return;
+    }
+
+    res.json({
+      changes: companyKnowledgeChangeService.changesSince({
+        accountId,
+        since,
+      }),
     });
   } catch (error) {
     handleError(res, error);
