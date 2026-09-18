@@ -28,7 +28,8 @@
     "check:phase2d-richer-detectors": "tsx scripts/check-phase2d-richer-detectors.ts",
     "check:phase2e-ui": "tsx scripts/check-phase2e-ui-contract.ts",
     "check:phase3ab-company-knowledge": "tsx scripts/check-phase3ab-company-knowledge.ts",
-    "check:phase3c-cross-source": "tsx scripts/check-phase3c-cross-source.ts"
+    "check:phase3c-cross-source": "tsx scripts/check-phase3c-cross-source.ts",
+    "check:phase3d-what-changed": "tsx scripts/check-phase3d-what-changed.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
