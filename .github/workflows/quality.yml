@@ -77,6 +77,9 @@ jobs:
       - name: Phase 2D richer detector proof
         run: npm run check:phase2d-richer-detectors
 
+      - name: Phase 2E Insights UI proof
+        run: npm run check:phase2e-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
