@@ -40,6 +40,17 @@ function normalizePredicate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '_');
 }
 
+function parseDateClaim(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  const parsed = Date.parse(
+    /^\d{4}-\d{2}-\d{2}$/.test(text)
+      ? text + 'T00:00:00Z'
+      : text
+  );
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export class WatchService {
   public createRule(params: {
     accountId: string;
@@ -143,16 +154,14 @@ export class WatchService {
     accountId: string,
     condition: WatchCondition
   ): WatchCondition {
-    if (
-      !Number.isFinite(condition.threshold)
-    ) {
-      throw new WatchValidationError(
-        'WATCH_CONDITION_INVALID',
-        'Watch threshold must be a finite number.'
-      );
-    }
-
     if (condition.kind === 'ENTITY_NUMERIC_THRESHOLD') {
+      if (!Number.isFinite(condition.threshold)) {
+        throw new WatchValidationError(
+          'WATCH_CONDITION_INVALID',
+          'Watch threshold must be a finite number.'
+        );
+      }
+
       const entity = companyKnowledgeStore.requireEntity(
         accountId,
         condition.entityId
@@ -186,6 +195,68 @@ export class WatchService {
         ...condition,
         predicate,
       };
+    }
+
+    if (condition.kind === 'ENTITY_DATE_WINDOW') {
+      if (
+        !Number.isInteger(condition.daysBefore) ||
+        condition.daysBefore < 0 ||
+        condition.daysBefore > 3650
+      ) {
+        throw new WatchValidationError(
+          'WATCH_CONDITION_INVALID',
+          'Date-window watches require daysBefore between 0 and 3650.'
+        );
+      }
+
+      const entity = companyKnowledgeStore.requireEntity(
+        accountId,
+        condition.entityId
+      );
+      const predicate = normalizePredicate(condition.predicate);
+      const state = effectiveCompanyStateService.resolve(
+        accountId,
+        entity.id,
+        predicate
+      );
+
+      if (
+        state.status !== 'RESOLVED' ||
+        parseDateClaim(state.value) === null
+      ) {
+        throw new WatchValidationError(
+          'WATCH_ENTITY_STATE_INVALID',
+          state.status === 'CONFLICT'
+            ? 'The watched entity has conflicting highest-authority date values.'
+            : 'The watched entity does not currently expose a parseable date for this predicate.'
+        );
+      }
+
+      return {
+        ...condition,
+        predicate,
+      };
+    }
+
+    if (condition.kind === 'TIME_REACHED') {
+      if (
+        !Number.isFinite(condition.triggerAt) ||
+        condition.triggerAt <= Date.now()
+      ) {
+        throw new WatchValidationError(
+          'WATCH_CONDITION_INVALID',
+          'Time reminders require a future triggerAt timestamp.'
+        );
+      }
+
+      return structuredClone(condition);
+    }
+
+    if (!Number.isFinite(condition.threshold)) {
+      throw new WatchValidationError(
+        'WATCH_CONDITION_INVALID',
+        'Watch threshold must be a finite number.'
+      );
     }
 
     if (
@@ -229,7 +300,6 @@ export class WatchService {
     }
 
     return structuredClone(condition);
-  }
-}
+  }}
 
 export const watchService = new WatchService();
