@@ -1292,9 +1292,9 @@ Phases 0–5 have passed their exit gates.
 Continue with:
 
 ```text
-6A. Shared IntegrationConnector + connection/sync models ← CURRENT
+6A. Shared IntegrationConnector + connection/sync models ✅
         ↓
-6B. First live cloud-file connector
+6B. First live cloud-file connector ← CURRENT
         ↓
 6C. Second connector through the same abstraction
         ↓
