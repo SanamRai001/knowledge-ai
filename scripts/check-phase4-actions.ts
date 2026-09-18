@@ -255,6 +255,61 @@ async function main() {
     'Discovery refresh must use the confirmed balance overlay and disclose the exact action claim in evidence.'
   );
 
+  const laterImport = datasetService.importCsv({
+    accountId: accountA,
+    buffer: Buffer.from(ordersCsv, 'utf8'),
+    filename: 'phase4-orders-v2.csv',
+    existingDatasetId: orders.dataset.id,
+  });
+
+  const historicalView = structuredAnalyticsEngine.execute({
+    accountId: accountA,
+    datasetId: orders.dataset.id,
+    versionId: orders.version.id,
+    plan: {
+      tableName: orders.version.tables[0].name,
+      filters: [
+        {
+          column: 'order_id',
+          operator: 'EQ',
+          value: 'O-100',
+        },
+      ],
+      select: ['order_id', 'amount_paid', 'balance_due'],
+      limit: 10,
+    },
+  });
+  assert(
+    historicalView.rows[0].balance_due === 42000 &&
+      historicalView.rows[0].amount_paid === 30000 &&
+      historicalView.provenance.companyStateOverlay?.applied === false,
+    'Explicit historical dataset-version reads must remain immutable and must not receive current confirmed-state overlays.'
+  );
+
+  const currentVersionView = structuredAnalyticsEngine.execute({
+    accountId: accountA,
+    datasetId: orders.dataset.id,
+    versionId: laterImport.version.id,
+    plan: {
+      tableName: laterImport.version.tables[0].name,
+      filters: [
+        {
+          column: 'order_id',
+          operator: 'EQ',
+          value: 'O-100',
+        },
+      ],
+      select: ['order_id', 'amount_paid', 'balance_due'],
+      limit: 10,
+    },
+  });
+  assert(
+    currentVersionView.rows[0].balance_due === 32000 &&
+      currentVersionView.rows[0].amount_paid === 40000 &&
+      currentVersionView.provenance.companyStateOverlay?.applied === true,
+    'The latest dataset version must continue to honor confirmed company state without mutating its raw source rows.'
+  );
+
   const structuredBalanceStillExists = companyKnowledgeStore
     .listClaims({
       accountId: accountA,
