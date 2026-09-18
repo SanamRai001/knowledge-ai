@@ -95,6 +95,9 @@ jobs:
       - name: Phase 4 safe actions proof
         run: npm run check:phase4-actions
 
+      - name: Phase 4E Actions UI proof
+        run: npm run check:phase4e-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
