@@ -134,6 +134,17 @@ const FACT_COLUMNS: Array<{
     numeric: true,
   },
   {
+    predicate: 'PAID_AMOUNT',
+    terms: [
+      'amount paid',
+      'paid amount',
+      'total paid',
+      'paid',
+      'payment received',
+    ],
+    numeric: true,
+  },
+  {
     predicate: 'QUANTITY',
     terms: ['quantity', 'qty', 'units'],
     numeric: true,
