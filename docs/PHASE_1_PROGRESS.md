@@ -9,8 +9,8 @@ Phase 1 turns structured business files into first-class queryable company data.
 ```text
 1A Dataset foundation + CSV ingestion      COMPLETE
 1B XLSX + schema correction                COMPLETE
-1C Deterministic analytical query layer    IN PROGRESS
-1D Analytical routing + provenance         NOT STARTED
+1C Deterministic analytical query layer    COMPLETE
+1D Analytical routing + provenance         IN PROGRESS
 1E Dataset UI + final Phase 1 audit        NOT STARTED
 ```
 
@@ -98,6 +98,22 @@ Add:
 - date range comparisons
 - row limits and time limits
 - no free-form LLM arithmetic
+
+## Phase 1C verification
+
+Quality Gate run `35357717230` passed with the dedicated deterministic analytics proof plus every existing regression gate.
+
+Verified behavior includes:
+
+- safe closed analytical query plans rather than raw SQL
+- deterministic filters, projection, grouping, sorting, and limits
+- `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `DISTINCT_COUNT`
+- deterministic date-period comparisons
+- historical DatasetVersion reproducibility
+- dataset/source/version/filter/row-count calculation provenance
+- query/time/result safety limits
+- type mismatch and unknown-column rejection
+- mounted dataset analytics API account isolation
 
 ## Phase 1D — Analytical routing + provenance
 
