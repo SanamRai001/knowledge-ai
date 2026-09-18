@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header, ActiveTab } from './components/Header';
-import { DocumentSidebar } from './components/DocumentSidebar';
-import { ChatArea } from './components/ChatArea';
+import { DatasetWorkspace } from './components/DatasetWorkspace';
+import { UnifiedAskView } from './components/UnifiedAskView';
 import { SpecializedAIConfig } from './components/SpecializedAIConfig';
 import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
@@ -30,6 +30,7 @@ export default function App() {
   const [activeKb, setActiveKb] = useState<KnowledgeBase | null>(null);
   const [allKbs, setAllKbs] = useState<{ id: string; name: string; documentCount: number }[]>([]);
   const [currentTab, setCurrentTab] = useState<ActiveTab>('playground');
+  const [preferredDatasetId, setPreferredDatasetId] = useState<string | null>(null);
 
   // Loading states
   const [isUploading, setIsUploading] = useState(false);
@@ -469,39 +470,26 @@ export default function App() {
 
       {/* Primary Tab Workspaces */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Tab 1: Grounded Playground (Chat + Document Quickbar) */}
+        {/* Ask: unified structured-data + document knowledge experience */}
         {currentTab === 'playground' && (
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full h-full min-h-0">
-            <DocumentSidebar
-              documents={activeKb?.documents || []}
-              onUploadFiles={handleUploadFiles}
-              onRemoveDocument={handleRemoveDocument}
-              onRetryDocument={handleRetryDocument}
-              onLoadSampleDocs={handleLoadSampleDocs}
-              onViewDocument={(doc) => {
-                setViewingInitialPage(1);
-                setViewingDocument(doc);
-              }}
-              isUploading={isUploading}
-              isLoadingSamples={isLoadingSamples}
-            />
-
-            <ChatArea
-              messages={activeKb?.chatHistory || []}
-              documents={activeKb?.documents || []}
-              specializedAi={activeKb?.specializedAi}
-              versionTag={activeKb?.currentVersion || 'v1.0'}
-              processingStatus={activeKb?.processingStatus || 'empty'}
-              onSendMessage={handleSendMessage}
-              onClearChat={handleClearChat}
-              onLoadSampleDocs={handleLoadSampleDocs}
-              onViewDocumentPage={handleViewDocumentPage}
-              isSending={isSending}
-            />
-          </div>
+          <UnifiedAskView
+            activeKnowledgeBaseId={activeKb?.id}
+            activeKnowledgeBaseName={activeKb?.name}
+            documentCount={activeKb?.documents?.length || 0}
+            preferredDatasetId={preferredDatasetId}
+          />
         )}
 
-        {/* Tab 2: Knowledge Base & Versions */}
+        {/* Structured business datasets */}
+        {currentTab === 'datasets' && (
+          <DatasetWorkspace
+            onDatasetChange={(datasetId) => {
+              if (datasetId) setPreferredDatasetId(datasetId);
+            }}
+          />
+        )}
+
+        {/* Documents: knowledge base and versions */}
         {currentTab === 'knowledge' && activeKb && (
           <KnowledgeVersioningView
             activeKb={activeKb}
@@ -521,7 +509,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 3: Specialized AI Configuration */}
+        {/* Specialized AI configuration */}
         {currentTab === 'config' && activeKb && (
           <SpecializedAIConfig
             specializedAi={
@@ -546,7 +534,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Evaluation Benchmark Center */}
+        {/* Evaluation benchmark center */}
         {currentTab === 'evaluations' && activeKb && (
           <EvaluationCenter
             activeKb={activeKb}
@@ -557,7 +545,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 5: Developer Platform & REST API */}
+        {/* Developer platform and REST API */}
         {currentTab === 'developer' && (
           <DeveloperPlatform activeKb={activeKb} />
         )}
