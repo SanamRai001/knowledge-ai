@@ -23,6 +23,7 @@ export interface DatasetColumnSchema {
   name: string;
   normalizedName: string;
   inferredType: DatasetColumnType;
+  typeSource: 'INFERRED' | 'USER_OVERRIDE';
   nullable: boolean;
   missingCount: number;
   distinctCount: number;
