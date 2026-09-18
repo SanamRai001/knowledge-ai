@@ -56,10 +56,10 @@ function main() {
   );
 
   assert(
-    datasets.includes('/versions/') &&
-      datasets.includes('Source SHA-256') &&
+    datasets.includes("/versions'") &&
+      datasets.includes('Source hash') &&
       datasets.includes('Version history'),
-    'Datasets UI must expose immutable version/source provenance.'
+    'Datasets UI must expose version-history and source-hash provenance.'
   );
 
   assert(
