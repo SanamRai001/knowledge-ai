@@ -89,6 +89,9 @@ jobs:
       - name: Phase 3D What changed proof
         run: npm run check:phase3d-what-changed
 
+      - name: Phase 3E living Knowledge UI proof
+        run: npm run check:phase3e-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
