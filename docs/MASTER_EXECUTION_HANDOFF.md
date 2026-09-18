@@ -986,6 +986,6 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 5C — Natural-language watch creation.**
+> **Continue with Phase 5D — durable/retryable Watch scheduling.**
 
-Phase 5A/5B are complete and green in Quality Gate `35372866426`. The next concrete work is the proposed-rule/draft flow: natural language → bounded structured watch → deterministic validation → preview → explicit save.
+Phase 5A/5B are green in Quality Gate `35372866426`. Phase 5C is green in Quality Gate `35373492302`. The next concrete work is persisted WatchJob scheduling: due interval rules → idempotent jobs → stale-job recovery → retry-safe evaluation → evaluation IDs, followed by Phase 5E alert lifecycle completion.
