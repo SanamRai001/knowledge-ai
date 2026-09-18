@@ -307,16 +307,22 @@ export class WatchEvaluator {
           }) || undefined;
       }
 
+      const oneShotReminderCompleted =
+        rule.condition.kind === 'TIME_REACHED' && measured.matched;
+
       const updatedRule = watchStore.updateRule(
         params.accountId,
         rule.id,
         {
+          status: oneShotReminderCompleted ? 'PAUSED' : rule.status,
           currentState: measured.matched ? 'TRUE' : 'FALSE',
           lastEvaluationAt: evaluatedAt,
           lastTriggeredAt: measured.matched
             ? evaluatedAt
             : rule.lastTriggeredAt,
-          nextEvaluationAt: nextEvaluationAt(rule, evaluatedAt),
+          nextEvaluationAt: oneShotReminderCompleted
+            ? undefined
+            : nextEvaluationAt(rule, evaluatedAt),
         }
       );
 
