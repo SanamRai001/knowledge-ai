@@ -36,6 +36,7 @@ const COLUMN_TYPES: DatasetColumnType[] = [
 type SchemaOverrides = Record<string, Record<string, DatasetColumnType>>;
 
 interface DatasetWorkspaceProps {
+  preferredDatasetId?: string | null;
   onDatasetChange?: (datasetId: string | null) => void;
   onAskDataset?: (datasetId: string) => void;
 }
@@ -57,6 +58,7 @@ function cellText(value: unknown): string {
 }
 
 export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
+  preferredDatasetId,
   onDatasetChange,
   onAskDataset,
 }) => {
@@ -129,6 +131,23 @@ export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
   useEffect(() => {
     loadDatasets();
   }, [loadDatasets]);
+
+  useEffect(() => {
+    if (
+      preferredDatasetId &&
+      preferredDatasetId !== selectedDatasetId &&
+      !file &&
+      !preview
+    ) {
+      loadDataset(preferredDatasetId);
+    }
+  }, [
+    preferredDatasetId,
+    selectedDatasetId,
+    file,
+    preview,
+    loadDataset,
+  ]);
 
   const previewFile = async (nextFile: File, overrides: SchemaOverrides = {}) => {
     setFile(nextFile);
