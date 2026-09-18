@@ -83,6 +83,12 @@ export interface AnalyticalProvenance {
   }>;
   selectedColumns: string[];
   executionMs: number;
+  companyStateOverlay?: {
+    applied: boolean;
+    applicationCount: number;
+    claimIds: string[];
+    authorityLevels: string[];
+  };
 }
 
 export interface AnalyticalQueryResult {
