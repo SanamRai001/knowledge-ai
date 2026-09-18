@@ -50,6 +50,7 @@ export interface CompanyEntity {
   type: CompanyEntityType;
   canonicalName: string;
   normalizedName: string;
+  identityKey: string;
   aliases: string[];
   sourceRefs: KnowledgeSourceRef[];
   createdAt: number;
