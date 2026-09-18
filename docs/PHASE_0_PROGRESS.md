@@ -1,6 +1,6 @@
 # Knowledge AI — Phase 0 Progress
 
-Last updated: **2026-09-17**
+Last updated: **2026-09-18**
 
 This is the short, living progress tracker for the Phase 0 work defined in `PHASE_0_AUDIT.md` and `IMPLEMENTATION_ROADMAP.md`.
 
@@ -9,65 +9,31 @@ This is the short, living progress tracker for the Phase 0 work defined in `PHAS
 ```text
 0A Honest live-provider evaluation   COMPLETE
 0B Provider abstraction              COMPLETE
-0C Workspace isolation               NEXT / BLOCKER
-0D Persistence/security hygiene      NOT STARTED
-0E Telemetry/evaluation hardening    PARTIAL
-0F Final exit-gate audit             NOT STARTED
+0C Workspace isolation               COMPLETE
+0D Persistence/security hygiene      COMPLETE
+0E Telemetry/evaluation hardening    VERIFYING IN CI
+0F Final exit-gate audit             NEXT
 ```
 
 ## Phase 0A — COMPLETE
 
 Primary commit: `ea8602494d74edf5e951a10a046813cc6045ce77`
 
-`scripts/run-live-gemini-benchmark.ts` now distinguishes:
+The live-provider benchmark now separates:
 
 - overall pipeline metrics
 - live-provider-only metrics
 - fallback-only metrics
-- live-provider response count
-- fallback response count
 - live-provider coverage
 - benchmark validity (`FULL_LIVE`, `PARTIAL_LIVE`, `NO_LIVE`)
 
-It also requires a minimum live-provider coverage (80% by default, configurable through `LIVE_PROVIDER_MIN_COVERAGE`) before the run can be treated as a valid provider-quality benchmark.
-
-### Verification
-
-The first CI run after this change hit Gemini free-tier quota limits.
-
-Observed result:
-
-```text
-mode: mixed-live-and-fallback
-benchmarkValidity: NO_LIVE
-liveProviderResponses: 0
-fallbackResponses: 20
-liveProviderCoverage: 0
-```
-
-The deterministic fallback pipeline still passed all 20 cases, but those results were correctly reported only under `overallPipelineMetrics` / `fallbackOnlyMetrics`.
-
-`liveProviderOnlyMetrics` contained no fabricated accuracy values.
-
-The script then rejected the provider benchmark because live coverage was below the required threshold.
-
-This is the desired behavior: **fallback resilience must never be presented as measured live-model quality.**
-
-The main Quality Gate remains non-blocking for provider quota/rate-limit failures because the live-provider workflow step currently uses `continue-on-error`. The invalidity is still explicit in the benchmark output.
+Fallback resilience can no longer be presented as measured Gemini quality.
 
 ## Phase 0B — COMPLETE
 
-Key commits:
+Provider-specific SDK ownership is isolated under `server/providers/`.
 
-- `6f5c8b69d79a3bf3a0493540a00866055cecff0c` — provider-neutral contract
-- `a1a57e31a59047d35ab05b2210fed08c27d50c49` — Gemini provider adapter
-- `5ebbc35de9da2073d1d0a97e25bde404c343869f` — provider router
-- `44f4cf90b4a056ffad115d020e9d5e37d885e9d7` — cognitive engine cutover
-- `006a7a4d27398c7d423e067f24f5c8540826b71b` — grounded RAG cutover
-- `925304b77a92d15d0ccf7a05758b6e64200a500a` — provider-boundary guard
-- `9e62bf99bc02c5fb4f9248985db35e5d2f23f76d` — CI enforcement
-
-Implemented architecture:
+Production generation now follows:
 
 ```text
 Knowledge AI reasoning / grounded RAG
@@ -77,89 +43,81 @@ Knowledge AI reasoning / grounded RAG
         LLMProvider
               ↓
        GeminiProvider
-              ↓
-          Gemini SDK
 ```
 
-The deterministic evidence-only synthesizers remain explicit application fallbacks outside the live-provider abstraction.
+The provider contract exposes structured failures, capabilities, health, measured/unavailable token usage, and provider latency.
 
-### Provider contract
+CI permanently enforces the boundary with `check:provider-boundary`.
 
-`server/providers/types.ts` now defines:
+## Phase 0C — COMPLETE
 
-- `LLMProvider.generate()`
-- `LLMProvider.healthCheck()`
-- `LLMProvider.capabilities()`
-- structured provider failures
-- structured measured/unavailable token-usage metadata
+Key commits include:
 
-Provider failures are classified into categories such as:
+- `e6cb3551807dfa29680101d3c4a99439e26b42d4` — authoritative request account resolution
+- `b09aae6cd298f08cb711b39fe0f1cc6a88279b0b` — ownership enforcement service
+- `373bbe7afe0592dfe4717a9ba271383313008973` — strict Specialized AI ownership
+- `50ae7f83349a0f193350e6045e5bdd3bff212322` — account-scoped KB store
+- `01828927f14e7e80a7547ed4df8d8f68282324d1` — account scope through workspace access
+- `8282505cdefbb0d1bbf44ffaacfb5d267e00ce95` / `a36f229b92fd57d342943642537af42c996fba1f` — executable isolation proof
+- `b998021ad230512fb2313517c8e5d676e554d8db` — CI enforcement
 
-- `NOT_CONFIGURED`
-- `RATE_LIMITED`
-- `TIMEOUT`
-- `UNAVAILABLE`
-- `AUTHENTICATION`
-- `INVALID_REQUEST`
-- `PROVIDER_ERROR`
+CI now proves that a caller cannot use a foreign KB/workspace identifier to:
 
-### Boundary enforcement
+- read another account's KB
+- mutate or delete another account's KB
+- switch the active KB across accounts
+- query another account's Specialized AI
+- leak evidence through retrieval indexes
+- spoof account identity through an untrusted header
 
-Gemini SDK ownership now lives under `server/providers/`.
+The isolation rule is enforced at backend service/store boundaries rather than only in UI routing.
 
-Both production generation paths use `ProviderRouter`:
+## Phase 0D — COMPLETE
 
-- `server/cognitiveEngine/knowledgeCognitiveEngine.ts`
-- `server/geminiService.ts`
+Key commits include:
 
-`scripts/check-provider-boundary.mjs` scans production server TypeScript and fails if `@google/genai` or `GoogleGenAI` appears outside `server/providers/`.
+- `ab67281e2e9e30dd2620cb13e0eef01389b65901` — ignore runtime state
+- `5295eca2019367f9548d093549b12881c1f1ca2e` — remove tracked API-key metadata
+- `8f28c90c31405274d0effb9b4fc7cdf2f19d962f` — remove tracked usage logs
+- `0489fa01eb6cc188117772f285ae76a7a12b8ee0` — remove tracked KB runtime state
+- `6b67918af3db0cc8918d885b250057d8662d93b5` — remove tracked memory/learning state
+- `3a2096a4b6c3e5643e07f52aba9b0b036d756578` through `9299fcc64997c7459d19daa06ce711d961b4bc3c` — secret/runtime-state hygiene guard and fixture cleanup
 
-The Quality Gate runs this check before TypeScript/build.
+Mutable local runtime state is no longer source-controlled application data.
 
-### Verification
+`check:secret-hygiene` scans tracked files for known raw credential patterns and fails if forbidden runtime JSON becomes tracked again. The final Phase 0D Quality Gate run `35253388596` passed.
 
-Quality Gate run `35250380557` on commit `9e62bf99bc02c5fb4f9248985db35e5d2f23f76d` completed successfully.
+File-backed storage remains an explicitly documented prototype persistence mechanism; relational migration is intentionally incremental rather than a Phase 0 rewrite.
 
-Passed steps include:
+## Phase 0E — VERIFYING IN CI
 
-- benchmark leakage guard
-- LLM provider boundary guard
-- TypeScript check
-- production build
-- arithmetic grounding proof guard
-- deterministic synthesis guard
-- unseen-corpus effectiveness benchmark
-- live Gemini benchmark step
+Current implementation:
 
-Phase 0B exit conditions are therefore satisfied.
+- removed fake `1 query = 1 measured token` accounting
+- records token usage only when the provider exposes measured usage metadata
+- records actual provider-call usage separately from token usage
+- exposes provider failure category/retryability in the cognitive trace
+- exposes measured provider generation latency
+- represents unavailable fusion/reranking/reasoning timings as `null` instead of fake zeros or duplicated timings
+- adds a measured synthesis-stage duration
+- live Gemini benchmark now reports measured token coverage/totals when available
+- deterministic unseen benchmark now gates answer accuracy, retrieval, citation precision, refusal accuracy, false-refusal rate, and grounding independently
+- live-provider benchmark applies provider-only quality thresholds after minimum live coverage is met
+- `check:telemetry-integrity` prevents the old misleading metric patterns from returning
 
-## Phase 0C — NEXT / BLOCKER
+Primary Phase 0E commits:
 
-Make workspace/account ownership authoritative across normal application data access and retrieval.
+- `4500979bd6b2e3811bea67a5f339abd70e2f00ef`
+- `8d78951602f21b5338ad2f30930722476bbf4de0`
+- `f8a76ccf504fee7f4c04a626ab0df1d72fd16eb6`
+- `c0d55958684d06039de2873dad95c4e5aacf7e38`
+- `5a810c6d60b5420b1cd52f7aaed4808431f9b682`
+- `ecdc55655a016a477b80ac207bd7ab60149023b4`
 
-Required invariants:
+0E becomes COMPLETE only after the full Quality Gate on the latest commit is green.
 
-```text
-Account A → its own workspace / KB       ALLOW
-Account A → Account B workspace / KB     DENY
-Account B → Account A workspace / KB     DENY
-```
+## Phase 0F — NEXT
 
-This must apply to:
+Re-run the Phase 0 exit-gate scorecard against the actual main branch.
 
-- KB reads
-- KB updates/deletes
-- active-KB switching
-- document upload/removal
-- specialized-AI configuration
-- versions/evaluations
-- chat/query generation
-- retrieval/index access
-
-Phase 0C is complete only when cross-workspace read, mutation, and retrieval attempts are executable tests in CI and are denied at the service/store boundary rather than merely hidden in the UI.
-
-## Remaining Phase 0 blockers after 0B
-
-1. authoritative workspace/KB isolation with executable cross-workspace tests
-
-Major Phase 1 structured-data work should remain blocked until Phase 0C is resolved.
+Major Phase 1 structured-data work starts only if every Phase 0 blocker is green.
