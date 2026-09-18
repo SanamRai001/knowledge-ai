@@ -1292,11 +1292,11 @@ Phases 0–4 have passed their exit gates.
 Continue with:
 
 ```text
-5A. WatchRule / WatchEvaluation / WatchAlert foundation
+5A. WatchRule / WatchEvaluation / WatchAlert foundation ✅
         ↓
-5B. Deterministic rule evaluator
+5B. Deterministic rule evaluator ✅
         ↓
-5C. Natural-language watch creation
+5C. Natural-language watch creation ← CURRENT
         ↓
 5D. Durable/retryable evaluation worker
         ↓
