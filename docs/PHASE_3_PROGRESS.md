@@ -11,11 +11,11 @@ Phase 3 turns isolated documents/datasets into a living, provenance-preserving c
 ## Execution slices
 
 ```text
-3A Entity / fact / relationship / event foundation   IN PROGRESS
-3B Source authority + structured-data projection     NOT STARTED
-3C Cross-source linking + document observations      NOT STARTED
-3D Temporal history + "What changed?"                NOT STARTED
-3E Knowledge UI + final Phase 3 audit                NOT STARTED
+3A Entity / fact / relationship / event foundation   COMPLETE
+3B Source authority + structured-data projection     COMPLETE
+3C Cross-source linking + document observations      COMPLETE
+3D Temporal history + "What changed?"                COMPLETE
+3E Knowledge UI + final Phase 3 audit                COMPLETE
 ```
 
 ## Phase 3A — Company knowledge foundation
@@ -103,3 +103,82 @@ User-facing Knowledge should evolve beyond Documents/Datasets into:
 - What changed?
 
 The UI should favor understandable business concepts over graph-engine terminology.
+
+
+## Phase 3 verification
+
+### 3A / 3B
+
+Quality Gate run `35367700186` passed the living-company-knowledge foundation proof.
+
+Verified:
+
+- deterministic account-scoped entity identity
+- explicit identifiers separated from human display names
+- aliases and provenance
+- persistent relationships
+- OBSERVATION / FACT / INFERENCE claim contract
+- explicit source authority model
+- structured dataset projection
+- order/product/customer/supplier/branch relationships
+- order facts and business-event history
+- inventory state observations only when product rows are unambiguous
+- immutable source-version claim history
+- older-version replay cannot roll current knowledge backward
+- same-version replay does not duplicate company knowledge objects
+- HTTP account isolation
+
+### 3C
+
+Quality Gate run `35367869316` passed cross-source knowledge behavior.
+
+Verified:
+
+- conservative document projection
+- exact page/excerpt provenance
+- unique name/alias matching across document and structured sources
+- merged multi-source relationship evidence
+- explicit cross-source conflicts
+- higher-authority preference without hiding disagreement
+- document workspace isolation
+- GraphRAG experiment remains separate from authoritative company memory
+
+### 3D
+
+Final integrated Quality Gate run `35368501600` passed deterministic temporal-history behavior.
+
+Verified:
+
+- source-scoped projection-run comparisons
+- entity additions/removals
+- relationship additions/removals
+- observation additions/removals/changes
+- changes-since timestamp
+- unrelated source comparisons rejected
+- dataset source-version identity
+- content-derived document snapshot identity
+- document changes remain distinguishable even when the human version label is unchanged
+- historical claims are preserved rather than overwritten
+
+### 3E
+
+Quality Gate run `35368501600` also passed the living Knowledge UI contract.
+
+The main application now exposes a first-class **Knowledge** workspace with:
+
+- entity catalog and search/type filters
+- current observations
+- OBSERVATION/FACT/INFERENCE labeling
+- source authority
+- explicit conflict display
+- relationships
+- exact evidence sources
+- historical observations
+- entity timeline
+- company timeline
+- Refresh knowledge
+- deterministic **What changed?**
+- dataset deep-links
+- business-facing language instead of GraphRAG implementation jargon
+
+**Phase 3 status: COMPLETE.**
