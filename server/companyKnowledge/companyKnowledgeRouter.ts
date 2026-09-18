@@ -11,6 +11,7 @@ import {
 } from './companyKnowledgeStore.js';
 import { structuredKnowledgeProjectionService } from './structuredKnowledgeProjectionService.js';
 import { documentKnowledgeProjectionService } from './documentKnowledgeProjectionService.js';
+import { knowledgeConflictService } from './knowledgeConflictService.js';
 import { CompanyEntityType } from './types.js';
 
 export const companyKnowledgeRouter = express.Router();
@@ -247,6 +248,24 @@ companyKnowledgeRouter.get('/claims', (req, res) => {
             : undefined,
         currentOnly: req.query.currentOnly !== 'false',
         limit: limitFrom(req.query.limit, 200),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+companyKnowledgeRouter.get('/conflicts', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      conflicts: knowledgeConflictService.listConflicts({
+        accountId,
+        entityId:
+          typeof req.query.entityId === 'string'
+            ? req.query.entityId
+            : undefined,
+        limit: limitFrom(req.query.limit, 100),
       }),
     });
   } catch (error) {
