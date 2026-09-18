@@ -8,6 +8,7 @@ import { Header, ActiveTab } from './components/Header';
 import { DatasetWorkspace } from './components/DatasetWorkspace';
 import { UnifiedAskView } from './components/UnifiedAskView';
 import { InsightsWorkspace } from './components/InsightsWorkspace';
+import { CompanyKnowledgeWorkspace } from './components/CompanyKnowledgeWorkspace';
 import { SpecializedAIConfig } from './components/SpecializedAIConfig';
 import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
@@ -411,6 +412,19 @@ export default function App() {
         {/* Proactive discovery */}
         {currentTab === 'insights' && (
           <InsightsWorkspace
+            activeKnowledgeBaseId={activeKb?.id}
+            activeKnowledgeBaseName={activeKb?.name}
+            documentCount={activeKb?.documents?.length || 0}
+            onOpenDataset={(datasetId) => {
+              setPreferredDatasetId(datasetId);
+              setCurrentTab('datasets');
+            }}
+          />
+        )}
+
+        {/* Living company knowledge: entities, relationships, truth sources, and history */}
+        {currentTab === 'company' && (
+          <CompanyKnowledgeWorkspace
             activeKnowledgeBaseId={activeKb?.id}
             activeKnowledgeBaseName={activeKb?.name}
             documentCount={activeKb?.documents?.length || 0}
