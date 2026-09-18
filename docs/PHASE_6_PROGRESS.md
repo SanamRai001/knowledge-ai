@@ -15,8 +15,8 @@ Phase 6 connects Knowledge AI to external systems without creating isolated prov
 ## Execution slices
 
 ```text
-6A Integration foundation / connector contract          IN PROGRESS
-6B First live cloud-file connector                      NOT STARTED
+6A Integration foundation / connector contract          COMPLETE
+6B First live cloud-file connector                      IN PROGRESS
 6C Second connector on the same abstraction             NOT STARTED
 6D Sync/retry/revocation/permission hardening           NOT STARTED
 6E Integrations UI + final Phase 6 audit                NOT STARTED
@@ -144,3 +144,51 @@ Phase 6 is complete only when:
 **Phase 6A — shared connector foundation**
 
 Start by auditing the current Source/Dataset/Document ingestion boundaries, then define the smallest common connector model and an in-memory/file-backed test connector. Add the integration proof to CI before implementing Google Drive or another live provider.
+
+
+## Phase 6A verification
+
+Quality Gate `35377306001` passed the shared integration foundation.
+
+Verified:
+
+- one shared `IntegrationConnector` contract
+- account-scoped `IntegrationConnection`
+- durable `SyncRun` history
+- external-record/version provenance
+- persisted external → internal import mappings
+- incremental cursor/checkpoint semantics
+- exact external-version idempotency
+- changed external versions append to the same internal Dataset
+- successful records from a partially failed sync remain reusable
+- failed sync does not advance the connection checkpoint
+- retry skips already completed external versions and resumes safely
+- structured connector records reuse `datasetService.importFile()`
+- imported structured versions automatically project into Living Company Knowledge
+- external import readiness is resumable through `INGESTED → READY`
+- revoked connections fail closed and cannot be normally resumed
+- integration APIs use authoritative request identity
+- foreign accounts cannot inspect or trigger another account's sync
+- API-safe connection DTOs omit credential references
+- integration metadata contains no raw access-token / refresh-token / client-secret fields
+- TypeScript, production build, all Phase 0–5 gates, unseen benchmark, and live Gemini benchmark remain green
+
+### Current structured ingestion boundary
+
+Phase 6A intentionally imports CSV/XLSX through the common engine first.
+
+The connector contract is resource-type agnostic, but unsupported external document types fail explicitly rather than entering a half-implemented parallel document pipeline.
+
+## Current exact next work
+
+**Phase 6B — Google Drive cloud-file connector**
+
+1. verify current Google OAuth 2.0 and Drive API v3 behavior from official documentation
+2. add a secret-store boundary separate from IntegrationConnection metadata
+3. add server-side OAuth state handling
+4. implement Google Drive read-only connection flow
+5. implement initial file discovery + incremental changes cursor
+6. download CSV/XLSX directly and export Google Sheets to XLSX
+7. feed records through the existing Phase 6A sync engine
+8. add deterministic HTTP-mocked connector tests plus optional live smoke test when credentials are configured
+9. then proceed to a second connector through the same abstraction
