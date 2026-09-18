@@ -986,6 +986,6 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 5A — Watch foundation.**
+> **Continue with Phase 5C — Natural-language watch creation.**
 
-The next concrete work is to create the persisted WatchRule / WatchEvaluation / WatchAlert model and first deterministic evaluator while reusing Phase 2 Insights and Phase 3/4 effective company state.
+Phase 5A/5B are complete and green in Quality Gate `35372866426`. The next concrete work is the proposed-rule/draft flow: natural language → bounded structured watch → deterministic validation → preview → explicit save.
