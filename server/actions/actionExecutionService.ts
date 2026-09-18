@@ -3,7 +3,7 @@ import { companyKnowledgeStore } from '../companyKnowledge/companyKnowledgeStore
 import { SOURCE_AUTHORITIES } from '../companyKnowledge/sourceAuthority.js';
 import { KnowledgeSourceRef } from '../companyKnowledge/types.js';
 import { actionStore } from './actionStore.js';
-import { effectiveCompanyStateService } from './effectiveCompanyStateService.js';
+import { effectiveCompanyStateService } from '../companyKnowledge/effectiveCompanyStateService.js';
 import { ActionExecution, ActionProposal } from './types.js';
 
 export class ActionExecutionError extends Error {
