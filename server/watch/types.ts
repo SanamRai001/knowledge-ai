@@ -223,3 +223,31 @@ export type ParsedWatchRequest =
       operator: WatchComparisonOperator;
       threshold: number;
     };
+
+
+export type WatchJobStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'SKIPPED';
+
+export interface WatchJob {
+  id: string;
+  fingerprint: string;
+  accountId: string;
+  watchRuleId: string;
+  ruleVersion: number;
+  scheduledFor: number;
+  status: WatchJobStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: number;
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  evaluationId?: string;
+  lastError?: string;
+  skipReason?: string;
+}
