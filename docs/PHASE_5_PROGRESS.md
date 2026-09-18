@@ -13,8 +13,8 @@ Phase 5 adds durable WATCH behavior: persisted monitoring rules, deterministic r
 ```text
 5A WatchRule / WatchEvaluation / WatchAlert foundation   COMPLETE
 5B Deterministic rule evaluator                         COMPLETE
-5C Natural-language watch creation                      IN PROGRESS
-5D Durable/retryable evaluation worker                  NOT STARTED
+5C Natural-language watch creation                      COMPLETE
+5D Durable/retryable evaluation worker                  IN PROGRESS
 5E Alert lifecycle + deduplication                      NOT STARTED
 5F Watch UI + final Phase 5 audit                       NOT STARTED
 ```
@@ -138,15 +138,35 @@ Verified:
 - account isolation is enforced over Watch HTTP APIs
 - TypeScript, production build, all Phase 0–4 gates, unseen-corpus benchmark, and live Gemini benchmark remain green
 
+## Phase 5C verification
+
+Quality Gate `35373492302` passed the natural-language Watch creation slice.
+
+Verified:
+
+- natural language creates a persisted draft, not a live rule
+- common stock/order-balance/outstanding-total requests parse deterministically
+- unsupported wording can fall back only to a bounded JSON LLM parser
+- the LLM cannot resolve entities/datasets, calculate current values, save rules, or execute evaluations
+- ambiguous entities produce explicit candidates instead of guesses
+- multiple eligible datasets produce explicit source candidates
+- candidate selection is validated against the offered choices
+- cancelled drafts cannot be saved
+- unsupported deterministic wording writes nothing
+- only explicit Save creates an ACTIVE WatchRule
+- saved natural-language rules reuse the deterministic evaluator
+- account isolation protects drafts and rule creation
+- the full Phase 0–5 regression suite and live Gemini benchmark remained green
+
 ## Current exact next work
 
-**Phase 5C — Natural-language watch creation**
+**Phase 5D — Durable/retryable evaluation worker**
 
-1. introduce a WatchDraft / proposed-rule contract
-2. deterministic parser for common watch language
-3. bounded LLM parser fallback for unusual wording
-4. conservative source/entity resolution
-5. preview the structured condition before saving
-6. save only after explicit creation/confirmation
-7. add Phase 5C CI proof
-8. then continue to durable worker scheduling
+1. define persisted WatchJob records
+2. generate idempotent jobs from due interval rules
+3. recover stale RUNNING jobs after restart/crash
+4. process jobs with bounded retry metadata
+5. connect successful jobs to WatchEvaluation IDs
+6. make scheduler tick safe to run repeatedly
+7. add executable restart/idempotency proof
+8. then continue to Phase 5E alert lifecycle completion
