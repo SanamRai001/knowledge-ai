@@ -33,6 +33,21 @@ export interface InsightEvidence {
   calculation: string;
   values: Record<string, string | number | boolean | null>;
   rowReferences?: InsightRowReference[];
+  companyStateOverlay?: {
+    applicationCount: number;
+    claimIds: string[];
+    authorityLevels: string[];
+    changes: Array<{
+      rowIndex: number;
+      columnName: string;
+      predicate: string;
+      entityId: string;
+      claimId: string;
+      authorityLevel: string;
+      beforeValue: string | number | boolean | null;
+      afterValue: string | number | boolean | null;
+    }>;
+  };
 }
 
 export interface Insight {
