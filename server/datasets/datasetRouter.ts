@@ -155,6 +155,58 @@ datasetRouter.get('/', (_req, res) => {
   }
 });
 
+datasetRouter.get('/:id/summary', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const dataset = datasetStore.requireDataset(accountId, req.params.id);
+    const currentVersion = datasetStore.getCurrentVersion(accountId, req.params.id);
+
+    res.json({
+      dataset,
+      currentVersion: {
+        ...currentVersion,
+        tables: currentVersion.tables.map((table) => ({
+          ...table,
+          rows: table.rows.slice(0, 20),
+        })),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'Failed to retrieve dataset summary');
+  }
+});
+
+datasetRouter.get('/:id/versions', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const dataset = datasetStore.requireDataset(accountId, req.params.id);
+    const versions = dataset.versionIds
+      .map((versionId) =>
+        datasetStore.getVersion(accountId, req.params.id, versionId)
+      )
+      .filter((version) => Boolean(version))
+      .map((version) => ({
+        id: version!.id,
+        datasetId: version!.datasetId,
+        versionNumber: version!.versionNumber,
+        createdAt: version!.createdAt,
+        source: version!.source,
+        importRunId: version!.importRunId,
+        tables: version!.tables.map((table) => ({
+          id: table.id,
+          name: table.name,
+          rowCount: table.rowCount,
+          columnCount: table.columns.length,
+        })),
+      }))
+      .sort((a, b) => b.versionNumber - a.versionNumber);
+
+    res.json({ versions });
+  } catch (error) {
+    handleError(res, error, 'Failed to retrieve dataset version history');
+  }
+});
+
 datasetRouter.get('/:id', (req, res) => {
   try {
     const { accountId } = identity(res);
