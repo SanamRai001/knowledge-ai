@@ -10,6 +10,7 @@ import { UnifiedAskView } from './components/UnifiedAskView';
 import { InsightsWorkspace } from './components/InsightsWorkspace';
 import { CompanyKnowledgeWorkspace } from './components/CompanyKnowledgeWorkspace';
 import { ActionsWorkspace } from './components/ActionsWorkspace';
+import { WatchWorkspace } from './components/WatchWorkspace';
 import { SpecializedAIConfig } from './components/SpecializedAIConfig';
 import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
@@ -438,6 +439,9 @@ export default function App() {
 
         {/* Safe natural-language write proposals and audit history */}
         {currentTab === 'actions' && <ActionsWorkspace />}
+
+        {/* Continuous monitoring, reminders, and alert lifecycle */}
+        {currentTab === 'watch' && <WatchWorkspace />}
 
         {/* Structured business datasets */}
         {currentTab === 'datasets' && (
