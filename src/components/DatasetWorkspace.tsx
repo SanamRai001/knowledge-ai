@@ -230,7 +230,11 @@ export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Could not import dataset.');
 
-      setSuccess('Dataset imported. It is now available to Ask.');
+      setSuccess(
+        body.knowledgeProjection?.status === 'COMPLETED'
+          ? 'Dataset imported. It is ready for Ask, Insights, Knowledge, and safe Updates.'
+          : 'Dataset imported and ready for Ask. Living Knowledge projection needs a retry before entity-based Updates can use this source.'
+      );
       setFile(null);
       setPreview(null);
       setSchemaOverrides({});
