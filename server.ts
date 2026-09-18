@@ -59,6 +59,7 @@ import { cognitiveTelemetryStore } from './server/cognitiveEngine/cognitiveTelem
 import { knowledgeGraphEngine } from './server/cognitiveEngine/knowledgeGraphEngine.js';
 import { hierarchicalIndex } from './server/cognitiveEngine/hierarchicalIndex.js';
 import { ChatMessage, ApiChatRequest, ApiChatResponse, ApiErrorResponse, MemoryStatus, MemoryType, ExperienceSource } from './src/types.js';
+import { workspaceRouter } from './server/workspaceRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -87,6 +88,11 @@ const upload = multer({
     }
   },
 });
+
+// Authoritative account-scoped workspace API. This router is mounted before
+// the legacy handlers below so normal /api/kb/* traffic cannot bypass
+// request identity and workspace ownership checks.
+app.use('/api/kb', workspaceRouter);
 
 // --- API ROUTES ---
 
