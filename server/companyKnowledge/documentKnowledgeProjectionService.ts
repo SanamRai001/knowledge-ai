@@ -11,6 +11,30 @@ import {
   KnowledgeSourceRef,
 } from './types.js';
 
+function knowledgeBaseSnapshotId(kb: KnowledgeBase): string {
+  const payload = kb.documents
+    .map((document) => ({
+      id: document.id,
+      filename: document.filename,
+      uploadTimestamp: document.uploadTimestamp,
+      processingStatus: document.processingStatus,
+      pages: (document.pages || []).map((page) => ({
+        pageNumber: page.pageNumber,
+        text: page.text,
+      })),
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+  return (
+    'kbs_' +
+    crypto
+      .createHash('sha256')
+      .update(JSON.stringify([kb.currentVersion, payload]))
+      .digest('hex')
+      .slice(0, 24)
+  );
+}
+
 const ENTITY_LABELS: Array<{
   label: string;
   type: CompanyEntityType;
@@ -76,10 +100,12 @@ function sourceRefFor(params: {
   document: KnowledgeDocument;
   pageNumber: number;
   excerpt: string;
+  snapshotId: string;
 }): KnowledgeSourceRef {
   return {
     sourceType: 'DOCUMENT',
     sourceId: params.kb.id,
+    sourceVersionId: params.snapshotId,
     sourceVersionLabel: params.kb.currentVersion,
     sourceName: params.document.filename,
     documentId: params.document.id,
@@ -98,6 +124,7 @@ function upsertDocumentEntity(params: {
   name: string;
   identityKey?: string;
   observedAt: number;
+  snapshotId: string;
 }): CompanyEntity {
   return companyKnowledgeStore.upsertEntity({
     accountId: params.accountId,
@@ -294,11 +321,14 @@ export class DocumentKnowledgeProjectionService {
       params.knowledgeBaseId
     );
 
+    const snapshotId = knowledgeBaseSnapshotId(kb);
+
     const run: KnowledgeProjectionRun = {
       id: 'kpr_' + crypto.randomBytes(8).toString('hex'),
       accountId: params.accountId,
       sourceType: 'DOCUMENT',
       sourceId: kb.id,
+      sourceVersionId: snapshotId,
       sourceVersionLabel: kb.currentVersion,
       startedAt: Date.now(),
       status: 'RUNNING',
@@ -345,6 +375,7 @@ export class DocumentKnowledgeProjectionService {
                   name: labeledEntity.name,
                   identityKey: labeledEntity.identityKey,
                   observedAt,
+                  snapshotId,
                 });
                 entityIds.add(entity.id);
               }
@@ -365,6 +396,7 @@ export class DocumentKnowledgeProjectionService {
                       ? match.subjectName
                       : undefined,
                   observedAt,
+                  snapshotId,
                 });
                 const object = upsertDocumentEntity({
                   accountId: params.accountId,
@@ -381,6 +413,7 @@ export class DocumentKnowledgeProjectionService {
                       ? match.objectName
                       : undefined,
                   observedAt,
+                  snapshotId,
                 });
                 entityIds.add(subject.id);
                 entityIds.add(object.id);
@@ -398,6 +431,7 @@ export class DocumentKnowledgeProjectionService {
                       document,
                       pageNumber: page.pageNumber,
                       excerpt: line,
+                      snapshotId,
                     }),
                     observedAt,
                   });
@@ -420,6 +454,7 @@ export class DocumentKnowledgeProjectionService {
                       ? claim.subjectName
                       : undefined,
                   observedAt,
+                  snapshotId,
                 });
                 entityIds.add(subject.id);
 
@@ -437,6 +472,7 @@ export class DocumentKnowledgeProjectionService {
                     excerpt: line,
                   }),
                   observedAt,
+                  snapshotId,
                 });
                 claimIds.add(storedClaim.id);
               }
@@ -456,6 +492,7 @@ export class DocumentKnowledgeProjectionService {
           sourceRef: {
             sourceType: 'DOCUMENT',
             sourceId: kb.id,
+            sourceVersionId: snapshotId,
             sourceVersionLabel: kb.currentVersion,
             sourceName: kb.name,
           },
