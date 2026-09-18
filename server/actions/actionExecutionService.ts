@@ -46,6 +46,74 @@ function sourceRefFor(proposal: ActionProposal): KnowledgeSourceRef {
 }
 
 export class ActionExecutionService {
+  private recoverAppliedProposal(params: {
+    accountId: string;
+    proposal: ActionProposal;
+    now: number;
+  }): ActionExecution | null {
+    const recoveredClaimIds: string[] = [];
+
+    for (const mutation of params.proposal.mutations) {
+      const matching = companyKnowledgeStore
+        .listClaims({
+          accountId: params.accountId,
+          entityId: mutation.entityId,
+          predicate: mutation.predicate,
+          currentOnly: false,
+          limit: 500,
+        })
+        .find(
+          (claim) =>
+            claim.sourceRef.sourceType === 'USER' &&
+            claim.sourceRef.sourceId === 'confirmed-company-state' &&
+            claim.sourceRef.sourceVersionId === params.proposal.id &&
+            valueKey(claim.value) === valueKey(mutation.afterValue)
+        );
+
+      if (!matching) return null;
+      recoveredClaimIds.push(matching.id);
+    }
+
+    const matchingEvents = companyKnowledgeStore
+      .listEvents({
+        accountId: params.accountId,
+        limit: 1000,
+      })
+      .filter(
+        (event) =>
+          event.sourceRef.sourceType === 'USER' &&
+          event.sourceRef.sourceId === 'confirmed-company-state' &&
+          event.sourceRef.sourceVersionId === params.proposal.id
+      );
+
+    if (matchingEvents.length === 0) return null;
+
+    const execution = actionStore.saveExecution({
+      id: 'exe_' + crypto.randomBytes(10).toString('hex'),
+      accountId: params.accountId,
+      proposalId: params.proposal.id,
+      intent: params.proposal.intent,
+      claimIds: recoveredClaimIds,
+      eventIds: matchingEvents.map((event) => event.id),
+      executedAt:
+        Math.min(
+          ...matchingEvents.map((event) => event.recordedAt),
+          params.now
+        ),
+    });
+
+    actionStore.transitionProposal({
+      accountId: params.accountId,
+      proposalId: params.proposal.id,
+      status: 'CONFIRMED',
+      detail:
+        'Recovered an already-applied idempotent company-state write and finalized the action audit record.',
+      executionId: execution.id,
+    });
+
+    return execution;
+  }
+
   public confirm(params: {
     accountId: string;
     proposalId: string;
@@ -73,6 +141,23 @@ export class ActionExecutionService {
       params.proposalId
     );
     const now = params.now ?? Date.now();
+
+    if (proposal.status === 'PROPOSED') {
+      const recovered = this.recoverAppliedProposal({
+        accountId: params.accountId,
+        proposal,
+        now,
+      });
+      if (recovered) {
+        return {
+          proposal: actionStore.requireProposal(
+            params.accountId,
+            proposal.id
+          ),
+          execution: recovered,
+        };
+      }
+    }
 
     if (proposal.status !== 'PROPOSED') {
       throw new ActionExecutionError(
