@@ -2,11 +2,11 @@
 
 Last updated: **2026-09-18**
 
-Phase 5 adds durable WATCH behavior: persisted monitoring rules, deterministic recurring evaluation, stateful alert episodes, and a first-class Watch product surface.
+## Status
 
-## Goal
+# ✅ PHASE 5 COMPLETE
 
-> Monitor important company conditions over time and surface an alert when a meaningful condition becomes true without requiring the user to keep asking.
+Phase 5 adds the WATCH capability to Knowledge AI: durable monitoring rules, deterministic recurring evaluation, restart-safe jobs, stateful alert episodes, smart reminders, and a first-class Watch workspace.
 
 ## Execution slices
 
@@ -16,208 +16,225 @@ Phase 5 adds durable WATCH behavior: persisted monitoring rules, deterministic r
 5C Natural-language watch creation                      COMPLETE
 5D Durable/retryable evaluation worker                  COMPLETE
 5E Alert lifecycle + deduplication                      COMPLETE
-5F Watch UI + smart reminders + final Phase 5 audit     IN PROGRESS
+5F Watch UI + smart reminders + final gate              COMPLETE
 ```
 
-## Phase 5A — Watch foundation
+## Authoritative final gate
 
-Introduce durable, account-scoped records for:
+- **Quality Gate:** `35376209226`
+- **Result:** PASS
+- **Date:** 2026-09-18
 
-- WatchRule
-- WatchEvaluation
-- WatchAlert
+The integrated run passed all Phase 0–5 regression gates, TypeScript, production build, unseen-corpus effectiveness evaluation, and the live Gemini unseen-corpus benchmark.
 
-Initial WatchRule lifecycle:
+## 5A / 5B — persisted Watch foundation
 
-- ACTIVE
-- PAUSED
-- INVALID
-- ARCHIVED
+Verified in Quality Gate `35372866426` and the final integrated gate:
 
-Initial alert lifecycle:
+- account-scoped `WatchRule`, `WatchEvaluation`, and `WatchAlert`
+- ACTIVE / PAUSED / INVALID / ARCHIVED rule lifecycle
+- OPEN / ACKNOWLEDGED / SNOOZED / RESOLVED alert lifecycle
+- deterministic `ENTITY_NUMERIC_THRESHOLD`
+- deterministic `DATASET_AGGREGATE_THRESHOLD`
+- effective USER_CONFIRMED company state is honored
+- source/version/hash and confirmed-state overlay provenance
+- original imported datasets remain immutable
+- TRUE conditions create one alert episode rather than alert spam
+- TRUE → FALSE resolves the condition episode
+- a later FALSE → TRUE creates a new episode
+- account isolation over Watch APIs
 
-- OPEN
-- ACKNOWLEDGED
-- SNOOZED
-- RESOLVED
+## 5C — natural-language Watch creation
 
-Every WatchRule must preserve:
-
-- structured condition
-- target/source scope
-- enabled/lifecycle status
-- evaluation trigger/cadence metadata
-- current condition state
-- last evaluation time
-- last trigger time
-- rule version
-- creator/origin
-- created/updated timestamps
-
-Every evaluation must preserve:
-
-- rule version evaluated
-- deterministic result
-- measured value(s)
-- exact evidence/provenance
-- evaluation time
-- error state where applicable
-
-Every alert must preserve:
-
-- watch rule
-- alert episode identity
-- evidence that triggered it
-- first/last triggered times
-- occurrence count
-- acknowledgement/resolution/snooze state
-
-## Phase 5B — First deterministic evaluator
-
-Initial supported condition families should be narrow and reliable:
-
-1. **ENTITY_NUMERIC_THRESHOLD**
-   - e.g. CURRENT_STOCK <= 5
-   - e.g. BALANCE_DUE > 50000
-
-2. **DATASET_AGGREGATE_THRESHOLD**
-   - e.g. SUM(balance_due) > 500000
-   - evaluated from the current effective dataset view so USER_CONFIRMED overlays are respected
-
-3. Later in Phase 5:
-   - DEADLINE_WINDOW
-   - STATE_CHANGE
-   - INSIGHT_MATCH
-
-Recurring evaluation must not require an LLM for these simple conditions.
-
-## Alert episode rule
-
-Do not emit a new alert on every evaluation while a condition remains true.
+Verified in Quality Gate `35373492302` and the final gate:
 
 ```text
-FALSE
-  ↓
-TRUE
-  ↓
-create OPEN alert episode
-  ↓
-TRUE again
-  ↓
-update same alert / occurrence count
-  ↓
-FALSE
-  ↓
-resolve condition episode
-  ↓
-TRUE later
-  ↓
-new alert episode
+natural language
+      ↓
+bounded parser
+      ↓
+source/entity resolution
+      ↓
+WatchDraft preview
+      ↓
+ambiguity selection if needed
+      ↓
+explicit Save
+      ↓
+ACTIVE WatchRule
 ```
 
-## Phase 5A / 5B verification
+Key guarantees:
 
-Quality Gate `35372866426` passed the integrated Watch foundation.
-
-Verified:
-
-- durable account-scoped WatchRule, WatchEvaluation, and WatchAlert records
-- ACTIVE / PAUSED / INVALID / ARCHIVED rule lifecycle contract
-- OPEN / ACKNOWLEDGED / SNOOZED / RESOLVED alert lifecycle
-- deterministic ENTITY_NUMERIC_THRESHOLD evaluation
-- deterministic DATASET_AGGREGATE_THRESHOLD evaluation
-- effective USER_CONFIRMED company state is honored
-- dataset watch evidence preserves source/version/hash provenance
-- confirmed-state overlay provenance is preserved
-- repeated TRUE evaluations update one alert episode rather than creating duplicates
-- acknowledgement and snooze survive repeated triggers
-- TRUE → FALSE resolves the active alert episode
-- a later FALSE → TRUE transition creates a new alert episode
-- pause prevents evaluation; resume advances rule version
-- original imported datasets remain immutable
-- account isolation is enforced over Watch HTTP APIs
-- TypeScript, production build, all Phase 0–4 gates, unseen-corpus benchmark, and live Gemini benchmark remain green
-
-## Phase 5C verification
-
-Quality Gate `35373492302` passed the natural-language Watch creation slice.
-
-Verified:
-
-- natural language creates a persisted draft, not a live rule
-- common stock/order-balance/outstanding-total requests parse deterministically
-- unsupported wording can fall back only to a bounded JSON LLM parser
-- the LLM cannot resolve entities/datasets, calculate current values, save rules, or execute evaluations
-- ambiguous entities produce explicit candidates instead of guesses
-- multiple eligible datasets produce explicit source candidates
-- candidate selection is validated against the offered choices
+- parsing never directly activates monitoring
+- common stock, order-balance, and outstanding-total requests parse deterministically
+- unusual supported wording may use the provider only as a bounded JSON parser
+- the LLM cannot calculate current values
+- the LLM cannot resolve the final entity/source
+- the LLM cannot create or execute a rule
+- ambiguity produces candidates instead of a guess
 - cancelled drafts cannot be saved
-- unsupported deterministic wording writes nothing
 - only explicit Save creates an ACTIVE WatchRule
-- saved natural-language rules reuse the deterministic evaluator
-- account isolation protects drafts and rule creation
-- the full Phase 0–5 regression suite and live Gemini benchmark remained green
 
-## Current exact next work
+## 5D — durable/retryable evaluation worker
 
-**Phase 5D — Durable/retryable evaluation worker**
+Verified in Quality Gate `35374127375` and the final gate:
 
-1. define persisted WatchJob records
-2. generate idempotent jobs from due interval rules
-3. recover stale RUNNING jobs after restart/crash
-4. process jobs with bounded retry metadata
-5. connect successful jobs to WatchEvaluation IDs
-6. make scheduler tick safe to run repeatedly
-7. add executable restart/idempotency proof
-8. then continue to Phase 5E alert lifecycle completion
-
-
-## Phase 5D verification
-
-Quality Gate `35374127375` passed the durable scheduler slice.
-
-Verified:
-
-- persisted WatchJob queue
+- durable persisted `WatchJob`
 - idempotent schedule-slot fingerprinting
-- due interval rules enqueue deterministic jobs
+- due interval rules create one job per rule/version/slot
 - successful jobs link to WatchEvaluation IDs
 - RUNNING jobs survive persistence/reload
-- lease-expired RUNNING jobs are requeued after simulated restart
-- prior attempt count is preserved
-- unexpected worker failures retry with persisted next-attempt time/error metadata
-- max-attempt exhaustion becomes an observable FAILED job
-- a later fresh interval slot remains possible after permanent job failure
-- repeated scheduler cycles do not rerun a completed schedule slot
-- account-scoped job history
+- lease-expired RUNNING jobs recover after simulated restart
+- attempt count survives recovery
+- unexpected worker failures retry with persisted backoff metadata
+- max-attempt failure remains observable
+- completed schedule slots do not rerun
+- job history is account scoped
+- scheduler starts with the application
 
-## Phase 5E verification
+## 5E — alert lifecycle
 
-Quality Gate `35374232503` passed the alert lifecycle slice.
+Verified in Quality Gate `35374232503` and the final gate:
 
-Verified:
+- acknowledgement
+- manual resolution
+- condition-cleared resolution
+- snooze
+- snooze expiry
+- occurrence tracking
+- same-episode reopening after snooze expiry
+- manual resolution suppresses repeat noise while the condition remains continuously TRUE
+- real FALSE state resets the condition
+- later FALSE → TRUE creates a fresh alert episode
 
-- snooze persists while its window is active
-- a still-true condition reopens the same alert episode after snooze expiry
-- repeated triggers do not create duplicate alerts
-- manual resolution is recorded as USER_RESOLVED
-- manually resolved alerts remain quiet while the condition continuously stays true
-- condition FALSE resets the watch state
-- a later FALSE → TRUE transition creates a new alert episode
-- TRUE → FALSE automatically resolves with CONDITION_CLEARED
-- lifecycle history distinguishes manual vs condition-cleared resolution
+## 5F — smart reminders
 
-## Current exact next work
+Verified in Quality Gate `35375746521` and the final gate.
 
-**Phase 5F — Watch UI + smart reminders/date watches + final gate**
+Supported bounded reminder conditions:
 
-1. add a first-class Watch workspace
-2. add natural-language Watch draft preview / candidate selection / explicit Save
-3. show active rules, current state, last/next evaluation, alerts, evidence, and job/evaluation history
-4. expose pause/resume/evaluate-now and alert acknowledge/resolve/snooze
-5. add a bounded date/time reminder condition so Phase 5 covers source-relative/time-based monitoring as well as numeric conditions
-6. add natural-language parsing for the bounded reminder form
-7. add UI and reminder CI proofs
-8. run the full integrated gate
-9. create `docs/PHASE_5_FINAL_AUDIT.md`
-10. advance the master handoff to Phase 6 only after all gates are green
+### Source-relative reminder
+
+Example:
+
+> Remind me 3 days before order O-200 is due.
+
+This becomes:
+
+```text
+ENTITY_DATE_WINDOW
+entity = O-200
+predicate = DUE_DATE
+daysBefore = 3
+```
+
+The recurring evaluator reads the current effective DUE_DATE claim each time.
+
+If a higher-authority confirmed update moves the due date, the reminder follows the new date without rewriting the imported source.
+
+### Explicit-time reminder
+
+Example:
+
+> Remind me at 2099-02-03T10:15:00+05:45.
+
+This becomes a `TIME_REACHED` rule.
+
+Safety behavior:
+
+- only explicit ISO-8601 timestamps with Z or numeric offset are accepted deterministically
+- LLM-assisted parsing cannot invent a timestamp not present in the user request
+- vague clock language is refused instead of guessed
+- the one-shot rule automatically stops scheduling after it triggers once
+
+## 5F — first-class Watch workspace
+
+The app now exposes **Watch** in primary navigation.
+
+The real API-backed workspace supports:
+
+- natural-language watch input
+- preview before activation
+- candidate/source selection when ambiguous
+- explicit Save / Cancel
+- active rule list
+- current condition state
+- last evaluation
+- next scheduled check
+- last trigger
+- rule version
+- Evaluate now
+- Pause
+- Resume
+- Archive
+- triggered alerts
+- alert evidence
+- Acknowledge
+- Snooze
+- Resolve
+- evaluation history
+- durable worker/job history
+- alert episode history
+
+The UI does not implement browser-local scheduling or a hidden direct-trigger path.
+
+## False-alert evaluation
+
+The final Quality Gate includes a labeled Watch quality suite with **8 known cases** across:
+
+- entity thresholds
+- dataset aggregate thresholds
+- source-relative date windows
+- explicit clock reminders
+
+Results:
+
+```text
+cases             8
+true positive     4
+true negative     4
+false positive    0
+false negative    0
+false-alert rate  0
+missed-alert rate 0
+```
+
+This is a regression corpus for the currently supported deterministic conditions, not a claim that arbitrary future Watch rules have zero real-world false positives.
+
+## Phase 5 exit gate
+
+| Requirement | Result |
+|---|---|
+| Watch conditions persist | PASS |
+| Conditions evaluate reliably over time | PASS |
+| Simple recurring rules avoid repeated LLM calls | PASS |
+| Alerts link to evidence/state | PASS |
+| Duplicate alert episodes are controlled | PASS |
+| Acknowledge / resolve / snooze work | PASS |
+| Jobs recover from normal restart/retry scenarios | PASS |
+| Account isolation has executable coverage | PASS |
+| Watch UI is backed by persisted APIs | PASS |
+| False-alert behavior has a labeled regression evaluation | PASS |
+
+## Known limitations carried forward
+
+Phase 5 is complete, but the product is not yet production infrastructure.
+
+- Watch state/jobs are still persisted in ignored local JSON files.
+- The scheduler is in-process; persisted jobs recover after restart, but this is not yet a distributed queue/worker system.
+- Multi-replica locking is not implemented.
+- Alerts are in-app only; email/push/Slack delivery belongs to Integrations.
+- Source-relative reminder parsing is currently bounded to ORDER/INVOICE `DUE_DATE`.
+- Explicit clock reminders require an ISO-8601 timestamp with an explicit timezone offset or Z.
+- STATE_CHANGE and INSIGHT_MATCH are not yet general Watch condition types.
+- Calendar/email/external source refresh is not yet connected.
+- External source revocation and sync cursors belong to Phase 6.
+
+## Next phase
+
+**Phase 6 — Integrations**
+
+Continue from:
+
+`docs/PHASE_6_PROGRESS.md`
