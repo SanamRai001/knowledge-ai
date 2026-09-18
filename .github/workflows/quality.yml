@@ -113,6 +113,9 @@ jobs:
       - name: Phase 5F smart reminder proof
         run: npm run check:phase5f-smart-reminders
 
+      - name: Phase 5F Watch UI proof
+        run: npm run check:phase5f-watch-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
