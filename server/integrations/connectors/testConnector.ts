@@ -202,9 +202,9 @@ export class TestIntegrationConnector
     context: IntegrationConnectorContext
   ): Promise<{ ok: boolean; message?: string }> {
     const validation = await this.validateConnection(context);
-    return validation.ok
-      ? { ok: true }
-      : { ok: false, message: validation.error };
+    return 'error' in validation
+      ? { ok: false, message: validation.error }
+      : { ok: true };
   }
 }
 
