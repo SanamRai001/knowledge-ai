@@ -65,6 +65,9 @@ jobs:
       - name: Phase 1 UI contract proof
         run: npm run check:phase1-ui
 
+      - name: Phase 2A discovery proof
+        run: npm run check:phase2a-discovery
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
