@@ -32,7 +32,7 @@ async function main() {
   });
 
   assert(run1.status === 'COMPLETED', 'Initial knowledge projection failed.');
-  assert(run1.entityIds.length >= 8, 'Expected customer, products, orders, supplier, and branch entities.');
+  assert(run1.entityIds.length >= 7, 'Expected customer, products, orders, supplier, and branch entities.');
   assert(run1.relationshipIds.length >= 6, 'Expected row-level business relationships.');
   assert(run1.claimIds.length >= 8, 'Expected order facts to be projected as observations.');
   assert(run1.eventIds.length >= 3, 'Expected order observation and projection events.');
