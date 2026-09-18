@@ -67,6 +67,7 @@ import { companyKnowledgeRouter } from './server/companyKnowledge/companyKnowled
 import { actionRouter } from './server/actions/actionRouter.js';
 import { watchRouter } from './server/watch/watchRouter.js';
 import { watchScheduler } from './server/watch/watchScheduler.js';
+import { integrationRouter } from './server/integrations/integrationRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -106,6 +107,7 @@ app.use('/api/insights', discoveryRouter);
 app.use('/api/company-knowledge', companyKnowledgeRouter);
 app.use('/api/actions', actionRouter);
 app.use('/api/watch', watchRouter);
+app.use('/api/integrations', integrationRouter);
 
 // --- API ROUTES ---
 
