@@ -147,6 +147,7 @@ export function insightFor(params: {
     .digest('hex');
 
   const evidence: InsightEvidence = {
+    sourceType: 'DATASET',
     datasetId: params.version.datasetId,
     datasetVersionId: params.version.id,
     datasetVersionNumber: params.version.versionNumber,
