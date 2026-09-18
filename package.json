@@ -37,7 +37,8 @@
     "check:phase5c-watch-language": "tsx scripts/check-phase5c-watch-language.ts",
     "check:phase5d-watch-scheduler": "tsx scripts/check-phase5d-watch-scheduler.ts",
     "check:phase5e-alert-lifecycle": "tsx scripts/check-phase5e-alert-lifecycle.ts",
-    "check:phase5f-smart-reminders": "tsx scripts/check-phase5f-smart-reminders.ts"
+    "check:phase5f-smart-reminders": "tsx scripts/check-phase5f-smart-reminders.ts",
+    "check:phase5f-watch-ui": "tsx scripts/check-phase5f-watch-ui-contract.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
