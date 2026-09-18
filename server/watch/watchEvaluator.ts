@@ -218,11 +218,12 @@ export class WatchEvaluator {
           });
         }
       } else if (previousState === 'TRUE') {
-        watchStore.resolveActiveAlertForRule({
-          accountId: params.accountId,
-          watchRuleId: rule.id,
-          at: evaluatedAt,
-        });
+        alert =
+          watchStore.resolveActiveAlertForRule({
+            accountId: params.accountId,
+            watchRuleId: rule.id,
+            at: evaluatedAt,
+          }) || undefined;
       }
 
       const updatedRule = watchStore.updateRule(
@@ -244,8 +245,6 @@ export class WatchEvaluator {
         alert,
       };
     } catch (error: any) {
-      if (error instanceof WatchEvaluationError) throw error;
-
       const evaluation = watchStore.createEvaluation({
         accountId: params.accountId,
         watchRuleId: rule.id,
