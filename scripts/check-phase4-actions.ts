@@ -14,6 +14,8 @@ import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowled
 import { SOURCE_AUTHORITIES } from '../server/companyKnowledge/sourceAuthority.js';
 import { structuredKnowledgeProjectionService } from '../server/companyKnowledge/structuredKnowledgeProjectionService.js';
 import { datasetService } from '../server/datasets/datasetService.js';
+import { structuredAnalyticsEngine } from '../server/datasets/structuredAnalyticsEngine.js';
+import { discoveryService } from '../server/discovery/discoveryService.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -194,6 +196,63 @@ async function main() {
       effectiveBalance.authority === 'USER_CONFIRMED' &&
       effectiveBalance.kind === 'FACT',
     'Confirmed payment must become higher-authority USER_CONFIRMED company state.'
+  );
+
+  const analyticalView = structuredAnalyticsEngine.execute({
+    accountId: accountA,
+    datasetId: orders.dataset.id,
+    versionId: orders.version.id,
+    plan: {
+      tableName: orders.version.tables[0].name,
+      filters: [
+        {
+          column: 'order_id',
+          operator: 'EQ',
+          value: 'O-100',
+        },
+      ],
+      select: ['order_id', 'amount_paid', 'balance_due'],
+      limit: 10,
+    },
+  });
+  assert(
+    analyticalView.rows.length === 1 &&
+      analyticalView.rows[0].balance_due === 32000 &&
+      analyticalView.rows[0].amount_paid === 40000 &&
+      analyticalView.provenance.companyStateOverlay?.applied === true &&
+      analyticalView.provenance.companyStateOverlay.applicationCount >= 2,
+    'Structured analytics must read confirmed company-state overlays without modifying the imported dataset.'
+  );
+  assert(
+    orders.version.tables[0].rows[0][8] === 42000 &&
+      orders.version.tables[0].rows[0][7] === 30000,
+    'Original imported dataset rows must remain immutable after confirmed actions.'
+  );
+
+  assert(
+    (firstExecution.execution.downstreamAnalysisRunIds?.length || 0) >= 1,
+    'Confirmed action should refresh Discovery for affected dataset sources.'
+  );
+  const refreshedRunId =
+    firstExecution.execution.downstreamAnalysisRunIds![0];
+  const refreshedInsights = discoveryService.listInsights({
+    accountId: accountA,
+    datasetId: orders.dataset.id,
+    runId: refreshedRunId,
+    limit: 100,
+  });
+  const refreshedBalanceInsight = refreshedInsights.find(
+    (insight) => insight.detectorId === 'balance.outstanding'
+  );
+  assert(
+    refreshedBalanceInsight &&
+      refreshedBalanceInsight.evidence.values.totalOutstanding === 97000 &&
+      refreshedBalanceInsight.evidence.companyStateOverlay?.applicationCount === 1 &&
+      refreshedBalanceInsight.evidence.companyStateOverlay.changes[0].predicate ===
+        'BALANCE_DUE' &&
+      refreshedBalanceInsight.evidence.companyStateOverlay.changes[0].afterValue ===
+        32000,
+    'Discovery refresh must use the confirmed balance overlay and disclose the exact action claim in evidence.'
   );
 
   const structuredBalanceStillExists = companyKnowledgeStore
