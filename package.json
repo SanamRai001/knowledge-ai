@@ -32,7 +32,8 @@
     "check:phase3d-what-changed": "tsx scripts/check-phase3d-what-changed.ts",
     "check:phase3e-ui": "tsx scripts/check-phase3e-ui-contract.ts",
     "check:phase4-actions": "tsx scripts/check-phase4-actions.ts",
-    "check:phase4e-ui": "tsx scripts/check-phase4e-ui-contract.ts"
+    "check:phase4e-ui": "tsx scripts/check-phase4e-ui-contract.ts",
+    "check:phase5ab-watch": "tsx scripts/check-phase5ab-watch.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
