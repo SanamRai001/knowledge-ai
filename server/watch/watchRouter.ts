@@ -405,6 +405,7 @@ watchRouter.post('/alerts/:id/resolve', (req, res) => {
       accountId,
       alertId: req.params.id,
       status: 'RESOLVED',
+      resolutionReason: 'USER_RESOLVED',
     });
     res.json({ alert });
   } catch (error) {
