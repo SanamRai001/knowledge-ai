@@ -87,3 +87,20 @@ export interface ActionExecution {
   eventIds: string[];
   executedAt: number;
 }
+
+
+export interface ActionAuditEntry {
+  id: string;
+  accountId: string;
+  proposalId: string;
+  action:
+    | 'PROPOSED'
+    | 'NEEDS_INPUT'
+    | 'CONFIRMED'
+    | 'CANCELLED'
+    | 'STALE'
+    | 'FAILED';
+  timestamp: number;
+  detail: string;
+  executionId?: string;
+}
