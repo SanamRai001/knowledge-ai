@@ -1296,9 +1296,9 @@ Continue with:
         ↓
 5B. Deterministic rule evaluator ✅
         ↓
-5C. Natural-language watch creation ← CURRENT
+5C. Natural-language watch creation ✅
         ↓
-5D. Durable/retryable evaluation worker
+5D. Durable/retryable evaluation worker ← CURRENT
         ↓
 5E. Alert lifecycle + deduplication
         ↓
