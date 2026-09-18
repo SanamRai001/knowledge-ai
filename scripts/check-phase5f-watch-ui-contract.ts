@@ -45,19 +45,16 @@ function main() {
 
   assert(
     watch.includes('/api/watch/rules?') &&
-      watch.includes('/evaluate') &&
-      watch.includes('/pause') &&
-      watch.includes('/resume') &&
-      watch.includes('/archive'),
-    'Watch workspace must expose persisted rules and rule lifecycle controls.'
+      watch.includes("action: 'evaluate' | 'pause' | 'resume' | 'archive'") &&
+      watch.includes("'/api/watch/rules/' + rule.id + '/' + action"),
+    'Watch workspace must expose persisted rules and typed rule lifecycle controls.'
   );
 
   assert(
     watch.includes('/api/watch/alerts?') &&
-      watch.includes('/acknowledge') &&
-      watch.includes('/resolve') &&
-      watch.includes('/snooze'),
-    'Watch workspace must expose the alert lifecycle.'
+      watch.includes("action: 'acknowledge' | 'resolve' | 'snooze'") &&
+      watch.includes("'/api/watch/alerts/' + alert.id + '/' + action"),
+    'Watch workspace must expose the typed alert lifecycle.'
   );
 
   assert(
