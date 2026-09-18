@@ -18,7 +18,7 @@ import {
   DatasetDetail,
   DatasetPreview,
   DatasetSummary,
-  DatasetVersion,
+  DatasetVersionSummary,
 } from '../datasetTypes';
 
 const COLUMN_TYPES: DatasetColumnType[] = [
@@ -64,7 +64,7 @@ export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DatasetDetail | null>(null);
-  const [history, setHistory] = useState<DatasetVersion[]>([]);
+  const [history, setHistory] = useState<DatasetVersionSummary[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<DatasetPreview | null>(null);
   const [schemaOverrides, setSchemaOverrides] = useState<SchemaOverrides>({});
@@ -97,12 +97,27 @@ export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
     setIsLoadingDetail(true);
     setError(null);
     try {
-      const response = await fetch('/api/datasets/' + datasetId);
+      const response = await fetch('/api/datasets/' + datasetId + '/summary');
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Could not load dataset.');
       setDetail(body);
       setSelectedDatasetId(datasetId);
-      setHistory([body.currentVersion]);
+      setHistory([
+        {
+          id: body.currentVersion.id,
+          datasetId: body.currentVersion.datasetId,
+          versionNumber: body.currentVersion.versionNumber,
+          createdAt: body.currentVersion.createdAt,
+          source: body.currentVersion.source,
+          importRunId: body.currentVersion.importRunId,
+          tables: body.currentVersion.tables.map((table: any) => ({
+            id: table.id,
+            name: table.name,
+            rowCount: table.rowCount,
+            columnCount: table.columns.length,
+          })),
+        },
+      ]);
       onDatasetChange?.(datasetId);
     } catch (err: any) {
       setError(err.message || 'Could not load dataset.');
@@ -214,18 +229,12 @@ export const DatasetWorkspace: React.FC<DatasetWorkspaceProps> = ({
     setIsLoadingHistory(true);
     setError(null);
     try {
-      const versions = await Promise.all(
-        detail.dataset.versionIds.map(async (versionId) => {
-          const response = await fetch(
-            '/api/datasets/' + detail.dataset.id + '/versions/' + versionId
-          );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.error || 'Could not load version.');
-          return body.version as DatasetVersion;
-        })
+      const response = await fetch(
+        '/api/datasets/' + detail.dataset.id + '/versions'
       );
-      versions.sort((a, b) => b.versionNumber - a.versionNumber);
-      setHistory(versions);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Could not load version history.');
+      setHistory(body.versions || []);
     } catch (err: any) {
       setError(err.message || 'Could not load dataset history.');
     } finally {
