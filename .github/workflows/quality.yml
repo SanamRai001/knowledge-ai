@@ -107,6 +107,9 @@ jobs:
       - name: Phase 5D Watch scheduler proof
         run: npm run check:phase5d-watch-scheduler
 
+      - name: Phase 5E alert lifecycle proof
+        run: npm run check:phase5e-alert-lifecycle
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
