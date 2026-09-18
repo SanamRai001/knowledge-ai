@@ -84,6 +84,7 @@ export interface ExternalChangePage {
 
 export interface ExternalImportState {
   id: string;
+  status: 'INGESTED' | 'READY' | 'TOMBSTONE';
   accountId: string;
   connectionId: string;
   provider: IntegrationProvider;
@@ -94,7 +95,10 @@ export interface ExternalImportState {
   internalKind: 'DATASET' | 'DOCUMENT' | 'TOMBSTONE';
   internalId?: string;
   internalVersionId?: string;
+  knowledgeProjectionRunId?: string;
+  lastError?: string;
   importedAt: number;
+  updatedAt: number;
   provenance: {
     provider: IntegrationProvider;
     connectionId: string;
