@@ -102,6 +102,44 @@ async function main() {
       throw new Error(`Owning account could not read dataset: ${ownRead.status}`);
     }
 
+    const summaryRead = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/summary`,
+      {
+        headers: { Authorization: `Bearer ${secretA}` },
+      }
+    );
+    if (summaryRead.status !== 200) {
+      throw new Error(
+        `Owning account could not read dataset UI summary: ${summaryRead.status}`
+      );
+    }
+    const summaryBody = await summaryRead.json();
+    if (
+      summaryBody.currentVersion?.tables?.[0]?.rows?.length !== 2 ||
+      summaryBody.currentVersion?.tables?.[0]?.rowCount !== 2
+    ) {
+      throw new Error('Dataset UI summary did not preserve preview rows and full row count.');
+    }
+
+    const historyRead = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/versions`,
+      {
+        headers: { Authorization: `Bearer ${secretA}` },
+      }
+    );
+    if (historyRead.status !== 200) {
+      throw new Error(
+        `Owning account could not read dataset version metadata: ${historyRead.status}`
+      );
+    }
+    const historyBody = await historyRead.json();
+    if (
+      historyBody.versions?.length !== 1 ||
+      'rows' in (historyBody.versions?.[0]?.tables?.[0] || {})
+    ) {
+      throw new Error('Version history endpoint must return metadata without dataset rows.');
+    }
+
     const queryResponse = await fetch(
       baseUrl + `/api/datasets/${datasetId}/query`,
       {
@@ -178,6 +216,30 @@ async function main() {
       compareBody.secondPeriod?.value !== 500
     ) {
       throw new Error('Dataset period comparison returned incorrect values.');
+    }
+
+    const foreignSummary = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/summary`,
+      {
+        headers: { Authorization: `Bearer ${secretB}` },
+      }
+    );
+    if (foreignSummary.status !== 404) {
+      throw new Error(
+        `Foreign dataset summary read must return 404; got ${foreignSummary.status}.`
+      );
+    }
+
+    const foreignHistory = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/versions`,
+      {
+        headers: { Authorization: `Bearer ${secretB}` },
+      }
+    );
+    if (foreignHistory.status !== 404) {
+      throw new Error(
+        `Foreign dataset version-history read must return 404; got ${foreignHistory.status}.`
+      );
     }
 
     const foreignRead = await fetch(baseUrl + `/api/datasets/${datasetId}`, {
