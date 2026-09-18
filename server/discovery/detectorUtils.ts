@@ -177,6 +177,11 @@ export function insightFor(params: {
     detectorId: params.detectorId,
     detectorVersion: params.detectorVersion,
     evidence,
+    priorityScore: 0,
+    priorityReasons: [],
+    firstSeenAt: params.context.referenceTime,
+    lastSeenAt: params.context.referenceTime,
+    occurrenceCount: 1,
     createdAt: params.context.referenceTime,
   };
 }
