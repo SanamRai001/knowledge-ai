@@ -994,8 +994,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 6A — Integration foundation.**
+> **Continue with Phase 6B — Google Drive cloud-file connector.**
 
-Phase 5 is complete. Its authoritative final audit is `docs/PHASE_5_FINAL_AUDIT.md` and its final integrated Quality Gate is `35376209226`.
+Phase 6A is complete and green in Quality Gate `35377306001`. The shared connector, cursor/checkpoint, idempotent ingestion, retry, provenance, revocation, secret-safe metadata, and account-isolation foundation is now authoritative.
 
-The next concrete work is the shared connector/sync architecture: `IntegrationConnector` → account-scoped connection metadata → durable SyncRun/cursor/checkpoint → idempotent ingestion bridge → revocation/retry/isolation proof. Do not begin with several one-off provider integrations.
+The next concrete work is the first real provider on that abstraction: Google Drive read-only OAuth → initial supported-file discovery → incremental changes cursor → CSV/XLSX download / Google Sheets XLSX export → existing Dataset ingestion.
