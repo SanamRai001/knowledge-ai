@@ -986,6 +986,6 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 5D — durable/retryable Watch scheduling.**
+> **Continue with Phase 5F — Watch UI + bounded smart reminders/date watches.**
 
-Phase 5A/5B are green in Quality Gate `35372866426`. Phase 5C is green in Quality Gate `35373492302`. The next concrete work is persisted WatchJob scheduling: due interval rules → idempotent jobs → stale-job recovery → retry-safe evaluation → evaluation IDs, followed by Phase 5E alert lifecycle completion.
+Phase 5A/5B are green in Quality Gate `35372866426`, Phase 5C in `35373492302`, Phase 5D in `35374127375`, and Phase 5E in `35374232503`. The remaining Phase 5 work is the real Watch product surface plus a bounded source-relative/time-based reminder condition, followed by the final integrated gate and Phase 5 audit.
