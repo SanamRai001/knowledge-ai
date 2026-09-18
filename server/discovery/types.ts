@@ -1,0 +1,70 @@
+export type InsightType =
+  | 'RISK'
+  | 'OPPORTUNITY'
+  | 'CHANGE'
+  | 'DEADLINE'
+  | 'ANOMALY'
+  | 'DATA_QUALITY';
+
+export type InsightSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+export type InsightStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+export interface InsightRowReference {
+  rowIndex: number;
+  values: Record<string, string | number | boolean | null>;
+}
+
+export interface InsightEvidence {
+  datasetId: string;
+  datasetVersionId: string;
+  datasetVersionNumber: number;
+  sourceFilename: string;
+  sourceSha256: string;
+  tableId: string;
+  tableName: string;
+  detectorId: string;
+  detectorVersion: string;
+  calculation: string;
+  values: Record<string, string | number | boolean | null>;
+  rowReferences?: InsightRowReference[];
+}
+
+export interface Insight {
+  id: string;
+  fingerprint: string;
+  accountId: string;
+  datasetId: string;
+  datasetVersionId: string;
+  analysisRunId: string;
+  type: InsightType;
+  severity: InsightSeverity;
+  status: InsightStatus;
+  title: string;
+  summary: string;
+  confidence: number;
+  detectorId: string;
+  detectorVersion: string;
+  evidence: InsightEvidence;
+  createdAt: number;
+}
+
+export interface AnalysisRun {
+  id: string;
+  accountId: string;
+  datasetId: string;
+  datasetVersionId: string;
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  startedAt: number;
+  completedAt?: number;
+  referenceTime: number;
+  detectorIds: string[];
+  insightIds: string[];
+  error?: string;
+}
+
+export interface DetectorContext {
+  accountId: string;
+  datasetId: string;
+  analysisRunId: string;
+  referenceTime: number;
+}
