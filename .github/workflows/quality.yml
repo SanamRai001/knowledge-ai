@@ -32,6 +32,9 @@ jobs:
       - name: Secret and runtime-state hygiene guard
         run: npm run check:secret-hygiene
 
+      - name: Telemetry integrity guard
+        run: npm run check:telemetry-integrity
+
       - name: TypeScript check
         run: npm run lint
 
