@@ -117,6 +117,42 @@ function sourceRefLabel(source: KnowledgeClaim['sourceRef']): string {
   return source.sourceName;
 }
 
+function changeVersionLabels(report: KnowledgeChangeReport): {
+  from: string;
+  to: string;
+} {
+  const fromLabel =
+    report.fromSourceVersionLabel ||
+    report.fromSourceVersionId ||
+    'Earlier version';
+  const toLabel =
+    report.toSourceVersionLabel ||
+    report.toSourceVersionId ||
+    'Later version';
+
+  if (
+    report.fromSourceVersionLabel &&
+    report.toSourceVersionLabel &&
+    report.fromSourceVersionLabel === report.toSourceVersionLabel &&
+    report.fromSourceVersionId &&
+    report.toSourceVersionId &&
+    report.fromSourceVersionId !== report.toSourceVersionId
+  ) {
+    return {
+      from:
+        report.fromSourceVersionLabel +
+        ' · ' +
+        report.fromSourceVersionId.slice(-8),
+      to:
+        report.toSourceVersionLabel +
+        ' · ' +
+        report.toSourceVersionId.slice(-8),
+    };
+  }
+
+  return { from: fromLabel, to: toLabel };
+}
+
 export const CompanyKnowledgeWorkspace: React.FC<
   CompanyKnowledgeWorkspaceProps
 > = ({
@@ -1123,7 +1159,10 @@ const EntitySources: React.FC<{
 const ChangeReportView: React.FC<{
   report: KnowledgeChangeReport;
   entityById: Map<string, CompanyEntity>;
-}> = ({ report, entityById }) => (
+}> = ({ report, entityById }) => {
+  const versionLabels = changeVersionLabels(report);
+
+  return (
   <div className="mt-6">
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
       <SmallMetric label="Entities added" value={report.addedEntityIds.length} />
@@ -1142,9 +1181,9 @@ const ChangeReportView: React.FC<{
     </div>
 
     <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-[10px] text-slate-500 mb-5">
-      {report.fromSourceVersionLabel || report.fromSourceVersionId || 'Earlier version'}
+      {versionLabels.from}
       <ArrowRight className="inline w-3 h-3 mx-2 text-slate-300" />
-      {report.toSourceVersionLabel || report.toSourceVersionId || 'Later version'}
+      {versionLabels.to}
     </div>
 
     {report.claimChanges.length === 0 &&
@@ -1228,7 +1267,8 @@ const ChangeReportView: React.FC<{
       </div>
     )}
   </div>
-);
+  );
+};
 
 const SmallMetric: React.FC<{ label: string; value: number }> = ({
   label,
