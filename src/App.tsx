@@ -486,6 +486,10 @@ export default function App() {
             onDatasetChange={(datasetId) => {
               if (datasetId) setPreferredDatasetId(datasetId);
             }}
+            onAskDataset={(datasetId) => {
+              setPreferredDatasetId(datasetId);
+              setCurrentTab('playground');
+            }}
           />
         )}
 
