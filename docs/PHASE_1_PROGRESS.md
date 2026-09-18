@@ -8,8 +8,8 @@ Phase 1 turns structured business files into first-class queryable company data.
 
 ```text
 1A Dataset foundation + CSV ingestion      COMPLETE
-1B XLSX + schema correction                IN PROGRESS
-1C Deterministic analytical query layer    NOT STARTED
+1B XLSX + schema correction                COMPLETE
+1C Deterministic analytical query layer    IN PROGRESS
 1D Analytical routing + provenance         NOT STARTED
 1E Dataset UI + final Phase 1 audit        NOT STARTED
 ```
@@ -70,6 +70,22 @@ Add:
 - schema preview across sheets
 - user-supplied column type corrections
 - import mapping/correction model
+
+## Phase 1B verification
+
+Quality Gate run `35357261116` passed with the dedicated XLSX/schema-correction proof plus every existing regression gate.
+
+Verified behavior includes:
+
+- bounded multi-sheet XLSX parsing
+- no spreadsheet formula execution; only cached scalar formula results are read
+- CSV and XLSX share the same Dataset/DatasetVersion model
+- user schema overrides are recorded as `USER_OVERRIDE`
+- impossible type corrections fail safely
+- XLSX source hashes and sheet provenance are retained
+- account isolation remains enforced
+
+The server-side XLSX parser dependency is pinned to an exact version because this repository currently does not use an npm lockfile.
 
 ## Phase 1C — Deterministic analytical query layer
 
