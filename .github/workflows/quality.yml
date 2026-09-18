@@ -62,6 +62,9 @@ jobs:
       - name: Analytical question routing proof
         run: npm run check:analytical-routing
 
+      - name: Phase 1 UI contract proof
+        run: npm run check:phase1-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
