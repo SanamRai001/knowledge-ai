@@ -19,6 +19,10 @@ import {
   watchService,
 } from './watchService.js';
 import {
+  WatchDraftError,
+  watchDraftService,
+} from './watchDraftService.js';
+import {
   WatchAlertStatus,
   WatchCondition,
   WatchRuleStatus,
@@ -56,7 +60,8 @@ function handleError(res: express.Response, error: any): void {
     error instanceof WatchAccessError ||
     error instanceof WatchStateError ||
     error instanceof WatchEvaluationError ||
-    error instanceof WatchValidationError
+    error instanceof WatchValidationError ||
+    error instanceof WatchDraftError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -103,6 +108,110 @@ function alertStatus(value: unknown): WatchAlertStatus | undefined {
     ? (normalized as WatchAlertStatus)
     : undefined;
 }
+
+watchRouter.post('/drafts/propose', async (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const instruction =
+      typeof req.body?.instruction === 'string'
+        ? req.body.instruction
+        : '';
+
+    const draft = await watchDraftService.propose({
+      accountId,
+      instruction,
+      allowLlmParsing: req.body?.allowLlmParsing !== false,
+    });
+
+    res.status(201).json({ draft });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+watchRouter.get('/drafts', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      drafts: watchStore.listDrafts({
+        accountId,
+        limit: limitFrom(req.query.limit, 100),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+watchRouter.get('/drafts/:id', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      draft: watchStore.requireDraft(accountId, req.params.id),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+watchRouter.post('/drafts/:id/select-target', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const candidateKey =
+      typeof req.body?.candidateKey === 'string'
+        ? req.body.candidateKey.trim()
+        : '';
+
+    if (!candidateKey) {
+      res.status(400).json({
+        error: 'candidateKey is required.',
+        code: 'WATCH_DRAFT_TARGET_REQUIRED',
+      });
+      return;
+    }
+
+    const draft = watchDraftService.selectTarget({
+      accountId,
+      draftId: req.params.id,
+      candidateKey,
+    });
+
+    res.json({ draft });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+watchRouter.post('/drafts/:id/save', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const saved = watchDraftService.save({
+      accountId,
+      draftId: req.params.id,
+    });
+    const rule = watchStore.requireRule(accountId, saved.ruleId);
+
+    res.status(201).json({
+      draft: saved.draft,
+      rule,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+watchRouter.post('/drafts/:id/cancel', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const draft = watchDraftService.cancel({
+      accountId,
+      draftId: req.params.id,
+    });
+    res.json({ draft });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
 
 watchRouter.post('/rules', (req, res) => {
   try {
