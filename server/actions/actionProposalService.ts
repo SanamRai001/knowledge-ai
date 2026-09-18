@@ -179,10 +179,8 @@ export class ActionProposalService {
       mutations: [],
       preconditions: [],
       eventData: {},
-      createdAt: params.now as never,
-      updatedAt: params.now as never,
       expiresAt: params.now + PROPOSAL_TTL_MS,
-    } as any);
+    });
   }
 
   private proposed(params: {
