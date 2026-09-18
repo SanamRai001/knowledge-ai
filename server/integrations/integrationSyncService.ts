@@ -209,7 +209,7 @@ export class IntegrationSyncService {
       const validation = await connector.validateConnection({
         connection,
       });
-      if (!validation.ok) {
+      if ('error' in validation) {
         throw new IntegrationSyncError(
           'CONNECTION_VALIDATION_FAILED',
           422,
