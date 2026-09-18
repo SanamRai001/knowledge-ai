@@ -83,6 +83,9 @@ jobs:
       - name: Phase 3A/3B company knowledge proof
         run: npm run check:phase3ab-company-knowledge
 
+      - name: Phase 3C cross-source knowledge proof
+        run: npm run check:phase3c-cross-source
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
