@@ -221,14 +221,38 @@ export class KnowledgeCognitiveEngine {
       understandResult.profile
     );
 
-    quotaAndBillingService.recordUsage({
-      tenantId: context.tenantId,
-      requestId: context.requestId,
-      metric: 'tokens',
-      quantity: 1,
-      unit: 'query',
-      source: 'MEASURED',
-    });
+    if (reasoning.providerExecution?.attempted) {
+      quotaAndBillingService.recordUsage({
+        tenantId: context.tenantId,
+        requestId: context.requestId,
+        providerId: reasoning.providerExecution.providerId,
+        modelId: reasoning.providerExecution.modelId,
+        metric: 'provider_call',
+        quantity: 1,
+        unit: 'call',
+        source: 'MEASURED',
+      });
+
+      const usage = reasoning.providerExecution.usage;
+      const measuredTotalTokens =
+        usage.totalTokens ??
+        (usage.inputTokens !== null && usage.outputTokens !== null
+          ? usage.inputTokens + usage.outputTokens
+          : null);
+
+      if (usage.source === 'MEASURED' && measuredTotalTokens !== null) {
+        quotaAndBillingService.recordUsage({
+          tenantId: context.tenantId,
+          requestId: context.requestId,
+          providerId: reasoning.providerExecution.providerId,
+          modelId: reasoning.providerExecution.modelId,
+          metric: 'tokens',
+          quantity: measuredTotalTokens,
+          unit: 'token',
+          source: 'MEASURED',
+        });
+      }
+    }
 
     let answer = reasoning.answer;
     const language = understandResult.profile.detectedLanguage;
@@ -244,6 +268,7 @@ export class KnowledgeCognitiveEngine {
       groundingScore: verification.groundingScore,
       citations: verification.citations,
       mathResult,
+      providerExecution: reasoning.providerExecution,
       timingMs: Date.now() - started,
     };
   }
@@ -367,15 +392,17 @@ export class KnowledgeCognitiveEngine {
       isFoundInDocuments: verifyResult.sufficiency.isSufficient,
       engineUsed: synthesizeResult.engineUsed,
       failureClassification: verifyResult.sufficiency.isSufficient ? 'NONE_SUCCESS' : 'INSUFFICIENT_EVIDENCE',
+      providerExecution: synthesizeResult.providerExecution,
       timingMs: {
         questionUnderstandingMs: understandResult.timingMs,
         planningMs: planResult.timingMs,
         retrievalMs: retrieveResult.timingMs,
-        fusionMs: 0,
-        rerankingMs: 0,
-        reasoningMs: synthesizeResult.timingMs,
+        fusionMs: null,
+        rerankingMs: null,
+        synthesisMs: synthesizeResult.timingMs,
+        reasoningMs: null,
         verificationMs: verifyResult.timingMs,
-        generationMs: synthesizeResult.timingMs,
+        generationMs: synthesizeResult.providerExecution?.latencyMs ?? null,
         totalMs: Date.now() - started,
       },
     };
@@ -413,8 +440,19 @@ export class KnowledgeCognitiveEngine {
     graphResult?: { matchedNodes: any[]; connectedEdges: any[]; pathExplanations: string[] };
     correctiveAssessment?: CorrectiveRagAssessment;
     mathResult?: ArithmeticExecutionResult | null;
-  }): Promise<{ answer: string; engineUsed: 'gemini-3.8-flash' | 'cognitive-deterministic-engine' }> {
+  }): Promise<{
+    answer: string;
+    engineUsed: 'gemini-3.8-flash' | 'cognitive-deterministic-engine';
+    providerExecution?: SynthesizeStageResult['providerExecution'];
+  }> {
     const { profile, rerankedItems, sufficiency, forceDeterministic, mathResult } = params;
+
+    const unavailableUsage = () => ({
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: null,
+      source: 'UNAVAILABLE' as const,
+    });
 
     if (mathResult?.isApplicable) {
       return { answer: mathResult.groundedAnswer, engineUsed: 'cognitive-deterministic-engine' };
@@ -435,15 +473,26 @@ export class KnowledgeCognitiveEngine {
     }
 
     const evidence = rerankedItems.slice(0, 6);
-    const deterministicFallback = () => ({
+    const deterministicFallback = (providerExecution?: SynthesizeStageResult['providerExecution']) => ({
       answer: deterministicSynthesizer(profile, evidence),
       engineUsed: 'cognitive-deterministic-engine' as const,
+      providerExecution,
     });
 
     if (forceDeterministic) return deterministicFallback();
 
     const primaryProvider = providerRouter.getPrimaryProvider();
-    if (!primaryProvider?.isConfigured()) return deterministicFallback();
+    if (!primaryProvider?.isConfigured()) {
+      return deterministicFallback({
+        attempted: false,
+        providerId: primaryProvider?.id,
+        modelId: 'gemini-3.8-flash',
+        latencyMs: null,
+        usage: unavailableUsage(),
+        failureCategory: 'NOT_CONFIGURED',
+        retryable: false,
+      });
+    }
 
     const evidenceBlock = evidence
       .map(
@@ -462,20 +511,38 @@ export class KnowledgeCognitiveEngine {
         responseFormat: 'text',
       });
 
+      const providerExecution: SynthesizeStageResult['providerExecution'] = {
+        attempted: true,
+        providerId: generation.providerId,
+        modelId: generation.modelId,
+        latencyMs: generation.latencyMs,
+        usage: generation.usage,
+        failureCategory: generation.failure?.category,
+        retryable: generation.failure?.retryable,
+      };
+
       if (!generation.ok) {
         console.warn(
           `Cognitive provider generation failed (${generation.failure?.category || 'PROVIDER_ERROR'}); using evidence-only fallback:`,
           generation.failure?.message || 'Unknown provider failure'
         );
-        return deterministicFallback();
+        return deterministicFallback(providerExecution);
       }
 
       const text = generation.text.trim();
-      if (!text) return deterministicFallback();
-      return { answer: text, engineUsed: 'gemini-3.8-flash' };
+      if (!text) return deterministicFallback(providerExecution);
+      return { answer: text, engineUsed: 'gemini-3.8-flash', providerExecution };
     } catch (error: any) {
       console.warn('Cognitive provider router failed; using evidence-only fallback:', error?.message || error);
-      return deterministicFallback();
+      return deterministicFallback({
+        attempted: true,
+        providerId: primaryProvider.id,
+        modelId: 'gemini-3.8-flash',
+        latencyMs: null,
+        usage: unavailableUsage(),
+        failureCategory: 'PROVIDER_ERROR',
+        retryable: false,
+      });
     }
   }
 }
