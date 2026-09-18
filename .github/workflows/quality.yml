@@ -50,6 +50,9 @@ jobs:
       - name: Structured data foundation proof
         run: npm run check:structured-data-foundation
 
+      - name: Dataset HTTP isolation proof
+        run: npm run check:dataset-http-isolation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
