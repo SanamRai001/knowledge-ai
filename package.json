@@ -25,7 +25,8 @@
     "check:phase2a-discovery": "tsx scripts/check-phase2a-discovery.ts",
     "check:phase2b-prioritization": "tsx scripts/check-phase2b-prioritization.ts",
     "check:phase2c-change-deadline": "tsx scripts/check-phase2c-change-deadline.ts",
-    "check:phase2d-richer-detectors": "tsx scripts/check-phase2d-richer-detectors.ts"
+    "check:phase2d-richer-detectors": "tsx scripts/check-phase2d-richer-detectors.ts",
+    "check:phase2e-ui": "tsx scripts/check-phase2e-ui-contract.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
