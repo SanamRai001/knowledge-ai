@@ -17,6 +17,7 @@ import { CSV_LIMITS, CsvParseError } from './csvParser.js';
 import { XLSX_LIMITS, XlsxParseError } from './xlsxParser.js';
 import { SchemaCorrectionError } from './schemaInference.js';
 import { DatasetColumnType } from './types.js';
+import { structuredKnowledgeProjectionService } from '../companyKnowledge/structuredKnowledgeProjectionService.js';
 import {
   AnalyticalQueryError,
   structuredAnalyticsEngine,
@@ -333,7 +334,33 @@ datasetRouter.post(
         schemaOverrides: parseSchemaOverrides(req.body?.schemaOverrides),
       });
 
-      res.status(201).json(result);
+      let knowledgeProjection:
+        | { status: 'COMPLETED'; runId: string }
+        | { status: 'FAILED'; warning: string };
+      try {
+        const projection =
+          structuredKnowledgeProjectionService.projectDataset({
+            accountId,
+            datasetId: result.dataset.id,
+            versionId: result.version.id,
+          });
+        knowledgeProjection = {
+          status: 'COMPLETED',
+          runId: projection.id,
+        };
+      } catch (projectionError: any) {
+        knowledgeProjection = {
+          status: 'FAILED',
+          warning:
+            projectionError?.message ||
+            'Dataset imported, but living company knowledge projection failed.',
+        };
+      }
+
+      res.status(201).json({
+        ...result,
+        knowledgeProjection,
+      });
     } catch (error) {
       handleError(res, error, 'Failed to import dataset');
     }
