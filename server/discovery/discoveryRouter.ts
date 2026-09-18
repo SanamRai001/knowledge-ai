@@ -5,6 +5,7 @@ import {
   RequestIdentityError,
   resolveRequestIdentity,
 } from '../requestIdentity.js';
+import { WorkspaceAccessError } from '../workspaceAccessService.js';
 import { DiscoveryAccessError } from './discoveryStore.js';
 import { discoveryService } from './discoveryService.js';
 import { InsightStatus } from './types.js';
@@ -35,6 +36,7 @@ function handleError(res: express.Response, error: any): void {
   if (
     error instanceof RequestIdentityError ||
     error instanceof DatasetAccessError ||
+    error instanceof WorkspaceAccessError ||
     error instanceof DiscoveryAccessError
   ) {
     res.status(error.statusCode).json({
