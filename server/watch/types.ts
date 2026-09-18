@@ -157,6 +157,7 @@ export interface WatchAlert {
   evidence: WatchEvidence;
   acknowledgedAt?: number;
   resolvedAt?: number;
+  resolutionReason?: 'CONDITION_CLEARED' | 'USER_RESOLVED';
   snoozedUntil?: number;
   createdAt: number;
   updatedAt: number;
