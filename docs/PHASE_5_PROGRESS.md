@@ -14,9 +14,9 @@ Phase 5 adds durable WATCH behavior: persisted monitoring rules, deterministic r
 5A WatchRule / WatchEvaluation / WatchAlert foundation   COMPLETE
 5B Deterministic rule evaluator                         COMPLETE
 5C Natural-language watch creation                      COMPLETE
-5D Durable/retryable evaluation worker                  IN PROGRESS
-5E Alert lifecycle + deduplication                      NOT STARTED
-5F Watch UI + final Phase 5 audit                       NOT STARTED
+5D Durable/retryable evaluation worker                  COMPLETE
+5E Alert lifecycle + deduplication                      COMPLETE
+5F Watch UI + smart reminders + final Phase 5 audit     IN PROGRESS
 ```
 
 ## Phase 5A — Watch foundation
@@ -170,3 +170,54 @@ Verified:
 6. make scheduler tick safe to run repeatedly
 7. add executable restart/idempotency proof
 8. then continue to Phase 5E alert lifecycle completion
+
+
+## Phase 5D verification
+
+Quality Gate `35374127375` passed the durable scheduler slice.
+
+Verified:
+
+- persisted WatchJob queue
+- idempotent schedule-slot fingerprinting
+- due interval rules enqueue deterministic jobs
+- successful jobs link to WatchEvaluation IDs
+- RUNNING jobs survive persistence/reload
+- lease-expired RUNNING jobs are requeued after simulated restart
+- prior attempt count is preserved
+- unexpected worker failures retry with persisted next-attempt time/error metadata
+- max-attempt exhaustion becomes an observable FAILED job
+- a later fresh interval slot remains possible after permanent job failure
+- repeated scheduler cycles do not rerun a completed schedule slot
+- account-scoped job history
+
+## Phase 5E verification
+
+Quality Gate `35374232503` passed the alert lifecycle slice.
+
+Verified:
+
+- snooze persists while its window is active
+- a still-true condition reopens the same alert episode after snooze expiry
+- repeated triggers do not create duplicate alerts
+- manual resolution is recorded as USER_RESOLVED
+- manually resolved alerts remain quiet while the condition continuously stays true
+- condition FALSE resets the watch state
+- a later FALSE → TRUE transition creates a new alert episode
+- TRUE → FALSE automatically resolves with CONDITION_CLEARED
+- lifecycle history distinguishes manual vs condition-cleared resolution
+
+## Current exact next work
+
+**Phase 5F — Watch UI + smart reminders/date watches + final gate**
+
+1. add a first-class Watch workspace
+2. add natural-language Watch draft preview / candidate selection / explicit Save
+3. show active rules, current state, last/next evaluation, alerts, evidence, and job/evaluation history
+4. expose pause/resume/evaluate-now and alert acknowledge/resolve/snooze
+5. add a bounded date/time reminder condition so Phase 5 covers source-relative/time-based monitoring as well as numeric conditions
+6. add natural-language parsing for the bounded reminder form
+7. add UI and reminder CI proofs
+8. run the full integrated gate
+9. create `docs/PHASE_5_FINAL_AUDIT.md`
+10. advance the master handoff to Phase 6 only after all gates are green
