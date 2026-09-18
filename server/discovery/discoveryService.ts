@@ -5,6 +5,7 @@ import { detectDataQuality } from './dataQualityDetector.js';
 import { discoveryStore } from './discoveryStore.js';
 import { detectInventoryThresholds } from './inventoryDetector.js';
 import { detectTrendChanges } from './trendDetector.js';
+import { prioritizeInsight } from './prioritization.js';
 import { AnalysisRun, Insight, InsightStatus } from './types.js';
 
 export const PHASE_2A_DETECTOR_IDS = [
@@ -56,14 +57,14 @@ export class DiscoveryService {
         referenceTime,
       };
 
-      const insights = [
+      const candidates = [
         ...detectTrendChanges(context, version),
         ...detectOutstandingBalances(context, version),
         ...detectInventoryThresholds(context, version),
         ...detectDataQuality(context, version),
-      ];
+      ].map(prioritizeInsight);
 
-      discoveryStore.saveInsights(insights);
+      const insights = discoveryStore.saveInsights(candidates);
 
       const completed: AnalysisRun = {
         ...run,
@@ -100,28 +101,62 @@ export class DiscoveryService {
     runId?: string;
     status?: InsightStatus;
     latestRunOnly?: boolean;
+    limit?: number;
   }): Insight[] {
     if (params.datasetId) {
       datasetStore.requireDataset(params.accountId, params.datasetId);
     }
 
-    let runId = params.runId;
-    if (runId) discoveryStore.requireRun(params.accountId, runId);
+    let insights: Insight[];
 
-    if (!runId && params.latestRunOnly !== false && params.datasetId) {
-      runId = discoveryStore.listRuns(params.accountId, params.datasetId)[0]?.id;
+    if (params.runId) {
+      const run = discoveryStore.requireRun(params.accountId, params.runId);
+      insights = run.insightIds
+        .map((id) => discoveryStore.getInsight(params.accountId, id))
+        .filter((insight): insight is Insight => Boolean(insight))
+        .filter(
+          (insight) =>
+            (!params.datasetId || insight.datasetId === params.datasetId) &&
+            (!params.status || insight.status === params.status)
+        )
+        .sort(
+          (a, b) =>
+            b.priorityScore - a.priorityScore ||
+            b.lastSeenAt - a.lastSeenAt
+        );
+    } else if (params.latestRunOnly !== false && params.datasetId) {
+      const latestRun = discoveryStore.listRuns(
+        params.accountId,
+        params.datasetId
+      )[0];
+      if (!latestRun) return [];
+      insights = latestRun.insightIds
+        .map((id) => discoveryStore.getInsight(params.accountId, id))
+        .filter((insight): insight is Insight => Boolean(insight))
+        .filter((insight) => !params.status || insight.status === params.status)
+        .sort(
+          (a, b) =>
+            b.priorityScore - a.priorityScore ||
+            b.lastSeenAt - a.lastSeenAt
+        );
+    } else {
+      insights = discoveryStore.listInsights({
+        accountId: params.accountId,
+        datasetId: params.datasetId,
+        status: params.status,
+      });
     }
 
-    if (params.datasetId && !runId && params.latestRunOnly !== false) {
-      return [];
-    }
+    const limit = Math.max(1, Math.min(params.limit || 20, 100));
+    return insights.slice(0, limit);
+  }
 
-    return discoveryStore.listInsights({
-      accountId: params.accountId,
-      datasetId: params.datasetId,
-      runId,
-      status: params.status,
-    });
+  public updateInsightStatus(
+    accountId: string,
+    insightId: string,
+    status: InsightStatus
+  ): Insight {
+    return discoveryStore.updateInsightStatus(accountId, insightId, status);
   }
 
   public getInsight(accountId: string, insightId: string): Insight {
