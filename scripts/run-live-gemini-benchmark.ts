@@ -28,6 +28,8 @@ type BenchmarkResult = {
   engineUsed: string;
   durationMs: number;
   answer: string;
+  providerUsageSource: 'MEASURED' | 'UNAVAILABLE';
+  measuredTotalTokens: number | null;
 };
 
 if (!process.env.GEMINI_API_KEY?.trim()) {
@@ -196,6 +198,8 @@ async function run() {
       engineUsed: result.engineUsed,
       durationMs: Date.now() - started,
       answer: result.answer,
+      providerUsageSource: result.diagnosticTrace.providerExecution?.usage.source ?? 'UNAVAILABLE',
+      measuredTotalTokens: result.diagnosticTrace.providerExecution?.usage.totalTokens ?? null,
     });
   }
 
@@ -227,7 +231,23 @@ async function run() {
     overallPipelineMetrics: calculateMetrics(results),
     liveProviderOnlyMetrics: calculateMetrics(liveResults),
     fallbackOnlyMetrics: calculateMetrics(fallbackResults),
-    tokenUsage: 'not exposed by the current cognitive trace; instrumentation required for cost-per-query comparison',
+    tokenUsage: (() => {
+      const measured = liveResults.filter(
+        (item) => item.providerUsageSource === 'MEASURED' && item.measuredTotalTokens !== null
+      );
+      const totalMeasuredTokens = measured.reduce(
+        (sum, item) => sum + Number(item.measuredTotalTokens),
+        0
+      );
+      return {
+        source: measured.length > 0 ? 'MEASURED' : 'UNAVAILABLE',
+        liveResponsesWithMeasuredUsage: measured.length,
+        liveResponses: liveResults.length,
+        totalMeasuredTokens: measured.length > 0 ? totalMeasuredTokens : null,
+        averageMeasuredTokensPerResponse:
+          measured.length > 0 ? totalMeasuredTokens / measured.length : null,
+      };
+    })(),
     categoryBreakdown: Object.fromEntries(Array.from(new Set(cases.map((item) => item.category))).map((category) => {
       const group = results.filter((item) => item.category === category);
       const liveGroup = liveResults.filter((item) => item.category === category);
@@ -252,6 +272,28 @@ async function run() {
       `(${liveResults.length}/${results.length}); required ${(MIN_LIVE_COVERAGE * 100).toFixed(1)}%. ` +
       'Overall pipeline results include deterministic fallback and must not be reported as live-provider accuracy.'
     );
+  }
+
+  const liveMetrics = calculateMetrics(liveResults);
+  const liveQualityFailures: string[] = [];
+  if ((liveMetrics.answerAccuracy ?? 0) < 0.8) {
+    liveQualityFailures.push(`answer accuracy ${((liveMetrics.answerAccuracy ?? 0) * 100).toFixed(1)}% < 80%`);
+  }
+  if ((liveMetrics.citationPrecision ?? 0) < 0.85) {
+    liveQualityFailures.push(`citation precision ${((liveMetrics.citationPrecision ?? 0) * 100).toFixed(1)}% < 85%`);
+  }
+  if ((liveMetrics.correctRefusalRate ?? 0) < 0.8) {
+    liveQualityFailures.push(`correct refusal rate ${((liveMetrics.correctRefusalRate ?? 0) * 100).toFixed(1)}% < 80%`);
+  }
+  if ((liveMetrics.falseRefusalRate ?? 1) > 0.2) {
+    liveQualityFailures.push(`false refusal rate ${((liveMetrics.falseRefusalRate ?? 1) * 100).toFixed(1)}% > 20%`);
+  }
+  if ((liveMetrics.averageGroundingScore ?? 0) < 0.8) {
+    liveQualityFailures.push(`average grounding score ${((liveMetrics.averageGroundingScore ?? 0) * 100).toFixed(1)}% < 80%`);
+  }
+
+  if (liveQualityFailures.length > 0) {
+    throw new Error(`Live-provider quality gate failed: ${liveQualityFailures.join('; ')}`);
   }
 }
 
