@@ -1,3 +1,4 @@
+import fs from 'fs';
 import express from 'express';
 import { apiKeyStore } from '../server/apiKeyStore.js';
 import { workspaceRouter } from '../server/workspaceRouter.js';
@@ -8,6 +9,19 @@ type JsonResponse = {
 };
 
 async function main() {
+  const serverSource = fs.readFileSync('server.ts', 'utf8');
+  const secureMount = serverSource.indexOf("app.use('/api/kb', workspaceRouter)");
+  const firstLegacyRoute = serverSource.indexOf("app.get('/api/kb'");
+  if (
+    secureMount < 0 ||
+    firstLegacyRoute < 0 ||
+    secureMount > firstLegacyRoute
+  ) {
+    throw new Error(
+      'server.ts must mount workspaceRouter before all legacy /api/kb handlers.'
+    );
+  }
+
   const app = express();
   app.use(express.json());
   app.use('/api/kb', workspaceRouter);
