@@ -10,8 +10,8 @@ Phase 1 turns structured business files into first-class queryable company data.
 1A Dataset foundation + CSV ingestion      COMPLETE
 1B XLSX + schema correction                COMPLETE
 1C Deterministic analytical query layer    COMPLETE
-1D Analytical routing + provenance         IN PROGRESS
-1E Dataset UI + final Phase 1 audit        NOT STARTED
+1D Analytical routing + provenance         COMPLETE
+1E Dataset UI + final Phase 1 audit        NEXT
 ```
 
 ## Phase 1A — Dataset foundation + CSV ingestion
