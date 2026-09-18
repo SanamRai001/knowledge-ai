@@ -116,12 +116,17 @@ export class DiscoveryStore {
     return persisted.map(clone);
   }
 
-  public listRuns(accountId: string, datasetId?: string): AnalysisRun[] {
+  public listRuns(
+    accountId: string,
+    datasetId?: string,
+    knowledgeBaseId?: string
+  ): AnalysisRun[] {
     return Array.from(this.runs.values())
       .filter(
         (run) =>
           run.accountId === accountId &&
-          (!datasetId || run.datasetId === datasetId)
+          (!datasetId || run.datasetId === datasetId) &&
+          (!knowledgeBaseId || run.knowledgeBaseId === knowledgeBaseId)
       )
       .sort((a, b) => b.startedAt - a.startedAt)
       .map(clone);
@@ -147,6 +152,7 @@ export class DiscoveryStore {
   public listInsights(params: {
     accountId: string;
     datasetId?: string;
+    knowledgeBaseId?: string;
     runId?: string;
     status?: InsightStatus;
   }): Insight[] {
@@ -155,6 +161,8 @@ export class DiscoveryStore {
         (insight) =>
           insight.accountId === params.accountId &&
           (!params.datasetId || insight.datasetId === params.datasetId) &&
+          (!params.knowledgeBaseId ||
+            insight.knowledgeBaseId === params.knowledgeBaseId) &&
           (!params.runId || insight.analysisRunId === params.runId) &&
           (!params.status || insight.status === params.status)
       )
