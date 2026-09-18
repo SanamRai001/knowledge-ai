@@ -582,8 +582,17 @@ export class WatchStore {
       ? current.evaluationIds
       : [...current.evaluationIds, params.evaluationId];
 
+    const snoozeExpired =
+      current.status === 'SNOOZED' &&
+      typeof current.snoozedUntil === 'number' &&
+      current.snoozedUntil <= params.triggeredAt;
+
     const updated: WatchAlert = {
       ...current,
+      status: snoozeExpired ? 'OPEN' : current.status,
+      snoozedUntil: snoozeExpired
+        ? undefined
+        : current.snoozedUntil,
       lastTriggeredAt: Math.max(
         current.lastTriggeredAt,
         params.triggeredAt
@@ -658,6 +667,7 @@ export class WatchStore {
     alertId: string;
     status: WatchAlertStatus;
     snoozedUntil?: number;
+    resolutionReason?: 'CONDITION_CLEARED' | 'USER_RESOLVED';
     at?: number;
   }): WatchAlert {
     const current = this.requireAlert(
@@ -687,6 +697,10 @@ export class WatchStore {
         params.status === 'RESOLVED'
           ? current.resolvedAt || at
           : current.resolvedAt,
+      resolutionReason:
+        params.status === 'RESOLVED'
+          ? params.resolutionReason || current.resolutionReason
+          : current.resolutionReason,
       snoozedUntil:
         params.status === 'SNOOZED'
           ? params.snoozedUntil
@@ -716,6 +730,7 @@ export class WatchStore {
       accountId: params.accountId,
       alertId: active.id,
       status: 'RESOLVED',
+      resolutionReason: 'CONDITION_CLEARED',
       at: params.at,
     });
   }
