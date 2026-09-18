@@ -5,11 +5,15 @@ import { watchStore } from './watchStore.js';
 import {
   WatchComparisonOperator,
   WatchDatasetEvidence,
+  WatchDateEvidence,
   WatchEntityEvidence,
   WatchEvaluationResult,
   WatchEvidence,
   WatchRule,
+  WatchTimeEvidence,
 } from './types.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export class WatchEvaluationError extends Error {
   public readonly statusCode: number;
@@ -90,6 +94,55 @@ function nextEvaluationAt(
   return evaluatedAt + rule.intervalMinutes * 60 * 1000;
 }
 
+function parseDateValue(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  const parsed = Date.parse(
+    /^\d{4}-\d{2}-\d{2}$/.test(text)
+      ? text + 'T00:00:00Z'
+      : text
+  );
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function utcDayStart(timestamp: number): number {
+  const date = new Date(timestamp);
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  );
+}
+
+function evaluationShape(rule: WatchRule): {
+  operator: WatchComparisonOperator;
+  threshold: number;
+} {
+  const condition = rule.condition;
+
+  if (
+    condition.kind === 'ENTITY_NUMERIC_THRESHOLD' ||
+    condition.kind === 'DATASET_AGGREGATE_THRESHOLD'
+  ) {
+    return {
+      operator: condition.operator,
+      threshold: condition.threshold,
+    };
+  }
+
+  if (condition.kind === 'ENTITY_DATE_WINDOW') {
+    return {
+      operator: 'LTE',
+      threshold: condition.daysBefore,
+    };
+  }
+
+  return {
+    operator: 'GTE',
+    threshold: condition.triggerAt,
+  };
+}
+
 function alertCopy(params: {
   rule: WatchRule;
   observedValue: number;
@@ -111,25 +164,58 @@ function alertCopy(params: {
     };
   }
 
-  const aggregateLabel =
-    condition.aggregate.operator +
-    (condition.aggregate.column
-      ? '(' + condition.aggregate.column + ')'
-      : '(rows)');
+  if (condition.kind === 'DATASET_AGGREGATE_THRESHOLD') {
+    const aggregateLabel =
+      condition.aggregate.operator +
+      (condition.aggregate.column
+        ? '(' + condition.aggregate.column + ')'
+        : '(rows)');
+
+    return {
+      title: params.rule.name,
+      summary:
+        aggregateLabel +
+        ' is ' +
+        String(params.observedValue) +
+        ', which matches ' +
+        operatorLabel(condition.operator) +
+        ' ' +
+        String(condition.threshold) +
+        '.',
+    };
+  }
+
+  if (condition.kind === 'ENTITY_DATE_WINDOW') {
+    return {
+      title: params.rule.name,
+      summary:
+        condition.predicate.replace(/_/g, ' ').toLowerCase() +
+        ' is ' +
+        String(params.observedValue) +
+        ' day' +
+        (params.observedValue === 1 ? '' : 's') +
+        ' away, inside the ' +
+        String(condition.daysBefore) +
+        '-day reminder window.',
+    };
+  }
 
   return {
     title: params.rule.name,
     summary:
-      aggregateLabel +
-      ' is ' +
-      String(params.observedValue) +
-      ', which matches ' +
-      operatorLabel(condition.operator) +
-      ' ' +
-      String(condition.threshold) +
-      '.',
+      'The scheduled reminder time has been reached (' +
+      new Date(condition.triggerAt).toISOString() +
+      ').',
   };
 }
+
+type Measurement = {
+  observedValue: number;
+  evidence: WatchEvidence;
+  operator: WatchComparisonOperator;
+  threshold: number;
+  matched: boolean;
+};
 
 export class WatchEvaluator {
   public evaluate(params: {
@@ -152,38 +238,33 @@ export class WatchEvaluator {
 
     const evaluatedAt = params.evaluatedAt ?? Date.now();
     const previousState = rule.currentState;
+    const fallbackShape = evaluationShape(rule);
 
     try {
       const measured = this.measure({
         accountId: params.accountId,
         rule,
+        evaluatedAt,
       });
-      const threshold = rule.condition.threshold;
-      const operator = rule.condition.operator;
-      const matched = compare(
-        measured.observedValue,
-        operator,
-        threshold
-      );
 
       const evaluation = watchStore.createEvaluation({
         accountId: params.accountId,
         watchRuleId: rule.id,
         ruleVersion: rule.version,
         status: 'COMPLETED',
-        conditionMatched: matched,
+        conditionMatched: measured.matched,
         observedValue: measured.observedValue,
-        comparisonOperator: operator,
-        threshold,
+        comparisonOperator: measured.operator,
+        threshold: measured.threshold,
         previousConditionState: previousState,
-        nextConditionState: matched ? 'TRUE' : 'FALSE',
+        nextConditionState: measured.matched ? 'TRUE' : 'FALSE',
         evidence: measured.evidence,
         evaluatedAt,
       });
 
       let alert = undefined;
 
-      if (matched) {
+      if (measured.matched) {
         const activeAlert = watchStore.getActiveAlertForRule(
           params.accountId,
           rule.id
@@ -230,9 +311,9 @@ export class WatchEvaluator {
         params.accountId,
         rule.id,
         {
-          currentState: matched ? 'TRUE' : 'FALSE',
+          currentState: measured.matched ? 'TRUE' : 'FALSE',
           lastEvaluationAt: evaluatedAt,
-          lastTriggeredAt: matched
+          lastTriggeredAt: measured.matched
             ? evaluatedAt
             : rule.lastTriggeredAt,
           nextEvaluationAt: nextEvaluationAt(rule, evaluatedAt),
@@ -250,8 +331,8 @@ export class WatchEvaluator {
         watchRuleId: rule.id,
         ruleVersion: rule.version,
         status: 'FAILED',
-        comparisonOperator: rule.condition.operator,
-        threshold: rule.condition.threshold,
+        comparisonOperator: fallbackShape.operator,
+        threshold: fallbackShape.threshold,
         previousConditionState: previousState,
         nextConditionState: 'ERROR',
         evaluatedAt,
@@ -278,10 +359,8 @@ export class WatchEvaluator {
   private measure(params: {
     accountId: string;
     rule: WatchRule;
-  }): {
-    observedValue: number;
-    evidence: WatchEvidence;
-  } {
+    evaluatedAt: number;
+  }): Measurement {
     const condition = params.rule.condition;
 
     if (condition.kind === 'ENTITY_NUMERIC_THRESHOLD') {
@@ -339,6 +418,103 @@ export class WatchEvaluator {
       return {
         observedValue: state.value,
         evidence,
+        operator: condition.operator,
+        threshold: condition.threshold,
+        matched: compare(
+          state.value,
+          condition.operator,
+          condition.threshold
+        ),
+      };
+    }
+
+    if (condition.kind === 'ENTITY_DATE_WINDOW') {
+      const entity = companyKnowledgeStore.requireEntity(
+        params.accountId,
+        condition.entityId
+      );
+      const state = effectiveCompanyStateService.resolve(
+        params.accountId,
+        entity.id,
+        condition.predicate
+      );
+
+      if (state.status === 'MISSING') {
+        throw new WatchEvaluationError(
+          'WATCH_STATE_MISSING',
+          422,
+          'The watched entity does not currently have ' +
+            condition.predicate +
+            '.'
+        );
+      }
+      if (state.status === 'CONFLICT') {
+        throw new WatchEvaluationError(
+          'WATCH_STATE_CONFLICT',
+          422,
+          'The watched entity has conflicting highest-authority values for ' +
+            condition.predicate +
+            '.'
+        );
+      }
+
+      const targetAt = parseDateValue(state.value);
+      if (targetAt === null || typeof state.value !== 'string') {
+        throw new WatchEvaluationError(
+          'WATCH_STATE_TYPE_MISMATCH',
+          422,
+          'The watched entity value for ' +
+            condition.predicate +
+            ' is not a parseable date.'
+        );
+      }
+
+      const daysUntil = Math.ceil(
+        (utcDayStart(targetAt) - utcDayStart(params.evaluatedAt)) /
+          DAY_MS
+      );
+      const matched =
+        daysUntil >= 0 && daysUntil <= condition.daysBefore;
+
+      const evidence: WatchDateEvidence = {
+        sourceType: 'ENTITY_DATE',
+        entityId: entity.id,
+        entityLabel: entity.canonicalName,
+        predicate: condition.predicate,
+        effectiveClaimId: state.effectiveClaim.id,
+        dateValue: state.value,
+        targetAt,
+        evaluatedAt: params.evaluatedAt,
+        daysUntil,
+        authorityLevel: state.effectiveClaim.authority.level,
+        sourceName: state.effectiveClaim.sourceRef.sourceName,
+        sourceVersionId:
+          state.effectiveClaim.sourceRef.sourceVersionId,
+      };
+
+      return {
+        observedValue: daysUntil,
+        evidence,
+        operator: 'LTE',
+        threshold: condition.daysBefore,
+        matched,
+      };
+    }
+
+    if (condition.kind === 'TIME_REACHED') {
+      const evidence: WatchTimeEvidence = {
+        sourceType: 'TIME',
+        triggerAt: condition.triggerAt,
+        evaluatedAt: params.evaluatedAt,
+        timezone: condition.timezone,
+      };
+
+      return {
+        observedValue: params.evaluatedAt,
+        evidence,
+        operator: 'GTE',
+        threshold: condition.triggerAt,
+        matched: params.evaluatedAt >= condition.triggerAt,
       };
     }
 
@@ -390,6 +566,13 @@ export class WatchEvaluator {
     return {
       observedValue: raw,
       evidence,
+      operator: condition.operator,
+      threshold: condition.threshold,
+      matched: compare(
+        raw,
+        condition.operator,
+        condition.threshold
+      ),
     };
   }
 }
