@@ -112,6 +112,8 @@ export class CompanyKnowledgeStore {
   private claims = new Map<string, KnowledgeClaim>();
   private events = new Map<string, BusinessEvent>();
   private projectionRuns = new Map<string, KnowledgeProjectionRun>();
+  private batchDepth = 0;
+  private dirty = false;
 
   constructor() {
     this.load();
@@ -149,6 +151,11 @@ export class CompanyKnowledgeStore {
   }
 
   private save(): void {
+    if (this.batchDepth > 0) {
+      this.dirty = true;
+      return;
+    }
+
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
@@ -164,6 +171,19 @@ export class CompanyKnowledgeStore {
     const temporary = KNOWLEDGE_FILE + '.tmp';
     fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
     fs.renameSync(temporary, KNOWLEDGE_FILE);
+    this.dirty = false;
+  }
+
+  public withBatch<T>(operation: () => T): T {
+    this.batchDepth += 1;
+    try {
+      return operation();
+    } finally {
+      this.batchDepth -= 1;
+      if (this.batchDepth === 0 && this.dirty) {
+        this.save();
+      }
+    }
   }
 
   public saveProjectionRun(
