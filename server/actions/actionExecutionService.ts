@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { companyKnowledgeStore } from '../companyKnowledge/companyKnowledgeStore.js';
 import { SOURCE_AUTHORITIES } from '../companyKnowledge/sourceAuthority.js';
 import { KnowledgeSourceRef } from '../companyKnowledge/types.js';
+import { discoveryService } from '../discovery/discoveryService.js';
 import { actionStore } from './actionStore.js';
 import { effectiveCompanyStateService } from '../companyKnowledge/effectiveCompanyStateService.js';
 import { ActionExecution, ActionProposal } from './types.js';
@@ -46,6 +47,63 @@ function sourceRefFor(proposal: ActionProposal): KnowledgeSourceRef {
 }
 
 export class ActionExecutionService {
+  private runDownstreamDiscovery(params: {
+    accountId: string;
+    proposal: ActionProposal;
+    now: number;
+  }): {
+    runIds: string[];
+    warnings: string[];
+  } {
+    const datasetIds = new Set<string>();
+
+    for (const entityId of params.proposal.targetEntityIds) {
+      const entity = companyKnowledgeStore.getEntity(
+        params.accountId,
+        entityId
+      );
+      for (const source of entity?.sourceRefs || []) {
+        if (source.sourceType === 'DATASET') {
+          datasetIds.add(source.sourceId);
+        }
+      }
+    }
+
+    for (const precondition of params.proposal.preconditions) {
+      if (!precondition.effectiveClaimId) continue;
+      const claim = companyKnowledgeStore.getClaim(
+        params.accountId,
+        precondition.effectiveClaimId
+      );
+      if (claim?.sourceRef.sourceType === 'DATASET') {
+        datasetIds.add(claim.sourceRef.sourceId);
+      }
+    }
+
+    const runIds: string[] = [];
+    const warnings: string[] = [];
+
+    for (const datasetId of datasetIds) {
+      try {
+        const result = discoveryService.analyzeDataset({
+          accountId: params.accountId,
+          datasetId,
+          referenceTime: params.now,
+        });
+        runIds.push(result.run.id);
+      } catch (error: any) {
+        warnings.push(
+          'Discovery refresh failed for dataset ' +
+            datasetId +
+            ': ' +
+            (error?.message || 'unknown error')
+        );
+      }
+    }
+
+    return { runIds, warnings };
+  }
+
   private recoverAppliedProposal(params: {
     accountId: string;
     proposal: ActionProposal;
@@ -88,6 +146,12 @@ export class ActionExecutionService {
 
     if (matchingEvents.length === 0) return null;
 
+    const downstream = this.runDownstreamDiscovery({
+      accountId: params.accountId,
+      proposal: params.proposal,
+      now: params.now,
+    });
+
     const execution = actionStore.saveExecution({
       id: 'exe_' + crypto.randomBytes(10).toString('hex'),
       accountId: params.accountId,
@@ -95,6 +159,8 @@ export class ActionExecutionService {
       intent: params.proposal.intent,
       claimIds: recoveredClaimIds,
       eventIds: matchingEvents.map((event) => event.id),
+      downstreamAnalysisRunIds: downstream.runIds,
+      downstreamWarnings: downstream.warnings,
       executedAt:
         Math.min(
           ...matchingEvents.map((event) => event.recordedAt),
@@ -274,6 +340,12 @@ export class ActionExecutionService {
       eventIds.push(event.id);
     });
 
+    const downstream = this.runDownstreamDiscovery({
+      accountId: params.accountId,
+      proposal,
+      now,
+    });
+
     const execution = actionStore.saveExecution({
       id: 'exe_' + crypto.randomBytes(10).toString('hex'),
       accountId: params.accountId,
@@ -281,6 +353,8 @@ export class ActionExecutionService {
       intent: proposal.intent,
       claimIds,
       eventIds,
+      downstreamAnalysisRunIds: downstream.runIds,
+      downstreamWarnings: downstream.warnings,
       executedAt: now,
     });
 
@@ -289,7 +363,11 @@ export class ActionExecutionService {
       proposalId: proposal.id,
       status: 'CONFIRMED',
       detail:
-        'User explicitly confirmed the proposal. USER_CONFIRMED company-state claims and audit events were written.',
+        'User explicitly confirmed the proposal. USER_CONFIRMED company-state claims and audit events were written. Downstream discovery refreshes: ' +
+        String(execution.downstreamAnalysisRunIds?.length || 0) +
+        (execution.downstreamWarnings?.length
+          ? '; warnings: ' + execution.downstreamWarnings.join(' | ')
+          : '.'),
       executionId: execution.id,
     });
 
