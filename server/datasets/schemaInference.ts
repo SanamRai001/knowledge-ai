@@ -150,6 +150,7 @@ export function inferDatasetSchema(
       name,
       normalizedName: normalizedName(name) || `column_${columnIndex + 1}`,
       inferredType: inferred.type,
+      typeSource: 'INFERRED',
       nullable: missingCount > 0,
       missingCount,
       distinctCount: distinct.size,
@@ -203,4 +204,155 @@ export function coerceRowsToSchema(
       coerceCell(row[index] ?? null, column.inferredType)
     )
   );
+}
+
+
+const VALID_COLUMN_TYPES = new Set<DatasetColumnType>([
+  'TEXT',
+  'INTEGER',
+  'DECIMAL',
+  'CURRENCY',
+  'DATE',
+  'DATETIME',
+  'BOOLEAN',
+  'CATEGORICAL',
+  'IDENTIFIER',
+]);
+
+export class SchemaCorrectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SchemaCorrectionError';
+  }
+}
+
+function strictCoerceCell(
+  value: DatasetCell,
+  type: DatasetColumnType,
+  columnName: string,
+  rowNumber: number
+): DatasetCell {
+  if (value === null || asString(value) === '') return null;
+  const text = asString(value);
+
+  switch (type) {
+    case 'BOOLEAN':
+      if (!isBoolean(text)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be BOOLEAN: row ${rowNumber} contains "${text}".`
+        );
+      }
+      return booleanValue(text);
+    case 'INTEGER': {
+      if (!isInteger(text)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be INTEGER: row ${rowNumber} contains "${text}".`
+        );
+      }
+      const number = Number(text.replace(/,/g, ''));
+      if (!Number.isSafeInteger(number)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" contains an integer outside the safe numeric range at row ${rowNumber}.`
+        );
+      }
+      return number;
+    }
+    case 'DECIMAL': {
+      if (!isDecimal(text)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be DECIMAL: row ${rowNumber} contains "${text}".`
+        );
+      }
+      const number = Number(text.replace(/,/g, ''));
+      if (!Number.isFinite(number)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" contains an invalid decimal at row ${rowNumber}.`
+        );
+      }
+      return number;
+    }
+    case 'CURRENCY': {
+      const number = currencyNumber(text);
+      if (number === null) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be CURRENCY: row ${rowNumber} contains "${text}".`
+        );
+      }
+      return number;
+    }
+    case 'DATE':
+      if (!isDate(text)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be DATE: row ${rowNumber} contains "${text}".`
+        );
+      }
+      return text;
+    case 'DATETIME':
+      if (!isDateTime(text)) {
+        throw new SchemaCorrectionError(
+          `Column "${columnName}" cannot be DATETIME: row ${rowNumber} contains "${text}".`
+        );
+      }
+      return text;
+    case 'TEXT':
+    case 'CATEGORICAL':
+    case 'IDENTIFIER':
+    default:
+      return text;
+  }
+}
+
+export function applySchemaOverrides(
+  rows: DatasetCell[][],
+  columns: DatasetColumnSchema[],
+  overrides?: Record<string, DatasetColumnType>
+): { columns: DatasetColumnSchema[]; rows: DatasetCell[][] } {
+  if (!overrides || Object.keys(overrides).length === 0) {
+    return {
+      columns,
+      rows: coerceRowsToSchema(rows, columns),
+    };
+  }
+
+  const unknownColumns = Object.keys(overrides).filter(
+    (name) => !columns.some((column) => column.name === name)
+  );
+  if (unknownColumns.length > 0) {
+    throw new SchemaCorrectionError(
+      `Unknown schema override column(s): ${unknownColumns.join(', ')}.`
+    );
+  }
+
+  for (const [name, type] of Object.entries(overrides)) {
+    if (!VALID_COLUMN_TYPES.has(type)) {
+      throw new SchemaCorrectionError(
+        `Unsupported type override "${String(type)}" for column "${name}".`
+      );
+    }
+  }
+
+  const correctedColumns = columns.map((column) => {
+    const override = overrides[column.name];
+    return override
+      ? {
+          ...column,
+          inferredType: override,
+          typeSource: 'USER_OVERRIDE' as const,
+          confidence: 1,
+        }
+      : column;
+  });
+
+  const correctedRows = rows.map((row, rowIndex) =>
+    correctedColumns.map((column, columnIndex) =>
+      strictCoerceCell(
+        row[columnIndex] ?? null,
+        column.inferredType,
+        column.name,
+        rowIndex + 1
+      )
+    )
+  );
+
+  return { columns: correctedColumns, rows: correctedRows };
 }
