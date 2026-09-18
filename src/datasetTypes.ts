@@ -159,3 +159,19 @@ export interface UnifiedDocumentResponse {
 export type UnifiedQueryResponse =
   | UnifiedAnalyticsResponse
   | UnifiedDocumentResponse;
+
+
+export interface DatasetVersionSummary {
+  id: string;
+  datasetId: string;
+  versionNumber: number;
+  createdAt: number;
+  source: DatasetSource;
+  importRunId: string;
+  tables: Array<{
+    id: string;
+    name: string;
+    rowCount: number;
+    columnCount: number;
+  }>;
+}
