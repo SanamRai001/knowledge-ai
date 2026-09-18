@@ -32,12 +32,14 @@ export class WatchAccessError extends Error {
   public readonly statusCode = 404;
   public readonly code:
     | 'WATCH_RULE_NOT_FOUND'
+    | 'WATCH_DRAFT_NOT_FOUND'
     | 'WATCH_EVALUATION_NOT_FOUND'
     | 'WATCH_ALERT_NOT_FOUND';
 
   constructor(
     code:
       | 'WATCH_RULE_NOT_FOUND'
+      | 'WATCH_DRAFT_NOT_FOUND'
       | 'WATCH_EVALUATION_NOT_FOUND'
       | 'WATCH_ALERT_NOT_FOUND',
     message: string
@@ -154,7 +156,7 @@ export class WatchStore {
     const draft = this.getDraft(accountId, draftId);
     if (!draft) {
       throw new WatchAccessError(
-        'WATCH_RULE_NOT_FOUND',
+        'WATCH_DRAFT_NOT_FOUND',
         'Watch draft not found in the current account scope.'
       );
     }
