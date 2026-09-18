@@ -14,6 +14,7 @@
     "check:workspace-isolation": "tsx scripts/check-workspace-isolation.ts",
     "check:workspace-http-isolation": "tsx scripts/check-workspace-http-isolation.ts",
     "check:structured-data-foundation": "tsx scripts/check-structured-data-foundation.ts",
+    "check:dataset-http-isolation": "tsx scripts/check-dataset-http-isolation.ts",
     "check:telemetry-integrity": "tsx scripts/check-telemetry-integrity.ts",
     "benchmark:unseen": "tsx scripts/run-unseen-benchmark.ts",
     "benchmark:unseen:gemini": "tsx scripts/run-live-gemini-benchmark.ts"
