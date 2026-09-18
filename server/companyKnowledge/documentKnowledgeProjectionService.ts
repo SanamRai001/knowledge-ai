@@ -470,9 +470,9 @@ export class DocumentKnowledgeProjectionService {
                     document,
                     pageNumber: page.pageNumber,
                     excerpt: line,
+                    snapshotId,
                   }),
                   observedAt,
-                  snapshotId,
                 });
                 claimIds.add(storedClaim.id);
               }
@@ -498,7 +498,7 @@ export class DocumentKnowledgeProjectionService {
           },
           recordedAt: Date.now(),
           projectionRunId: run.id,
-          fingerprintParts: [kb.currentVersion],
+          fingerprintParts: [snapshotId],
         });
         eventIds.add(projectedEvent.id);
       });
