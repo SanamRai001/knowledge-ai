@@ -1,5 +1,8 @@
 import { providerRouter } from '../providers/providerRouter.js';
-import { deterministicActionParser } from './deterministicActionParser.js';
+import {
+  deterministicActionParser,
+  parseActionDateText,
+} from './deterministicActionParser.js';
 import {
   ActionProposalError,
   actionProposalService,
@@ -227,6 +230,13 @@ export class HybridActionInterpreter {
         'ACTION_LLM_INVALID',
         422,
         'The language model did not return a valid supported action. Nothing was written.'
+      );
+    }
+
+    if (parsed.rawDateText) {
+      parsed.occurredAt = parseActionDateText(
+        parsed.rawDateText,
+        params.now || new Date()
       );
     }
 
