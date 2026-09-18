@@ -146,3 +146,42 @@ export interface KnowledgeConflict {
   preferredClaimId?: string;
   resolution: 'HIGHER_AUTHORITY_AVAILABLE' | 'AUTHORITY_TIE';
 }
+
+
+export interface KnowledgeClaimChange {
+  subjectEntityId: string;
+  predicate: string;
+  changeType: 'ADDED' | 'REMOVED' | 'CHANGED';
+  previousClaimIds: string[];
+  currentClaimIds: string[];
+  previousValues: KnowledgeClaimValue[];
+  currentValues: KnowledgeClaimValue[];
+}
+
+export interface KnowledgeChangeReport {
+  accountId: string;
+  sourceType: 'DATASET' | 'DOCUMENT';
+  sourceId: string;
+  fromRunId: string;
+  toRunId: string;
+  fromSourceVersionId?: string;
+  toSourceVersionId?: string;
+  fromSourceVersionLabel?: string;
+  toSourceVersionLabel?: string;
+  addedEntityIds: string[];
+  removedEntityIds: string[];
+  addedRelationshipIds: string[];
+  removedRelationshipIds: string[];
+  claimChanges: KnowledgeClaimChange[];
+  newEventIds: string[];
+  generatedAt: number;
+}
+
+export interface KnowledgeChangesSince {
+  accountId: string;
+  since: number;
+  projectionRunIds: string[];
+  eventIds: string[];
+  claimIds: string[];
+  entityIdsObserved: string[];
+}
