@@ -1,5 +1,6 @@
 import express from 'express';
 import { DatasetAccessError } from '../datasets/datasetStore.js';
+import { WorkspaceAccessError } from '../workspaceAccessService.js';
 import {
   RequestIdentity,
   RequestIdentityError,
@@ -42,6 +43,7 @@ function handleError(res: express.Response, error: any): void {
   if (
     error instanceof RequestIdentityError ||
     error instanceof DatasetAccessError ||
+    error instanceof WorkspaceAccessError ||
     error instanceof CompanyKnowledgeAccessError
   ) {
     res.status(error.statusCode).json({
