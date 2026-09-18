@@ -146,6 +146,19 @@ export function insightFor(params: {
     )
     .digest('hex');
 
+  const overlayChanges = (params.context.companyStateOverlay || [])
+    .filter((overlay) => overlay.tableId === params.table.id)
+    .map((overlay) => ({
+      rowIndex: overlay.rowIndex,
+      columnName: overlay.columnName,
+      predicate: overlay.predicate,
+      entityId: overlay.entityId,
+      claimId: overlay.claimId,
+      authorityLevel: overlay.authorityLevel,
+      beforeValue: overlay.beforeValue,
+      afterValue: overlay.afterValue,
+    }));
+
   const evidence: InsightEvidence = {
     sourceType: 'DATASET',
     datasetId: params.version.datasetId,
@@ -160,6 +173,21 @@ export function insightFor(params: {
     calculation: params.calculation,
     values: params.values,
     rowReferences: params.rowReferences,
+    companyStateOverlay:
+      overlayChanges.length > 0
+        ? {
+            applicationCount: overlayChanges.length,
+            claimIds: Array.from(
+              new Set(overlayChanges.map((overlay) => overlay.claimId))
+            ),
+            authorityLevels: Array.from(
+              new Set(
+                overlayChanges.map((overlay) => overlay.authorityLevel)
+              )
+            ),
+            changes: overlayChanges,
+          }
+        : undefined,
   };
 
   return {
