@@ -11,8 +11,11 @@ This is the short, living progress tracker for the Phase 0 work defined in `PHAS
 0B Provider abstraction              COMPLETE
 0C Workspace isolation               COMPLETE
 0D Persistence/security hygiene      COMPLETE
-0E Telemetry/evaluation hardening    VERIFYING IN CI
-0F Final exit-gate audit             NEXT
+0E Telemetry/evaluation hardening    COMPLETE
+0F Final exit-gate audit             COMPLETE
+
+PHASE 0                              COMPLETE
+PHASE 1 Structured business data     NEXT
 ```
 
 ## Phase 0A — COMPLETE
@@ -89,7 +92,7 @@ Mutable local runtime state is no longer source-controlled application data.
 
 File-backed storage remains an explicitly documented prototype persistence mechanism; relational migration is intentionally incremental rather than a Phase 0 rewrite.
 
-## Phase 0E — VERIFYING IN CI
+## Phase 0E — COMPLETE
 
 Current implementation:
 
@@ -114,10 +117,19 @@ Primary Phase 0E commits:
 - `5a810c6d60b5420b1cd52f7aaed4808431f9b682`
 - `ecdc55655a016a477b80ac207bd7ab60149023b4`
 
-0E becomes COMPLETE only after the full Quality Gate on the latest commit is green.
+Verification:
 
-## Phase 0F — NEXT
+- Quality Gate run `35355434759` passed the integrated Phase 0E code, including the stricter unseen benchmark and live-provider benchmark step.
+- The telemetry integrity guard has also passed in CI.
 
-Re-run the Phase 0 exit-gate scorecard against the actual main branch.
+## Phase 0F — COMPLETE
 
-Major Phase 1 structured-data work starts only if every Phase 0 blocker is green.
+The final scorecard is documented in `PHASE_0_FINAL_AUDIT.md`.
+
+Result: **7 / 7 Phase 0 exit-gate requirements pass.**
+
+## Next
+
+Begin **Phase 1 — First-Class Structured Business Data**.
+
+The first slice is CSV/XLSX ingestion → schema detection → preview/mapping → validated structured storage → deterministic analysis → evidence-backed AI explanation.
