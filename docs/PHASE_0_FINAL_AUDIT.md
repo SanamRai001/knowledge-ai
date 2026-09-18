@@ -11,7 +11,7 @@ Phase 0 established the trustworthy knowledge foundation required before Knowled
 
 All blocking requirements in `IMPLEMENTATION_ROADMAP.md` are now satisfied on the current architecture.
 
-The successful Quality Gate run `35355434759` verified the integrated code after telemetry hardening. It passed:
+The final authoritative Quality Gate run `35356012529` verified the integrated code after telemetry hardening **and** the mounted HTTP workspace boundary. It passed:
 
 - benchmark leakage guard
 - LLM provider boundary guard
@@ -19,6 +19,7 @@ The successful Quality Gate run `35355434759` verified the integrated code after
 - TypeScript check
 - production build
 - workspace isolation proof
+- workspace HTTP isolation proof against the mounted `/api/kb` router
 - arithmetic grounding proof
 - deterministic synthesis guard
 - multidimensional unseen-corpus effectiveness benchmark
@@ -37,7 +38,7 @@ The newer workflow also includes `check:telemetry-integrity`; that guard has pas
 | Unsupported questions reliably abstain | **PASS** | CI separately gates correct refusal rate and false-refusal rate. |
 | Normal grounded Q&A uses provider abstraction | **PASS** | Cognitive and grounded generation use `ProviderRouter → LLMProvider → GeminiProvider`; vendor SDK use is CI-restricted to `server/providers/`. |
 | Simulated/fallback metrics cannot be mistaken for live metrics | **PASS** | Live benchmark separates live-provider, fallback, overall pipeline, coverage, and validity. Provider usage is measured only when exposed by the provider. |
-| Core workspace isolation has executable coverage | **PASS** | Cross-account read, mutation, switching, AI access, identity spoofing, and retrieval leakage are denied by executable CI tests. |
+| Core workspace isolation has executable coverage | **PASS** | Cross-account read, mutation, switching, AI access, identity spoofing, retrieval leakage, and the mounted normal HTTP `/api/kb` surface are denied by executable CI tests. |
 | Lint and production build pass consistently | **PASS** | Integrated Quality Gate is green. |
 
 **Result: 7 / 7 exit-gate requirements pass.**
@@ -84,7 +85,9 @@ Structured provider failures include rate limiting, timeout, unavailable, authen
 
 ### 4. Workspace isolation
 
-Account identity and KB ownership are authoritative at backend boundaries.
+Account identity and KB ownership are authoritative at backend boundaries and on the mounted normal HTTP API.
+
+During the final audit, the service/store isolation tests exposed an integration gap: `server.ts` still contained legacy direct `kbStore` handlers. Phase 0 was not considered complete until an account-scoped `workspaceRouter` was mounted ahead of those handlers and an HTTP-level CI test proved the real request path.
 
 A foreign raw KB identifier alone cannot grant access.
 
@@ -96,6 +99,7 @@ Isolation applies to:
 - Specialized AI access
 - retrieval/index evidence
 - account identity resolution
+- the mounted `/api/kb` HTTP route surface
 
 ### 5. Persistence and secret hygiene
 
