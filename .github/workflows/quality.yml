@@ -92,6 +92,9 @@ jobs:
       - name: Phase 3E living Knowledge UI proof
         run: npm run check:phase3e-ui
 
+      - name: Phase 4 safe actions proof
+        run: npm run check:phase4-actions
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
