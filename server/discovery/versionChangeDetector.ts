@@ -17,9 +17,17 @@ export function detectVersionChanges(
   const insights: Insight[] = [];
 
   for (const currentTable of current.tables) {
-    const previousTable = previous.tables.find(
-      (table) => normalizeName(table.name) === normalizeName(currentTable.name)
-    );
+    const previousTable =
+      previous.tables.find(
+        (table) =>
+          normalizeName(table.name) === normalizeName(currentTable.name)
+      ) ||
+      (previous.source.format === 'CSV' &&
+      current.source.format === 'CSV' &&
+      previous.tables.length === 1 &&
+      current.tables.length === 1
+        ? previous.tables[0]
+        : null);
     if (!previousTable) continue;
 
     if (previousTable.rowCount > 0) {
