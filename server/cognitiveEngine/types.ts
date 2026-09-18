@@ -240,15 +240,30 @@ export interface CognitiveExecutionTrace {
   isFoundInDocuments: boolean;
   engineUsed: 'gemini-3.8-flash' | 'cognitive-deterministic-engine';
   failureClassification: 'NONE_SUCCESS' | 'RETRIEVAL_FAILURE' | 'INSUFFICIENT_EVIDENCE' | 'GROUNDING_FAILURE' | 'CONTRADICTION_REFUSAL';
+  providerExecution?: {
+    attempted: boolean;
+    providerId?: string;
+    modelId?: string;
+    latencyMs: number | null;
+    usage: {
+      inputTokens: number | null;
+      outputTokens: number | null;
+      totalTokens: number | null;
+      source: 'MEASURED' | 'UNAVAILABLE';
+    };
+    failureCategory?: string;
+    retryable?: boolean;
+  };
   timingMs: {
     questionUnderstandingMs: number;
     planningMs: number;
     retrievalMs: number;
-    fusionMs: number;
-    rerankingMs: number;
-    reasoningMs: number;
+    fusionMs: number | null;
+    rerankingMs: number | null;
+    synthesisMs: number;
+    reasoningMs: number | null;
     verificationMs: number;
-    generationMs: number;
+    generationMs: number | null;
     totalMs: number;
   };
 }
@@ -353,5 +368,6 @@ export interface SynthesizeStageResult {
   groundingScore: number;
   citations: Citation[];
   mathResult?: any;
+  providerExecution?: CognitiveExecutionTrace['providerExecution'];
   timingMs: number;
 }
