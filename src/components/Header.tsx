@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 
-export type ActiveTab = 'playground' | 'insights' | 'company' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
+export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -158,6 +158,19 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Network className="w-3.5 h-3.5 text-emerald-700" />
           <span>Knowledge</span>
+        </button>
+
+        <button
+          id="nav-tab-actions"
+          onClick={() => onTabChange('actions')}
+          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            currentTab === 'actions'
+              ? 'border-emerald-700 text-emerald-800 bg-emerald-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+          <span>Actions</span>
         </button>
 
         <button
