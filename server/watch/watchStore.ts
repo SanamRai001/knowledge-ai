@@ -7,6 +7,7 @@ import {
   WatchEvaluation,
   WatchRule,
   WatchRuleStatus,
+  WatchDraft,
 } from './types.js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -16,6 +17,7 @@ type PersistedWatchState = {
   rules: WatchRule[];
   evaluations: WatchEvaluation[];
   alerts: WatchAlert[];
+  drafts: WatchDraft[];
 };
 
 function clone<T>(value: T): T {
@@ -66,6 +68,7 @@ export class WatchStore {
   private rules = new Map<string, WatchRule>();
   private evaluations = new Map<string, WatchEvaluation>();
   private alerts = new Map<string, WatchAlert>();
+  private drafts = new Map<string, WatchDraft>();
 
   constructor() {
     this.load();
@@ -88,6 +91,9 @@ export class WatchStore {
       for (const alert of parsed.alerts || []) {
         this.alerts.set(alert.id, alert);
       }
+      for (const draft of parsed.drafts || []) {
+        this.drafts.set(draft.id, draft);
+      }
     } catch (error) {
       console.warn(
         'Could not load watch runtime state; starting empty:',
@@ -105,6 +111,7 @@ export class WatchStore {
       rules: Array.from(this.rules.values()).slice(-5000),
       evaluations: Array.from(this.evaluations.values()).slice(-25000),
       alerts: Array.from(this.alerts.values()).slice(-10000),
+      drafts: Array.from(this.drafts.values()).slice(-5000),
     };
 
     const temporary = WATCH_FILE + '.tmp';
@@ -114,6 +121,74 @@ export class WatchStore {
       'utf8'
     );
     fs.renameSync(temporary, WATCH_FILE);
+  }
+
+  public createDraft(
+    input: Omit<WatchDraft, 'id' | 'createdAt' | 'updatedAt'>
+  ): WatchDraft {
+    const now = Date.now();
+    const draft: WatchDraft = {
+      ...clone(input),
+      id: id('wdr'),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.drafts.set(draft.id, draft);
+    this.save();
+    return clone(draft);
+  }
+
+  public getDraft(
+    accountId: string,
+    draftId: string
+  ): WatchDraft | null {
+    const draft = this.drafts.get(draftId);
+    if (!draft || draft.accountId !== accountId) return null;
+    return clone(draft);
+  }
+
+  public requireDraft(
+    accountId: string,
+    draftId: string
+  ): WatchDraft {
+    const draft = this.getDraft(accountId, draftId);
+    if (!draft) {
+      throw new WatchAccessError(
+        'WATCH_RULE_NOT_FOUND',
+        'Watch draft not found in the current account scope.'
+      );
+    }
+    return draft;
+  }
+
+  public updateDraft(
+    accountId: string,
+    draftId: string,
+    updates: Partial<WatchDraft>
+  ): WatchDraft {
+    const current = this.requireDraft(accountId, draftId);
+    const updated: WatchDraft = {
+      ...current,
+      ...clone(updates),
+      id: current.id,
+      accountId: current.accountId,
+      updatedAt: Date.now(),
+    };
+    this.drafts.set(updated.id, updated);
+    this.save();
+    return clone(updated);
+  }
+
+  public listDrafts(params: {
+    accountId: string;
+    limit?: number;
+  }): WatchDraft[] {
+    const limit = Math.max(1, Math.min(params.limit || 100, 500));
+    return Array.from(this.drafts.values())
+      .filter((draft) => draft.accountId === params.accountId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map(clone);
   }
 
   public createRule(
