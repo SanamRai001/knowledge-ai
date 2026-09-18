@@ -641,6 +641,16 @@ export class WatchDraftService {
       const validated = validateLlmParsed(
         parseJsonObject(generated.text)
       );
+      if (
+        validated?.request.kind === 'TIME_REACHED' &&
+        !instruction.includes(validated.request.rawDateText)
+      ) {
+        throw new WatchDraftError(
+          'WATCH_LLM_INVALID',
+          422,
+          'The language model returned a reminder timestamp that was not explicitly present in the user request. Nothing was saved.'
+        );
+      }
       if (!validated) {
         throw new WatchDraftError(
           'WATCH_LLM_INVALID',
