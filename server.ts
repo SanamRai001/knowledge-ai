@@ -61,6 +61,7 @@ import { hierarchicalIndex } from './server/cognitiveEngine/hierarchicalIndex.js
 import { ChatMessage, ApiChatRequest, ApiChatResponse, ApiErrorResponse, MemoryStatus, MemoryType, ExperienceSource } from './src/types.js';
 import { workspaceRouter } from './server/workspaceRouter.js';
 import { datasetRouter } from './server/datasets/datasetRouter.js';
+import { queryRouter } from './server/querying/queryRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -95,6 +96,7 @@ const upload = multer({
 // request identity and workspace ownership checks.
 app.use('/api/kb', workspaceRouter);
 app.use('/api/datasets', datasetRouter);
+app.use('/api/query', queryRouter);
 
 // --- API ROUTES ---
 
