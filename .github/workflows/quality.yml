@@ -44,6 +44,9 @@ jobs:
       - name: Workspace isolation proof
         run: npm run check:workspace-isolation
 
+      - name: Workspace HTTP isolation proof
+        run: npm run check:workspace-http-isolation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
