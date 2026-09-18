@@ -2,17 +2,19 @@ import crypto from 'crypto';
 import path from 'path';
 import { parseCsvBuffer } from './csvParser.js';
 import {
-  coerceRowsToSchema,
+  applySchemaOverrides,
   inferDatasetSchema,
 } from './schemaInference.js';
 import { datasetStore } from './datasetStore.js';
 import {
+  DatasetColumnType,
   DatasetImportRun,
   DatasetPreview,
   DatasetSource,
   DatasetTable,
   ParsedDatasetTable,
 } from './types.js';
+import { parseXlsxBuffer } from './xlsxParser.js';
 
 const PREVIEW_ROWS = 20;
 
@@ -35,27 +37,35 @@ export class DatasetImportError extends Error {
 function sourceFor(
   buffer: Buffer,
   filename: string,
-  mimeType: string
+  mimeType: string,
+  format: 'CSV' | 'XLSX'
 ): DatasetSource {
   return {
     filename,
     mimeType,
     sizeBytes: buffer.byteLength,
     sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
-    format: 'CSV',
+    format,
   };
 }
 
-function tableFromParsed(parsed: ParsedDatasetTable): DatasetTable {
-  const columns = inferDatasetSchema(parsed.headers, parsed.rows);
-  const rows = coerceRowsToSchema(parsed.rows, columns);
+function tableFromParsed(
+  parsed: ParsedDatasetTable,
+  overrides?: Record<string, DatasetColumnType>
+): DatasetTable {
+  const inferredColumns = inferDatasetSchema(parsed.headers, parsed.rows);
+  const corrected = applySchemaOverrides(
+    parsed.rows,
+    inferredColumns,
+    overrides
+  );
 
   return {
     id: 'dst_' + crypto.randomBytes(8).toString('hex'),
     name: parsed.name,
-    columns,
-    rows,
-    rowCount: rows.length,
+    columns: corrected.columns,
+    rows: corrected.rows,
+    rowCount: corrected.rows.length,
     duplicateRowCount: parsed.duplicateRowCount,
   };
 }
@@ -84,6 +94,7 @@ export class DatasetService {
     buffer: Buffer;
     filename: string;
     mimeType?: string;
+    schemaOverrides?: Record<string, DatasetColumnType>;
   }): DatasetPreview {
     assertCsvFilename(params.filename);
 
@@ -103,11 +114,12 @@ export class DatasetService {
         params.buffer,
         datasetNameFromFilename(params.filename)
       );
-      const table = tableFromParsed(parsed);
+      const table = tableFromParsed(parsed, params.schemaOverrides);
       const source = sourceFor(
         params.buffer,
         params.filename,
-        params.mimeType || 'text/csv'
+        params.mimeType || 'text/csv',
+        'CSV'
       );
 
       if (table.duplicateRowCount > 0) {
@@ -155,6 +167,7 @@ export class DatasetService {
     datasetName?: string;
     description?: string;
     existingDatasetId?: string;
+    schemaOverrides?: Record<string, DatasetColumnType>;
   }) {
     assertCsvFilename(params.filename);
 
@@ -174,11 +187,12 @@ export class DatasetService {
         params.buffer,
         datasetNameFromFilename(params.filename)
       );
-      const table = tableFromParsed(parsed);
+      const table = tableFromParsed(parsed, params.schemaOverrides);
       const source = sourceFor(
         params.buffer,
         params.filename,
-        params.mimeType || 'text/csv'
+        params.mimeType || 'text/csv',
+        'CSV'
       );
 
       if (table.duplicateRowCount > 0) {
@@ -219,6 +233,230 @@ export class DatasetService {
       datasetStore.recordImportRun(importRun);
       throw error;
     }
+  }
+
+  public async previewXlsx(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
+  }): Promise<DatasetPreview> {
+    if (!params.filename.toLowerCase().endsWith('.xlsx')) {
+      throw new DatasetImportError(
+        'UNSUPPORTED_FORMAT',
+        'Expected an .xlsx workbook.'
+      );
+    }
+
+    const importRun: DatasetImportRun = {
+      id: 'imp_' + crypto.randomBytes(8).toString('hex'),
+      accountId: params.accountId,
+      status: 'PREVIEWED',
+      createdAt: Date.now(),
+      completedAt: Date.now(),
+      filename: params.filename,
+      format: 'XLSX',
+      warnings: [],
+    };
+
+    try {
+      const parsedTables = await parseXlsxBuffer(params.buffer);
+      const tables = parsedTables.map((parsed) =>
+        tableFromParsed(
+          parsed,
+          params.schemaOverrides?.[parsed.name]
+        )
+      );
+      const source = sourceFor(
+        params.buffer,
+        params.filename,
+        params.mimeType ||
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'XLSX'
+      );
+
+      for (const table of tables) {
+        if (table.duplicateRowCount > 0) {
+          importRun.warnings.push(
+            `Sheet "${table.name}" contains ${table.duplicateRowCount} duplicate row(s).`
+          );
+        }
+        for (const column of table.columns) {
+          if (column.nullable) {
+            importRun.warnings.push(
+              `Sheet "${table.name}", column "${column.name}" contains ${column.missingCount} missing value(s).`
+            );
+          }
+        }
+      }
+
+      datasetStore.recordImportRun(importRun);
+
+      return {
+        importRun,
+        source,
+        tables: tables.map((table) => ({
+          name: table.name,
+          rowCount: table.rowCount,
+          duplicateRowCount: table.duplicateRowCount,
+          columns: table.columns,
+          previewRows: table.rows.slice(0, PREVIEW_ROWS),
+        })),
+      };
+    } catch (error: any) {
+      importRun.status = 'FAILED';
+      importRun.error = error?.message || 'XLSX preview failed.';
+      importRun.completedAt = Date.now();
+      datasetStore.recordImportRun(importRun);
+      throw error;
+    }
+  }
+
+  public async importXlsx(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    datasetName?: string;
+    description?: string;
+    existingDatasetId?: string;
+    schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
+  }) {
+    if (!params.filename.toLowerCase().endsWith('.xlsx')) {
+      throw new DatasetImportError(
+        'UNSUPPORTED_FORMAT',
+        'Expected an .xlsx workbook.'
+      );
+    }
+
+    const importRun: DatasetImportRun = {
+      id: 'imp_' + crypto.randomBytes(8).toString('hex'),
+      accountId: params.accountId,
+      status: 'IMPORTED',
+      createdAt: Date.now(),
+      completedAt: Date.now(),
+      filename: params.filename,
+      format: 'XLSX',
+      warnings: [],
+    };
+
+    try {
+      const parsedTables = await parseXlsxBuffer(params.buffer);
+      const tables = parsedTables.map((parsed) =>
+        tableFromParsed(
+          parsed,
+          params.schemaOverrides?.[parsed.name]
+        )
+      );
+      const source = sourceFor(
+        params.buffer,
+        params.filename,
+        params.mimeType ||
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'XLSX'
+      );
+
+      for (const table of tables) {
+        if (table.duplicateRowCount > 0) {
+          importRun.warnings.push(
+            `Sheet "${table.name}" contains ${table.duplicateRowCount} duplicate row(s) that were preserved.`
+          );
+        }
+      }
+
+      const result = params.existingDatasetId
+        ? datasetStore.addVersion({
+            accountId: params.accountId,
+            datasetId: params.existingDatasetId,
+            source,
+            tables,
+            importRunId: importRun.id,
+          })
+        : datasetStore.createDataset({
+            accountId: params.accountId,
+            name:
+              params.datasetName?.trim() ||
+              datasetNameFromFilename(params.filename),
+            description: params.description,
+            source,
+            tables,
+            importRunId: importRun.id,
+          });
+
+      datasetStore.recordImportRun(importRun);
+
+      return {
+        ...result,
+        importRun,
+      };
+    } catch (error: any) {
+      importRun.status = 'FAILED';
+      importRun.error = error?.message || 'XLSX import failed.';
+      importRun.completedAt = Date.now();
+      datasetStore.recordImportRun(importRun);
+      throw error;
+    }
+  }
+
+  public async previewFile(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
+  }): Promise<DatasetPreview> {
+    const lower = params.filename.toLowerCase();
+    if (lower.endsWith('.csv')) {
+      const csvTableName = datasetNameFromFilename(params.filename);
+      return this.previewCsv({
+        accountId: params.accountId,
+        buffer: params.buffer,
+        filename: params.filename,
+        mimeType: params.mimeType,
+        schemaOverrides: params.schemaOverrides?.[csvTableName],
+      });
+    }
+    if (lower.endsWith('.xlsx')) {
+      return this.previewXlsx(params);
+    }
+    throw new DatasetImportError(
+      'UNSUPPORTED_FORMAT',
+      'Supported structured-data formats are .csv and .xlsx.'
+    );
+  }
+
+  public async importFile(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    datasetName?: string;
+    description?: string;
+    existingDatasetId?: string;
+    schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
+  }) {
+    const lower = params.filename.toLowerCase();
+    if (lower.endsWith('.csv')) {
+      const csvTableName = datasetNameFromFilename(params.filename);
+      return this.importCsv({
+        accountId: params.accountId,
+        buffer: params.buffer,
+        filename: params.filename,
+        mimeType: params.mimeType,
+        datasetName: params.datasetName,
+        description: params.description,
+        existingDatasetId: params.existingDatasetId,
+        schemaOverrides: params.schemaOverrides?.[csvTableName],
+      });
+    }
+    if (lower.endsWith('.xlsx')) {
+      return this.importXlsx(params);
+    }
+    throw new DatasetImportError(
+      'UNSUPPORTED_FORMAT',
+      'Supported structured-data formats are .csv and .xlsx.'
+    );
   }
 
   public listDatasets(accountId: string) {
