@@ -204,16 +204,34 @@ export class CompanyKnowledgeStore {
     observedAt: number;
   }): CompanyEntity {
     const normalizedName = normalizeEntityName(params.canonicalName);
-    const identityKey = normalizeEntityName(
-      params.identityKey || params.canonicalName
-    );
-    if (!normalizedName || !identityKey) {
+    const requestedIdentityKey = params.identityKey
+      ? normalizeEntityName(params.identityKey)
+      : '';
+    if (!normalizedName || (params.identityKey && !requestedIdentityKey)) {
       throw new Error('Entity name and identity key cannot be empty.');
     }
 
+    const nameMatches = !requestedIdentityKey
+      ? Array.from(this.entities.values()).filter(
+          (entity) =>
+            entity.accountId === params.accountId &&
+            entity.type === params.type &&
+            (entity.normalizedName === normalizedName ||
+              entity.aliases.some(
+                (alias) => normalizeEntityName(alias) === normalizedName
+              ))
+        )
+      : [];
+
+    const matchedByName = nameMatches.length === 1 ? nameMatches[0] : null;
+    const identityKey =
+      requestedIdentityKey ||
+      matchedByName?.identityKey ||
+      normalizedName;
     const id =
+      matchedByName?.id ||
       'ent_' +
-      shortHash([params.accountId, params.type, identityKey]);
+        shortHash([params.accountId, params.type, identityKey]);
     const existing = this.entities.get(id);
 
     if (existing && existing.accountId === params.accountId) {
