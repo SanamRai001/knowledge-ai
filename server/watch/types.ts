@@ -62,9 +62,24 @@ export interface DatasetAggregateThresholdCondition {
   threshold: number;
 }
 
+export interface EntityDateWindowCondition {
+  kind: 'ENTITY_DATE_WINDOW';
+  entityId: string;
+  predicate: string;
+  daysBefore: number;
+}
+
+export interface TimeReachedCondition {
+  kind: 'TIME_REACHED';
+  triggerAt: number;
+  timezone?: string;
+}
+
 export type WatchCondition =
   | EntityNumericThresholdCondition
-  | DatasetAggregateThresholdCondition;
+  | DatasetAggregateThresholdCondition
+  | EntityDateWindowCondition
+  | TimeReachedCondition;
 
 export interface WatchRule {
   id: string;
@@ -119,9 +134,33 @@ export interface WatchDatasetEvidence {
   };
 }
 
+export interface WatchDateEvidence {
+  sourceType: 'ENTITY_DATE';
+  entityId: string;
+  entityLabel: string;
+  predicate: string;
+  effectiveClaimId: string;
+  dateValue: string;
+  targetAt: number;
+  evaluatedAt: number;
+  daysUntil: number;
+  authorityLevel: string;
+  sourceName: string;
+  sourceVersionId?: string;
+}
+
+export interface WatchTimeEvidence {
+  sourceType: 'TIME';
+  triggerAt: number;
+  evaluatedAt: number;
+  timezone?: string;
+}
+
 export type WatchEvidence =
   | WatchEntityEvidence
-  | WatchDatasetEvidence;
+  | WatchDatasetEvidence
+  | WatchDateEvidence
+  | WatchTimeEvidence;
 
 export interface WatchEvaluation {
   id: string;
@@ -223,6 +262,19 @@ export type ParsedWatchRequest =
       semantic: 'OUTSTANDING_TOTAL';
       operator: WatchComparisonOperator;
       threshold: number;
+    }
+  | {
+      kind: 'ENTITY_DATE_WINDOW';
+      entityType: 'ORDER' | 'INVOICE';
+      entityReference: string;
+      predicate: 'DUE_DATE';
+      daysBefore: number;
+    }
+  | {
+      kind: 'TIME_REACHED';
+      triggerAt: number;
+      rawDateText: string;
+      timezone?: string;
     };
 
 
