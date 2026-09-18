@@ -1268,8 +1268,8 @@ Use this section as the high-level progress board.
 | 2 | Discovery & Insights | **Complete** |
 | 3 | Living Company Knowledge | **Complete** |
 | 4 | Safe Natural-Language Actions | **Complete** |
-| 5 | Watch & Proactive Intelligence | **In Progress** |
-| 6 | Integrations | Planned |
+| 5 | Watch & Proactive Intelligence | **Complete** |
+| 6 | Integrations | **In Progress** |
 | 7 | Controlled Automation | Planned |
 | 8 | Extensible Platform | Future |
 
@@ -1285,31 +1285,33 @@ Suggested status values:
 
 ---
 
-# 8. Immediate next work — Phase 5
+# 8. Immediate next work — Phase 6
 
-Phases 0–4 have passed their exit gates.
+Phases 0–5 have passed their exit gates.
 
 Continue with:
 
 ```text
-5A. WatchRule / WatchEvaluation / WatchAlert foundation ✅
+6A. Shared IntegrationConnector + connection/sync models ← CURRENT
         ↓
-5B. Deterministic rule evaluator ✅
+6B. First live cloud-file connector
         ↓
-5C. Natural-language watch creation ✅
+6C. Second connector through the same abstraction
         ↓
-5D. Durable/retryable evaluation worker ✅
+6D. Incremental sync / retry / revocation / permission hardening
         ↓
-5E. Alert lifecycle + deduplication ✅
-        ↓
-5F. Watch UI + smart reminders + final Phase 5 exit-gate audit ← CURRENT
+6E. Integrations UI + final Phase 6 exit-gate audit
 ```
 
-The continuity source of truth for cross-chat development is:
+Phase 6A must establish the shared internal contract before provider-specific code spreads through the repository.
+
+The continuity source of truth is:
 
 `docs/MASTER_EXECUTION_HANDOFF.md`
 
-Do not jump to integrations or autonomous execution until Phase 5 passes its exit gate.
+Detailed current execution notes:
+
+`docs/PHASE_6_PROGRESS.md`
 
 ---
 
