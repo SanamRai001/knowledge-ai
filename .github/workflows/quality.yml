@@ -53,6 +53,9 @@ jobs:
       - name: Dataset HTTP isolation proof
         run: npm run check:dataset-http-isolation
 
+      - name: XLSX and schema correction proof
+        run: npm run check:xlsx-schema
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
