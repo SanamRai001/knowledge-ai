@@ -14,6 +14,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { ActionProposal } from '../actionTypes';
+import { ActionProposalPanel } from './ActionProposalPanel';
 import {
   DatasetSummary,
   UnifiedAnalyticsResponse,
@@ -59,6 +61,7 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
   documentCount,
   preferredDatasetId,
 }) => {
+  const [mode, setMode] = useState<'ask' | 'update'>('ask');
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>('');
   const [messages, setMessages] = useState<SessionMessage[]>([]);
@@ -66,6 +69,8 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isLoadingDatasets, setIsLoadingDatasets] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionProposal, setActionProposal] = useState<ActionProposal | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -158,23 +163,140 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
     }
   };
 
+  const proposeAction = async (instruction: string) => {
+    const clean = instruction.trim();
+    if (!clean || isSending) return;
+
+    setQuestion('');
+    setError(null);
+    setActionError(null);
+    setIsSending(true);
+
+    try {
+      const response = await fetch('/api/actions/propose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instruction: clean,
+          allowLlmParsing: true,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error || 'Knowledge AI could not prepare that update safely.');
+      }
+      setActionProposal(body.proposal as ActionProposal);
+    } catch (err: any) {
+      setActionError(err.message || 'Knowledge AI could not prepare that update safely.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const reloadAction = async (proposalId: string) => {
+    const response = await fetch('/api/actions/' + proposalId);
+    const body = await response.json();
+    if (response.ok && body.proposal) {
+      setActionProposal(body.proposal as ActionProposal);
+    }
+  };
+
+  const confirmAction = async () => {
+    if (!actionProposal || isSending) return;
+    setActionError(null);
+    setIsSending(true);
+    try {
+      const response = await fetch(
+        '/api/actions/' + actionProposal.id + '/confirm',
+        { method: 'POST' }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        await reloadAction(actionProposal.id);
+        throw new Error(body.error || 'The change could not be confirmed.');
+      }
+      setActionProposal(body.proposal as ActionProposal);
+    } catch (err: any) {
+      setActionError(err.message || 'The change could not be confirmed.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const cancelAction = async () => {
+    if (!actionProposal || isSending) return;
+    setActionError(null);
+    setIsSending(true);
+    try {
+      const response = await fetch(
+        '/api/actions/' + actionProposal.id + '/cancel',
+        { method: 'POST' }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error || 'The proposal could not be cancelled.');
+      }
+      setActionProposal(body.proposal as ActionProposal);
+    } catch (err: any) {
+      setActionError(err.message || 'The proposal could not be cancelled.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const selectActionTarget = async (entityId: string) => {
+    if (!actionProposal || isSending) return;
+    setActionError(null);
+    setIsSending(true);
+    try {
+      const response = await fetch(
+        '/api/actions/' + actionProposal.id + '/select-target',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entityId }),
+        }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error || 'The target could not be selected.');
+      }
+      setActionProposal(body.proposal as ActionProposal);
+    } catch (err: any) {
+      setActionError(err.message || 'The target could not be selected.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (mode === 'update') {
+      proposeAction(question);
+      return;
+    }
     ask(question);
   };
 
-  const suggestions = selectedDatasetId
-    ? [
-        'How much revenue did we make this month?',
-        'Which product generated the most revenue?',
-        'Which customers still owe money?',
-        'Compare August and September revenue.',
-      ]
-    : [
-        'Summarize the most important policy in these documents.',
-        'What deadlines or requirements should I know about?',
-        'What does the handbook say about annual leave?',
-      ];
+  const suggestions =
+    mode === 'update'
+      ? [
+          'Suman paid another NPR 10,000 today.',
+          'Received 20 Oak Boards today.',
+          'Mark order O-100 as delivered.',
+        ]
+      : selectedDatasetId
+        ? [
+            'How much revenue did we make this month?',
+            'Which product generated the most revenue?',
+            'Which customers still owe money?',
+            'Compare August and September revenue.',
+          ]
+        : [
+            'Summarize the most important policy in these documents.',
+            'What deadlines or requirements should I know about?',
+            'What does the handbook say about annual leave?',
+          ];
 
   return (
     <main className="flex-1 min-h-0 overflow-hidden bg-[#f7f7f3] flex flex-col">
@@ -185,11 +307,47 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
               <div className="w-7 h-7 rounded-lg bg-slate-950 text-white flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
-              <h2 className="text-sm font-semibold text-slate-950">Ask your business</h2>
+              <h2 className="text-sm font-semibold text-slate-950">
+                {mode === 'ask' ? 'Ask your business' : 'Update your business'}
+              </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              Knowledge AI chooses structured calculations or document evidence based on your question.
+              {mode === 'ask'
+                ? 'Knowledge AI chooses structured calculations or document evidence based on your question.'
+                : 'Describe a real business update. Knowledge AI prepares an exact preview and writes nothing until you confirm.'}
             </p>
+            <div className="mt-3 inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('ask');
+                  setError(null);
+                  setActionError(null);
+                }}
+                className={`rounded-md px-3 py-1.5 text-[10px] font-semibold transition-colors ${
+                  mode === 'ask'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {mode === 'ask' ? 'Ask' : 'Prepare change'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('update');
+                  setError(null);
+                  setActionError(null);
+                }}
+                className={`rounded-md px-3 py-1.5 text-[10px] font-semibold transition-colors ${
+                  mode === 'update'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Update
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center flex-wrap gap-2">
@@ -225,7 +383,7 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-7">
         <div className="max-w-4xl mx-auto">
-          {messages.length === 0 && (
+          {mode === 'ask' && messages.length === 0 && (
             <section className="pt-6 md:pt-12 pb-8">
               <div className="max-w-2xl">
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
@@ -266,8 +424,53 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
             </section>
           )}
 
+          {mode === 'update' && !actionProposal && (
+            <section className="pt-6 md:pt-12 pb-8">
+              <div className="max-w-2xl">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                  Safe company updates
+                </div>
+                <h3 className="mt-3 text-3xl md:text-4xl font-semibold tracking-[-0.035em] text-slate-950 leading-[1.08]">
+                  Say what changed. Review the exact effect before anything is written.
+                </h3>
+                <p className="mt-4 text-sm leading-6 text-slate-500 max-w-xl">
+                  The language layer interprets your instruction. Application logic resolves the business object,
+                  calculates the before-and-after state, checks for ambiguity, and requires explicit confirmation.
+                </p>
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => proposeAction(suggestion)}
+                    disabled={isSending}
+                    className="group text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 hover:border-slate-300 hover:shadow-sm disabled:opacity-40 transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-slate-700">{suggestion}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-700 shrink-0" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="space-y-6">
-            {messages.map((message) => {
+            {mode === 'update' && actionProposal && (
+              <ActionProposalPanel
+                proposal={actionProposal}
+                isWorking={isSending}
+                error={actionError}
+                onConfirm={confirmAction}
+                onCancel={cancelAction}
+                onSelectTarget={selectActionTarget}
+              />
+            )}
+
+            {mode === 'ask' && messages.map((message) => {
               if (message.role === 'user') {
                 return (
                   <div key={message.id} className="flex justify-end">
@@ -318,7 +521,11 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                   <div className="flex items-center gap-2 text-xs text-slate-600">
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-                    <span>Checking your sources and calculating the answer…</span>
+                    <span>
+                      {mode === 'ask'
+                        ? 'Checking your sources and calculating the answer…'
+                        : 'Resolving the target and validating the proposed change…'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -331,9 +538,9 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
 
       <div className="shrink-0 border-t border-slate-200 bg-[#fbfbf8] px-4 md:px-8 py-4">
         <form onSubmit={submit} className="max-w-4xl mx-auto">
-          {error && (
+          {(error || (mode === 'update' && !actionProposal && actionError)) && (
             <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
+              {mode === 'update' && !actionProposal ? actionError : error}
             </div>
           )}
           <div className="rounded-2xl border border-slate-300 bg-white p-2 shadow-sm focus-within:border-slate-500 focus-within:ring-1 focus-within:ring-slate-300">
@@ -344,14 +551,19 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
-                  if (question.trim()) ask(question);
+                  if (question.trim()) {
+                    if (mode === 'update') proposeAction(question);
+                    else ask(question);
+                  }
                 }
               }}
-              disabled={isSending || !hasSources}
+              disabled={isSending || (mode === 'ask' && !hasSources)}
               placeholder={
-                hasSources
-                  ? 'Ask about sales, customers, inventory, policies, contracts, or anything in your business knowledge…'
-                  : 'Add business data or documents first…'
+                mode === 'update'
+                  ? 'Describe an update, e.g. “Suman paid another NPR 10,000 today.”'
+                  : hasSources
+                    ? 'Ask about sales, customers, inventory, policies, contracts, or anything in your business knowledge…'
+                    : 'Add business data or documents first…'
               }
               className="w-full resize-none bg-transparent px-2 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
             />
@@ -372,7 +584,11 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
               </div>
               <button
                 type="submit"
-                disabled={!question.trim() || isSending || !hasSources}
+                disabled={
+                  !question.trim() ||
+                  isSending ||
+                  (mode === 'ask' && !hasSources)
+                }
                 className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-35"
               >
                 {isSending ? (
@@ -385,7 +601,11 @@ export const UnifiedAskView: React.FC<UnifiedAskViewProps> = ({
             </div>
           </div>
           <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-slate-400 px-1">
-            <span>LLM for language. Deterministic code for business calculations.</span>
+            <span>
+              {mode === 'ask'
+                ? 'LLM for language. Deterministic code for business calculations.'
+                : 'Language for intent. Deterministic validation. Explicit confirmation before writes.'}
+            </span>
             <span className="hidden sm:inline">Enter to send · Shift+Enter for a new line</span>
           </div>
         </form>
