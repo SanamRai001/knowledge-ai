@@ -6,6 +6,10 @@ import {
 } from './types.js';
 import { datasetStore } from './datasetStore.js';
 import {
+  EffectiveDatasetOverlayApplication,
+  effectiveDatasetOverlayService,
+} from '../companyKnowledge/effectiveDatasetOverlayService.js';
+import {
   AggregateOperator,
   AnalyticalAggregate,
   AnalyticalFilter,
@@ -54,6 +58,7 @@ type TableContext = {
   version: DatasetVersion;
   table: DatasetTable;
   columns: Map<string, { schema: DatasetColumnSchema; index: number }>;
+  overlays: EffectiveDatasetOverlayApplication[];
 };
 
 function assertBudget(started: number): void {
@@ -472,11 +477,19 @@ function contextFor(
     );
   }
 
-  const table = resolveTable(version, tableName);
-  return {
+  const effectiveView = effectiveDatasetOverlayService.apply({
+    accountId,
+    datasetId,
     version,
+  });
+  const table = resolveTable(effectiveView.version, tableName);
+  return {
+    version: effectiveView.version,
     table,
     columns: buildColumnMap(table),
+    overlays: effectiveView.overlays.filter(
+      (overlay) => overlay.tableId === table.id
+    ),
   };
 }
 
@@ -512,6 +525,20 @@ function provenanceFor(params: {
     })),
     selectedColumns: params.selectedColumns,
     executionMs: params.executionMs,
+    companyStateOverlay: {
+      applied: params.context.overlays.length > 0,
+      applicationCount: params.context.overlays.length,
+      claimIds: Array.from(
+        new Set(params.context.overlays.map((overlay) => overlay.claimId))
+      ),
+      authorityLevels: Array.from(
+        new Set(
+          params.context.overlays.map(
+            (overlay) => overlay.authorityLevel
+          )
+        )
+      ),
+    },
   };
 }
 
