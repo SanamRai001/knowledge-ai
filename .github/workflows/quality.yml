@@ -101,6 +101,9 @@ jobs:
       - name: Phase 5A/5B watch proof
         run: npm run check:phase5ab-watch
 
+      - name: Phase 5C watch language proof
+        run: npm run check:phase5c-watch-language
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
