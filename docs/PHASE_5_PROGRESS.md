@@ -11,9 +11,9 @@ Phase 5 adds durable WATCH behavior: persisted monitoring rules, deterministic r
 ## Execution slices
 
 ```text
-5A WatchRule / WatchEvaluation / WatchAlert foundation   IN PROGRESS
-5B Deterministic rule evaluator                         IN PROGRESS
-5C Natural-language watch creation                      NOT STARTED
+5A WatchRule / WatchEvaluation / WatchAlert foundation   COMPLETE
+5B Deterministic rule evaluator                         COMPLETE
+5C Natural-language watch creation                      IN PROGRESS
 5D Durable/retryable evaluation worker                  NOT STARTED
 5E Alert lifecycle + deduplication                      NOT STARTED
 5F Watch UI + final Phase 5 audit                       NOT STARTED
@@ -115,12 +115,38 @@ TRUE later
 new alert episode
 ```
 
+## Phase 5A / 5B verification
+
+Quality Gate `35372866426` passed the integrated Watch foundation.
+
+Verified:
+
+- durable account-scoped WatchRule, WatchEvaluation, and WatchAlert records
+- ACTIVE / PAUSED / INVALID / ARCHIVED rule lifecycle contract
+- OPEN / ACKNOWLEDGED / SNOOZED / RESOLVED alert lifecycle
+- deterministic ENTITY_NUMERIC_THRESHOLD evaluation
+- deterministic DATASET_AGGREGATE_THRESHOLD evaluation
+- effective USER_CONFIRMED company state is honored
+- dataset watch evidence preserves source/version/hash provenance
+- confirmed-state overlay provenance is preserved
+- repeated TRUE evaluations update one alert episode rather than creating duplicates
+- acknowledgement and snooze survive repeated triggers
+- TRUE → FALSE resolves the active alert episode
+- a later FALSE → TRUE transition creates a new alert episode
+- pause prevents evaluation; resume advances rule version
+- original imported datasets remain immutable
+- account isolation is enforced over Watch HTTP APIs
+- TypeScript, production build, all Phase 0–4 gates, unseen-corpus benchmark, and live Gemini benchmark remain green
+
 ## Current exact next work
 
-1. define WatchRule / WatchEvaluation / WatchAlert contracts
-2. add account-scoped persistence
-3. implement ENTITY_NUMERIC_THRESHOLD
-4. implement DATASET_AGGREGATE_THRESHOLD using effective current company state
-5. add alert episode deduplication
-6. add executable Phase 5A/5B CI proof
-7. then move to natural-language watch creation
+**Phase 5C — Natural-language watch creation**
+
+1. introduce a WatchDraft / proposed-rule contract
+2. deterministic parser for common watch language
+3. bounded LLM parser fallback for unusual wording
+4. conservative source/entity resolution
+5. preview the structured condition before saving
+6. save only after explicit creation/confirmation
+7. add Phase 5C CI proof
+8. then continue to durable worker scheduling
