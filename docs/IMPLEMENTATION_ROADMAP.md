@@ -1298,11 +1298,11 @@ Continue with:
         ↓
 5C. Natural-language watch creation ✅
         ↓
-5D. Durable/retryable evaluation worker ← CURRENT
+5D. Durable/retryable evaluation worker ✅
         ↓
-5E. Alert lifecycle + deduplication
+5E. Alert lifecycle + deduplication ✅
         ↓
-5F. Watch UI + final Phase 5 exit-gate audit
+5F. Watch UI + smart reminders + final Phase 5 exit-gate audit ← CURRENT
 ```
 
 The continuity source of truth for cross-chat development is:
