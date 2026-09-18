@@ -1263,12 +1263,12 @@ Use this section as the high-level progress board.
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Trustworthy Knowledge Foundation | **CURRENT / NEXT MAIN FOCUS** |
-| 1 | First-Class Structured Data | Planned |
-| 2 | Discovery & Insights | Planned |
-| 3 | Living Company Knowledge | Planned |
-| 4 | Safe Natural-Language Actions | Planned |
-| 5 | Watch & Proactive Intelligence | Planned |
+| 0 | Trustworthy Knowledge Foundation | **Complete** |
+| 1 | First-Class Structured Data | **Complete** |
+| 2 | Discovery & Insights | **Complete** |
+| 3 | Living Company Knowledge | **Complete** |
+| 4 | Safe Natural-Language Actions | **Complete** |
+| 5 | Watch & Proactive Intelligence | **In Progress** |
 | 6 | Integrations | Planned |
 | 7 | Controlled Automation | Planned |
 | 8 | Extensible Platform | Future |
@@ -1285,31 +1285,31 @@ Suggested status values:
 
 ---
 
-# 8. Immediate next work — Phase 0
+# 8. Immediate next work — Phase 5
 
-When development resumes on the main GitHub project, start here rather than jumping directly to spreadsheet intelligence.
+Phases 0–4 have passed their exit gates.
 
-Recommended order:
+Continue with:
 
 ```text
-0A. Re-run reality audit against current main
+5A. WatchRule / WatchEvaluation / WatchAlert foundation
         ↓
-0B. Remove benchmark-specific production shortcuts
+5B. Deterministic rule evaluator
         ↓
-0C. Lock clean unseen-corpus evaluation
+5C. Natural-language watch creation
         ↓
-0D. Introduce real LLMProvider + ProviderRouter abstraction
+5D. Durable/retryable evaluation worker
         ↓
-0E. Fix/label telemetry so live vs simulated is unambiguous
+5E. Alert lifecycle + deduplication
         ↓
-0F. Add workspace isolation/security regression coverage
-        ↓
-0G. Establish Phase 0 baseline metrics
-        ↓
-0H. Review exit gate
+5F. Watch UI + final Phase 5 exit-gate audit
 ```
 
-Only then begin the Phase 1 structured-data architecture.
+The continuity source of truth for cross-chat development is:
+
+`docs/MASTER_EXECUTION_HANDOFF.md`
+
+Do not jump to integrations or autonomous execution until Phase 5 passes its exit gate.
 
 ---
 
