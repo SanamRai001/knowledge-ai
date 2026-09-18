@@ -47,6 +47,9 @@ jobs:
       - name: Workspace HTTP isolation proof
         run: npm run check:workspace-http-isolation
 
+      - name: Structured data foundation proof
+        run: npm run check:structured-data-foundation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
