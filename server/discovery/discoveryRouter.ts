@@ -66,23 +66,36 @@ discoveryRouter.post('/analyze', (req, res) => {
   try {
     const { accountId } = identity(res);
     const datasetId =
-      typeof req.body?.datasetId === 'string' ? req.body.datasetId.trim() : '';
-    if (!datasetId) {
+      typeof req.body?.datasetId === 'string' && req.body.datasetId.trim()
+        ? req.body.datasetId.trim()
+        : undefined;
+    const knowledgeBaseId =
+      typeof req.body?.knowledgeBaseId === 'string' &&
+      req.body.knowledgeBaseId.trim()
+        ? req.body.knowledgeBaseId.trim()
+        : undefined;
+
+    if ((!datasetId && !knowledgeBaseId) || (datasetId && knowledgeBaseId)) {
       res.status(400).json({
-        error: 'datasetId is required.',
-        code: 'DATASET_ID_REQUIRED',
+        error: 'Provide exactly one of datasetId or knowledgeBaseId.',
+        code: 'DISCOVERY_SOURCE_REQUIRED',
       });
       return;
     }
 
-    const result = discoveryService.analyzeDataset({
-      accountId,
-      datasetId,
-      versionId:
-        typeof req.body?.versionId === 'string' && req.body.versionId.trim()
-          ? req.body.versionId.trim()
-          : undefined,
-    });
+    const result = datasetId
+      ? discoveryService.analyzeDataset({
+          accountId,
+          datasetId,
+          versionId:
+            typeof req.body?.versionId === 'string' && req.body.versionId.trim()
+              ? req.body.versionId.trim()
+              : undefined,
+        })
+      : discoveryService.analyzeKnowledgeBase({
+          accountId,
+          knowledgeBaseId: knowledgeBaseId!,
+        });
 
     res.status(201).json(result);
   } catch (error) {
@@ -98,8 +111,18 @@ discoveryRouter.get('/runs', (req, res) => {
         ? req.query.datasetId.trim()
         : undefined;
 
+    const knowledgeBaseId =
+      typeof req.query.knowledgeBaseId === 'string' &&
+      req.query.knowledgeBaseId.trim()
+        ? req.query.knowledgeBaseId.trim()
+        : undefined;
+
     res.json({
-      runs: discoveryService.listRuns(accountId, datasetId),
+      runs: discoveryService.listRuns(
+        accountId,
+        datasetId,
+        knowledgeBaseId
+      ),
     });
   } catch (error) {
     handleError(res, error);
@@ -113,6 +136,11 @@ discoveryRouter.get('/', (req, res) => {
       typeof req.query.datasetId === 'string' && req.query.datasetId.trim()
         ? req.query.datasetId.trim()
         : undefined;
+    const knowledgeBaseId =
+      typeof req.query.knowledgeBaseId === 'string' &&
+      req.query.knowledgeBaseId.trim()
+        ? req.query.knowledgeBaseId.trim()
+        : undefined;
     const runId =
       typeof req.query.runId === 'string' && req.query.runId.trim()
         ? req.query.runId.trim()
@@ -125,6 +153,7 @@ discoveryRouter.get('/', (req, res) => {
       insights: discoveryService.listInsights({
         accountId,
         datasetId,
+        knowledgeBaseId,
         runId,
         status: parseStatus(req.query.status),
         latestRunOnly,
