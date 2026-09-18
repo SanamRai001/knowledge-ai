@@ -134,8 +134,8 @@ Phase 1 — First-Class Structured Data               COMPLETE
 Phase 2 — Discovery & Insights                      COMPLETE
 Phase 3 — Living Company Knowledge                  COMPLETE
 Phase 4 — Safe Natural-Language Actions             COMPLETE
-Phase 5 — Watch & Proactive Intelligence            IN PROGRESS
-Phase 6 — Integrations                              PLANNED
+Phase 5 — Watch & Proactive Intelligence            COMPLETE
+Phase 6 — Integrations                              IN PROGRESS
 Phase 7 — Controlled Automation                     PLANNED
 Phase 8 — Extensible Company Intelligence Platform  FUTURE
 ```
@@ -631,23 +631,15 @@ Phase 5 is complete when:
 
 ## Current status
 
-**IN PROGRESS**
+**COMPLETE**
 
-### Exact next implementation task
+### Completion evidence
 
-Start with **Phase 5A**:
+- Final Phase 5 audit: `docs/PHASE_5_FINAL_AUDIT.md`
+- Final integrated Quality Gate: `35376209226`
+- Watch false-alert regression corpus: 8 cases, 0 false positives, 0 false negatives
 
-1. audit/reuse Phase 2 Insight, Phase 3 Knowledge, and Phase 4 effective-state APIs
-2. define `WatchRule`, `WatchEvaluation`, and `WatchAlert` contracts
-3. add account-scoped persistence
-4. implement first deterministic threshold evaluator
-5. add CI proof before adding natural-language creation
-6. then continue 5B → 5F in order
-
-Do not skip directly to notifications or external integrations.
-
----
-
+Phase 5 is closed. Continue with Phase 6.
 # 11. Phase 6 — Integrations
 
 ## Goal
@@ -697,7 +689,22 @@ Complete when:
 
 ## Current status
 
-**PLANNED**
+**IN PROGRESS**
+
+### Exact next implementation task
+
+Start **Phase 6A — Integration foundation**.
+
+1. define one shared `IntegrationConnector` contract
+2. introduce account-scoped `IntegrationConnection`, `SyncRun`, cursor/checkpoint, and external-record provenance models
+3. keep credential secrets outside persisted connector metadata
+4. build a deterministic test connector to prove incremental/idempotent sync semantics
+5. bridge connector output into the existing Source/Dataset/Document ingestion paths rather than inventing parallel knowledge stores
+6. prove revocation/disconnection fails safely
+7. add executable account-isolation and retry/idempotency coverage
+8. only then implement the first live cloud-file connector
+
+Continue from `docs/PHASE_6_PROGRESS.md`.
 
 ---
 
@@ -855,11 +862,11 @@ Automatic cross-source matching remains deliberately conservative.
 
 ## Continuous monitoring
 
-Not implemented until Phase 5.
+Implemented in Phase 5 for the bounded deterministic Watch rule set. Production persistence and distributed worker infrastructure remain future hardening work.
 
 ## External integrations
 
-Not implemented until Phase 6.
+Phase 6 is now the current focus. No production external connector has passed the Phase 6 exit gate yet.
 
 ## Autonomous execution
 
@@ -876,11 +883,12 @@ Current main product surfaces include:
 - Insights
 - Knowledge
 - Actions
+- Watch
 - Documents
 - Datasets
 - existing advanced/experimental/admin surfaces
 
-Phase 5 should introduce **Watch** as a first-class product surface.
+**Watch is now a first-class product surface.**
 
 Long-term normal-user navigation should converge toward:
 
@@ -986,6 +994,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 5F — Watch UI + bounded smart reminders/date watches.**
+> **Continue with Phase 6A — Integration foundation.**
 
-Phase 5A/5B are green in Quality Gate `35372866426`, Phase 5C in `35373492302`, Phase 5D in `35374127375`, and Phase 5E in `35374232503`. The remaining Phase 5 work is the real Watch product surface plus a bounded source-relative/time-based reminder condition, followed by the final integrated gate and Phase 5 audit.
+Phase 5 is complete. Its authoritative final audit is `docs/PHASE_5_FINAL_AUDIT.md` and its final integrated Quality Gate is `35376209226`.
+
+The next concrete work is the shared connector/sync architecture: `IntegrationConnector` → account-scoped connection metadata → durable SyncRun/cursor/checkpoint → idempotent ingestion bridge → revocation/retry/isolation proof. Do not begin with several one-off provider integrations.
