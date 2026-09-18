@@ -558,6 +558,56 @@ export class CompanyKnowledgeStore {
     return entity;
   }
 
+  public getRelationship(
+    accountId: string,
+    relationshipId: string
+  ): CompanyRelationship | null {
+    const relationship = this.relationships.get(relationshipId);
+    if (!relationship || relationship.accountId !== accountId) return null;
+    return clone(relationship);
+  }
+
+  public getClaim(
+    accountId: string,
+    claimId: string
+  ): KnowledgeClaim | null {
+    const claim = this.claims.get(claimId);
+    if (!claim || claim.accountId !== accountId) return null;
+    return clone(claim);
+  }
+
+  public getEvent(
+    accountId: string,
+    eventId: string
+  ): BusinessEvent | null {
+    const event = this.events.get(eventId);
+    if (!event || event.accountId !== accountId) return null;
+    return clone(event);
+  }
+
+  public getProjectionRun(
+    accountId: string,
+    runId: string
+  ): KnowledgeProjectionRun | null {
+    const run = this.projectionRuns.get(runId);
+    if (!run || run.accountId !== accountId) return null;
+    return clone(run);
+  }
+
+  public requireProjectionRun(
+    accountId: string,
+    runId: string
+  ): KnowledgeProjectionRun {
+    const run = this.getProjectionRun(accountId, runId);
+    if (!run) {
+      throw new CompanyKnowledgeAccessError(
+        'PROJECTION_RUN_NOT_FOUND',
+        'Knowledge projection run not found in the current account scope.'
+      );
+    }
+    return run;
+  }
+
   public listRelationships(params: {
     accountId: string;
     entityId?: string;
