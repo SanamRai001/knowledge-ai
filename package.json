@@ -21,7 +21,8 @@
     "check:xlsx-schema": "tsx scripts/check-xlsx-schema-correction.ts",
     "check:deterministic-analytics": "tsx scripts/check-deterministic-analytics.ts",
     "check:analytical-routing": "tsx scripts/check-analytical-question-routing.ts",
-    "check:phase1-ui": "tsx scripts/check-phase1-ui-contract.ts"
+    "check:phase1-ui": "tsx scripts/check-phase1-ui-contract.ts",
+    "check:phase2a-discovery": "tsx scripts/check-phase2a-discovery.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
