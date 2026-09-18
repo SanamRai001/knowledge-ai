@@ -59,6 +59,9 @@ jobs:
       - name: Deterministic structured analytics proof
         run: npm run check:deterministic-analytics
 
+      - name: Analytical question routing proof
+        run: npm run check:analytical-routing
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
