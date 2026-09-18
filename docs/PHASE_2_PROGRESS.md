@@ -13,9 +13,9 @@ The Discovery Engine must calculate candidate findings deterministically first. 
 ## Execution slices
 
 ```text
-2A Insight + analysis-run foundation         IN PROGRESS
-2B Ranking, deduplication, prioritization    NOT STARTED
-2C Deadlines + version change detection      NOT STARTED
+2A Insight + analysis-run foundation         COMPLETE
+2B Ranking, deduplication, prioritization    COMPLETE
+2C Deadlines + version change detection      IN PROGRESS
 2D Richer anomaly/opportunity detectors      NOT STARTED
 2E Insights UI + final Phase 2 audit         NOT STARTED
 ```
@@ -47,6 +47,21 @@ Every finding must preserve:
 
 The same detector must produce the same underlying measurement for the same immutable dataset version and reference time.
 
+## Phase 2A verification
+
+Quality Gate run `35364611761` passed the dedicated Phase 2A discovery proof.
+
+Verified:
+
+- persisted account-scoped AnalysisRun and Insight contracts
+- deterministic monthly trend/change detection
+- outstanding/overdue balance detection
+- explicit inventory threshold detection
+- material missing/duplicate data-quality findings
+- stable fingerprints for the same immutable version/reference time
+- source filename/hash, exact dataset version, table, calculation, and row evidence
+- mounted discovery API account isolation
+
 ## Phase 2B — Ranking and prioritization
 
 Add:
@@ -57,6 +72,22 @@ Add:
 - resolved/acknowledged lifecycle
 - suppression of noisy low-value findings
 - bounded “things worth your attention” output
+
+## Phase 2B verification
+
+Quality Gate run `35364939555` passed with the dedicated prioritization/lifecycle proof plus every existing regression gate.
+
+Verified:
+
+- identical repeated findings reuse a canonical insight ID
+- occurrence count and first/last seen metadata
+- deterministic bounded priority scores
+- transparent priority reasons
+- stockout/high-severity risk outranks lower-value data-quality findings
+- ACKNOWLEDGED / RESOLVED lifecycle persistence across re-analysis
+- historical analysis runs still resolve canonical insight IDs
+- status filters and bounded result limits
+- foreign accounts cannot read or mutate another account's insight state
 
 ## Phase 2C — Deadlines + change detection
 
