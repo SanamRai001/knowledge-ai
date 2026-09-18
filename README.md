@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/readme/system-banner.svg" width="100%" alt="KNOWLEDGE AI"/>
+</p>
+
 # Knowledge AI
 
 **Trustworthy answers from your private documents.**
