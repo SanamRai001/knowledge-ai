@@ -74,6 +74,9 @@ jobs:
       - name: Phase 2C change and deadline proof
         run: npm run check:phase2c-change-deadline
 
+      - name: Phase 2D richer detector proof
+        run: npm run check:phase2d-richer-detectors
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
