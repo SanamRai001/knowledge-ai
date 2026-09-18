@@ -286,6 +286,9 @@ export class CompanyKnowledgeStore {
     );
 
     if (existing) {
+      const sourceAlreadyPresent = existing.sourceRefs.some(
+        (source) => sourceRefKey(source) === sourceRefKey(params.sourceRef)
+      );
       const updated: CompanyRelationship = {
         ...existing,
         authority:
@@ -294,7 +297,8 @@ export class CompanyKnowledgeStore {
             : existing.authority,
         sourceRefs: mergeSourceRefs(existing.sourceRefs, [params.sourceRef]),
         lastObservedAt: Math.max(existing.lastObservedAt, params.observedAt),
-        occurrenceCount: existing.occurrenceCount + 1,
+        occurrenceCount:
+          existing.occurrenceCount + (sourceAlreadyPresent ? 0 : 1),
         updatedAt: Date.now(),
       };
       this.relationships.set(updated.id, updated);
