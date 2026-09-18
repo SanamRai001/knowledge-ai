@@ -10,6 +10,7 @@ import {
   companyKnowledgeStore,
 } from './companyKnowledgeStore.js';
 import { structuredKnowledgeProjectionService } from './structuredKnowledgeProjectionService.js';
+import { documentKnowledgeProjectionService } from './documentKnowledgeProjectionService.js';
 import { CompanyEntityType } from './types.js';
 
 export const companyKnowledgeRouter = express.Router();
@@ -105,6 +106,36 @@ companyKnowledgeRouter.post('/project/dataset', (req, res) => {
         typeof req.body?.versionId === 'string' && req.body.versionId.trim()
           ? req.body.versionId.trim()
           : undefined,
+    });
+
+    res.status(201).json({
+      run,
+      summary: companyKnowledgeStore.snapshotCounts(accountId),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+companyKnowledgeRouter.post('/project/documents', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const knowledgeBaseId =
+      typeof req.body?.knowledgeBaseId === 'string'
+        ? req.body.knowledgeBaseId.trim()
+        : '';
+
+    if (!knowledgeBaseId) {
+      res.status(400).json({
+        error: 'knowledgeBaseId is required.',
+        code: 'KNOWLEDGE_BASE_ID_REQUIRED',
+      });
+      return;
+    }
+
+    const run = documentKnowledgeProjectionService.projectKnowledgeBase({
+      accountId,
+      knowledgeBaseId,
     });
 
     res.status(201).json({
