@@ -5,7 +5,7 @@ import {
 } from './types.js';
 
 const IDENTIFIER_HINT =
-  /(^|[_\s-])(id|uuid|code|sku|order\s*(id|no|number)?|invoice\s*(id|no|number)?|customer\s*id|product\s*id)([_\s-]|$)/i;
+  /(^|[_\s-])(id|uuid|code|sku|order\s*(?:id|no|number)|invoice\s*(?:id|no|number)|customer\s*id|product\s*id)([_\s-]|$)/i;
 const CURRENCY_HINT =
   /(amount|price|cost|revenue|sales|balance|total|paid|due|profit|expense|income|salary|fee|charge)/i;
 
