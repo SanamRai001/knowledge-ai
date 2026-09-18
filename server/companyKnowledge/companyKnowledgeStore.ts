@@ -382,6 +382,8 @@ export class CompanyKnowledgeStore {
     if (duplicate) return clone(duplicate);
 
     let supersedesClaimId: string | undefined;
+    let isCurrent = true;
+    let historicalValidTo: number | undefined;
 
     const priorCurrent = Array.from(this.claims.values())
       .filter(
@@ -400,13 +402,18 @@ export class CompanyKnowledgeStore {
       priorCurrent.sourceRef.sourceVersionId !==
         params.sourceRef.sourceVersionId
     ) {
-      const closed: KnowledgeClaim = {
-        ...priorCurrent,
-        isCurrent: false,
-        validTo: params.observedAt,
-      };
-      this.claims.set(closed.id, closed);
-      supersedesClaimId = closed.id;
+      if (params.observedAt >= priorCurrent.observedAt) {
+        const closed: KnowledgeClaim = {
+          ...priorCurrent,
+          isCurrent: false,
+          validTo: params.observedAt,
+        };
+        this.claims.set(closed.id, closed);
+        supersedesClaimId = closed.id;
+      } else {
+        isCurrent = false;
+        historicalValidTo = priorCurrent.observedAt;
+      }
     }
 
     const claim: KnowledgeClaim = {
@@ -422,7 +429,8 @@ export class CompanyKnowledgeStore {
       sourceRef: clone(params.sourceRef),
       observedAt: params.observedAt,
       validFrom: params.validFrom,
-      isCurrent: true,
+      validTo: historicalValidTo,
+      isCurrent,
       supersedesClaimId,
       createdAt: Date.now(),
     };
