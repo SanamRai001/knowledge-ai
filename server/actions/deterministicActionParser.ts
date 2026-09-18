@@ -44,7 +44,7 @@ function parseCompactNumber(raw: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function parseDateText(raw: string | undefined, now: Date): number | undefined {
+export function parseActionDateText(raw: string | undefined, now: Date): number | undefined {
   if (!raw) return undefined;
   const normalized = raw.trim().toLowerCase();
 
@@ -97,7 +97,7 @@ export class DeterministicActionParser {
           customerReference: cleanReference(paymentByCustomer[1]),
           amount,
           rawDateText,
-          occurredAt: parseDateText(rawDateText, now),
+          occurredAt: parseActionDateText(rawDateText, now),
         },
       };
     }
@@ -118,7 +118,7 @@ export class DeterministicActionParser {
           orderReference: cleanReference(paymentByOrder[2]),
           amount,
           rawDateText,
-          occurredAt: parseDateText(rawDateText, now),
+          occurredAt: parseActionDateText(rawDateText, now),
         },
       };
     }
@@ -139,7 +139,7 @@ export class DeterministicActionParser {
           customerReference: cleanReference(paymentReceived[2]),
           amount,
           rawDateText,
-          occurredAt: parseDateText(rawDateText, now),
+          occurredAt: parseActionDateText(rawDateText, now),
         },
       };
     }
@@ -157,7 +157,7 @@ export class DeterministicActionParser {
           productReference: cleanReference(inventoryReceived[2]),
           quantity,
           rawDateText,
-          occurredAt: parseDateText(rawDateText, now),
+          occurredAt: parseActionDateText(rawDateText, now),
         },
       };
     }
