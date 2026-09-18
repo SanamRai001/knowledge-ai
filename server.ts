@@ -63,6 +63,7 @@ import { workspaceRouter } from './server/workspaceRouter.js';
 import { datasetRouter } from './server/datasets/datasetRouter.js';
 import { queryRouter } from './server/querying/queryRouter.js';
 import { discoveryRouter } from './server/discovery/discoveryRouter.js';
+import { companyKnowledgeRouter } from './server/companyKnowledge/companyKnowledgeRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -99,6 +100,7 @@ app.use('/api/kb', workspaceRouter);
 app.use('/api/datasets', datasetRouter);
 app.use('/api/query', queryRouter);
 app.use('/api/insights', discoveryRouter);
+app.use('/api/company-knowledge', companyKnowledgeRouter);
 
 // --- API ROUTES ---
 
