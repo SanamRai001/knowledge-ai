@@ -33,7 +33,8 @@
     "check:phase3e-ui": "tsx scripts/check-phase3e-ui-contract.ts",
     "check:phase4-actions": "tsx scripts/check-phase4-actions.ts",
     "check:phase4e-ui": "tsx scripts/check-phase4e-ui-contract.ts",
-    "check:phase5ab-watch": "tsx scripts/check-phase5ab-watch.ts"
+    "check:phase5ab-watch": "tsx scripts/check-phase5ab-watch.ts",
+    "check:phase5c-watch-language": "tsx scripts/check-phase5c-watch-language.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
