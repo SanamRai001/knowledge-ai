@@ -167,3 +167,41 @@ export interface WatchEvaluationResult {
   evaluation: WatchEvaluation;
   alert?: WatchAlert;
 }
+
+
+export type WatchDraftStatus =
+  | 'PROPOSED'
+  | 'NEEDS_INPUT'
+  | 'SAVED'
+  | 'CANCELLED'
+  | 'INVALID';
+
+export type WatchDraftParserSource =
+  | 'DETERMINISTIC'
+  | 'LLM_ASSISTED';
+
+export interface WatchDraftCandidate {
+  key: string;
+  kind: 'ENTITY' | 'DATASET_TABLE';
+  label: string;
+  reason: string;
+  entityId?: string;
+  datasetId?: string;
+  tableName?: string;
+}
+
+export interface WatchDraft {
+  id: string;
+  accountId: string;
+  instruction: string;
+  status: WatchDraftStatus;
+  parserSource: WatchDraftParserSource;
+  proposedName: string;
+  condition?: WatchCondition;
+  candidates?: WatchDraftCandidate[];
+  needsInputReason?: string;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+  savedRuleId?: string;
+}
