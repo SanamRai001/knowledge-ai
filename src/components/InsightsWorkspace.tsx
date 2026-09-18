@@ -587,6 +587,18 @@ export const InsightsWorkspace: React.FC<InsightsWorkspaceProps> = ({
                             )}
                           </div>
 
+                          {insight.evidence.companyStateOverlay && (
+                            <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3.5 py-3">
+                              <div className="text-[10px] font-semibold text-emerald-800">
+                                Confirmed company state applied
+                              </div>
+                              <div className="mt-1 text-[10px] leading-4 text-emerald-700">
+                                {insight.evidence.companyStateOverlay.applicationCount} overlay
+                                {insight.evidence.companyStateOverlay.applicationCount === 1 ? '' : 's'} changed the analytical view without modifying the imported file.
+                              </div>
+                            </div>
+                          )}
+
                           <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[10px] leading-5 text-slate-400">
                             {insight.evidence.sourceType === 'DATASET' ? (
                               <>
