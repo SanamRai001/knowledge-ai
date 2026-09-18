@@ -118,6 +118,8 @@ discoveryRouter.get('/', (req, res) => {
         ? req.query.runId.trim()
         : undefined;
     const latestRunOnly = req.query.latestRunOnly !== 'false';
+    const requestedLimit =
+      typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
 
     res.json({
       insights: discoveryService.listInsights({
@@ -126,7 +128,35 @@ discoveryRouter.get('/', (req, res) => {
         runId,
         status: parseStatus(req.query.status),
         latestRunOnly,
+        limit:
+          requestedLimit !== undefined && Number.isFinite(requestedLimit)
+            ? requestedLimit
+            : undefined,
       }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+discoveryRouter.patch('/:id/status', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const status = parseStatus(req.body?.status);
+    if (!status) {
+      res.status(400).json({
+        error: 'status must be OPEN, ACKNOWLEDGED, or RESOLVED.',
+        code: 'INVALID_INSIGHT_STATUS',
+      });
+      return;
+    }
+
+    res.json({
+      insight: discoveryService.updateInsightStatus(
+        accountId,
+        req.params.id,
+        status
+      ),
     });
   } catch (error) {
     handleError(res, error);
