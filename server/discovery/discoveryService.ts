@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { datasetStore } from '../datasets/datasetStore.js';
+import { effectiveDatasetOverlayService } from '../companyKnowledge/effectiveDatasetOverlayService.js';
 import { workspaceAccessService } from '../workspaceAccessService.js';
 import { detectOutstandingBalances } from './balanceDetector.js';
 import { detectCustomerConcentration } from './concentrationDetector.js';
@@ -61,11 +62,19 @@ export class DiscoveryService {
     discoveryStore.saveRun(run);
 
     try {
+      const effectiveView = effectiveDatasetOverlayService.apply({
+        accountId: params.accountId,
+        datasetId: params.datasetId,
+        version,
+      });
+      const effectiveVersion = effectiveView.version;
+
       const context = {
         accountId: params.accountId,
         datasetId: params.datasetId,
         analysisRunId: run.id,
         referenceTime,
+        companyStateOverlay: effectiveView.overlays,
       };
 
       const dataset = datasetStore.requireDataset(
@@ -86,13 +95,13 @@ export class DiscoveryService {
         : null;
 
       const candidates = [
-        ...detectTrendChanges(context, version),
-        ...detectOutstandingBalances(context, version),
-        ...detectInventoryThresholds(context, version),
-        ...detectDataQuality(context, version),
-        ...detectTrendAnomalies(context, version),
-        ...detectCustomerConcentration(context, version),
-        ...detectMarginOpportunities(context, version),
+        ...detectTrendChanges(context, effectiveVersion),
+        ...detectOutstandingBalances(context, effectiveVersion),
+        ...detectInventoryThresholds(context, effectiveVersion),
+        ...detectDataQuality(context, effectiveVersion),
+        ...detectTrendAnomalies(context, effectiveVersion),
+        ...detectCustomerConcentration(context, effectiveVersion),
+        ...detectMarginOpportunities(context, effectiveVersion),
         ...(previousVersion
           ? detectVersionChanges(context, previousVersion, version)
           : []),
