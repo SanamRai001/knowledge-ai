@@ -146,8 +146,19 @@ export function insightFor(params: {
     )
     .digest('hex');
 
+  const calculationLower = params.calculation.toLowerCase();
   const overlayChanges = (params.context.companyStateOverlay || [])
-    .filter((overlay) => overlay.tableId === params.table.id)
+    .filter((overlay) => {
+      if (overlay.tableId !== params.table.id) return false;
+      const columnName = overlay.columnName.toLowerCase();
+      const predicateName = overlay.predicate
+        .toLowerCase()
+        .replace(/_/g, ' ');
+      return (
+        calculationLower.includes(columnName) ||
+        calculationLower.includes(predicateName)
+      );
+    })
     .map((overlay) => ({
       rowIndex: overlay.rowIndex,
       columnName: overlay.columnName,
