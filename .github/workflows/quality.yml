@@ -86,6 +86,9 @@ jobs:
       - name: Phase 3C cross-source knowledge proof
         run: npm run check:phase3c-cross-source
 
+      - name: Phase 3D What changed proof
+        run: npm run check:phase3d-what-changed
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
