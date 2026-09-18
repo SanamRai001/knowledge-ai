@@ -139,7 +139,7 @@ export class WatchService {
     );
   }
 
-  private validateCondition(
+  public validateCondition(
     accountId: string,
     condition: WatchCondition
   ): WatchCondition {
