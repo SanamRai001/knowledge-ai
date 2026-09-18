@@ -357,6 +357,43 @@ export class IntegrationStore {
     return clone(state);
   }
 
+  public updateImport(
+    accountId: string,
+    importId: string,
+    updates: Partial<
+      Pick<
+        ExternalImportState,
+        | 'status'
+        | 'knowledgeProjectionRunId'
+        | 'lastError'
+        | 'updatedAt'
+      >
+    >
+  ): ExternalImportState {
+    const current = this.imports.get(importId);
+    if (!current || current.accountId !== accountId) {
+      throw new IntegrationAccessError(
+        'SYNC_RUN_NOT_FOUND',
+        'External import state not found in the current account scope.'
+      );
+    }
+
+    const updated: ExternalImportState = {
+      ...current,
+      ...clone(updates),
+      id: current.id,
+      accountId: current.accountId,
+      connectionId: current.connectionId,
+      provider: current.provider,
+      externalId: current.externalId,
+      externalVersion: current.externalVersion,
+      updatedAt: updates.updatedAt ?? Date.now(),
+    };
+    this.imports.set(updated.id, updated);
+    this.save();
+    return clone(updated);
+  }
+
   public findExactImport(
     accountId: string,
     connectionId: string,
