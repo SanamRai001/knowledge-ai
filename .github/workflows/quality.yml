@@ -119,6 +119,9 @@ jobs:
       - name: Phase 5 Watch quality evaluation
         run: npm run check:phase5-watch-quality
 
+      - name: Phase 6A integration foundation proof
+        run: npm run check:phase6a-integration-foundation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
