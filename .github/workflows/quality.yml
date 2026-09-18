@@ -56,6 +56,9 @@ jobs:
       - name: XLSX and schema correction proof
         run: npm run check:xlsx-schema
 
+      - name: Deterministic structured analytics proof
+        run: npm run check:deterministic-analytics
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
