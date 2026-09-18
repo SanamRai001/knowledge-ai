@@ -679,6 +679,17 @@ const AnalyticsEvidence: React.FC<{ response: UnifiedAnalyticsResponse }> = ({ r
         </div>
       )}
 
+      {provenance.companyStateOverlay?.applied && (
+        <div className="px-3.5 py-2.5 border-b border-emerald-100 bg-white/60 text-[10px] text-emerald-800">
+          Includes {provenance.companyStateOverlay.applicationCount} confirmed company-state overlay
+          {provenance.companyStateOverlay.applicationCount === 1 ? '' : 's'} from{' '}
+          {provenance.companyStateOverlay.authorityLevels
+            .map((level) => level.replace(/_/g, ' ').toLowerCase())
+            .join(', ')}.
+          The imported file remains unchanged.
+        </div>
+      )}
+
       <details className="group">
         <summary className="cursor-pointer list-none px-3.5 py-2.5 flex items-center justify-between gap-3 text-[10px] text-slate-500">
           <span>
