@@ -8,6 +8,7 @@ import {
   WatchRule,
   WatchRuleStatus,
   WatchDraft,
+  WatchJob,
 } from './types.js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -18,6 +19,7 @@ type PersistedWatchState = {
   evaluations: WatchEvaluation[];
   alerts: WatchAlert[];
   drafts: WatchDraft[];
+  jobs: WatchJob[];
 };
 
 function clone<T>(value: T): T {
@@ -71,6 +73,7 @@ export class WatchStore {
   private evaluations = new Map<string, WatchEvaluation>();
   private alerts = new Map<string, WatchAlert>();
   private drafts = new Map<string, WatchDraft>();
+  private jobs = new Map<string, WatchJob>();
 
   constructor() {
     this.load();
@@ -96,6 +99,9 @@ export class WatchStore {
       for (const draft of parsed.drafts || []) {
         this.drafts.set(draft.id, draft);
       }
+      for (const job of parsed.jobs || []) {
+        this.jobs.set(job.id, job);
+      }
     } catch (error) {
       console.warn(
         'Could not load watch runtime state; starting empty:',
@@ -114,6 +120,7 @@ export class WatchStore {
       evaluations: Array.from(this.evaluations.values()).slice(-25000),
       alerts: Array.from(this.alerts.values()).slice(-10000),
       drafts: Array.from(this.drafts.values()).slice(-5000),
+      jobs: Array.from(this.jobs.values()).slice(-25000),
     };
 
     const temporary = WATCH_FILE + '.tmp';
@@ -191,6 +198,150 @@ export class WatchStore {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, limit)
       .map(clone);
+  }
+
+  public ensureJob(params: {
+    accountId: string;
+    watchRuleId: string;
+    ruleVersion: number;
+    scheduledFor: number;
+    maxAttempts?: number;
+  }): WatchJob {
+    const fingerprint = [
+      params.accountId,
+      params.watchRuleId,
+      params.ruleVersion,
+      params.scheduledFor,
+    ].join(':');
+
+    const existing = Array.from(this.jobs.values()).find(
+      (job) =>
+        job.accountId === params.accountId &&
+        job.fingerprint === fingerprint
+    );
+    if (existing) return clone(existing);
+
+    const now = Date.now();
+    const job: WatchJob = {
+      id: id('wjob'),
+      fingerprint,
+      accountId: params.accountId,
+      watchRuleId: params.watchRuleId,
+      ruleVersion: params.ruleVersion,
+      scheduledFor: params.scheduledFor,
+      status: 'PENDING',
+      attemptCount: 0,
+      maxAttempts: Math.max(1, Math.min(params.maxAttempts || 3, 10)),
+      nextAttemptAt: params.scheduledFor,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.jobs.set(job.id, job);
+    this.save();
+    return clone(job);
+  }
+
+  public getJob(accountId: string, jobId: string): WatchJob | null {
+    const job = this.jobs.get(jobId);
+    if (!job || job.accountId !== accountId) return null;
+    return clone(job);
+  }
+
+  public listJobs(params: {
+    accountId?: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    readyAt?: number;
+    limit?: number;
+  }): WatchJob[] {
+    const limit = Math.max(1, Math.min(params.limit || 100, 1000));
+    return Array.from(this.jobs.values())
+      .filter(
+        (job) =>
+          (!params.accountId || job.accountId === params.accountId) &&
+          (!params.watchRuleId ||
+            job.watchRuleId === params.watchRuleId) &&
+          (!params.status || job.status === params.status) &&
+          (params.readyAt === undefined ||
+            job.nextAttemptAt <= params.readyAt)
+      )
+      .sort(
+        (a, b) =>
+          a.nextAttemptAt - b.nextAttemptAt ||
+          a.createdAt - b.createdAt
+      )
+      .slice(0, limit)
+      .map(clone);
+  }
+
+  public updateJob(
+    jobId: string,
+    updates: Partial<WatchJob>
+  ): WatchJob {
+    const current = this.jobs.get(jobId);
+    if (!current) {
+      throw new WatchAccessError(
+        'WATCH_EVALUATION_NOT_FOUND',
+        'Watch job not found.'
+      );
+    }
+    const updated: WatchJob = {
+      ...current,
+      ...clone(updates),
+      id: current.id,
+      accountId: current.accountId,
+      fingerprint: current.fingerprint,
+      updatedAt: Date.now(),
+    };
+    this.jobs.set(updated.id, updated);
+    this.save();
+    return clone(updated);
+  }
+
+  public listDueIntervalRules(now: number): WatchRule[] {
+    return Array.from(this.rules.values())
+      .filter(
+        (rule) =>
+          rule.status === 'ACTIVE' &&
+          rule.evaluationMode === 'INTERVAL' &&
+          typeof rule.nextEvaluationAt === 'number' &&
+          rule.nextEvaluationAt <= now
+      )
+      .sort(
+        (a, b) =>
+          (a.nextEvaluationAt || 0) - (b.nextEvaluationAt || 0)
+      )
+      .map(clone);
+  }
+
+  public requeueStaleRunningJobs(params: {
+    now: number;
+    leaseMs: number;
+  }): WatchJob[] {
+    const recovered: WatchJob[] = [];
+    for (const job of this.jobs.values()) {
+      if (
+        job.status !== 'RUNNING' ||
+        !job.startedAt ||
+        job.startedAt + params.leaseMs > params.now
+      ) {
+        continue;
+      }
+
+      const updated: WatchJob = {
+        ...job,
+        status: 'PENDING',
+        nextAttemptAt: params.now,
+        startedAt: undefined,
+        lastError:
+          'Recovered stale RUNNING job after worker restart/lease expiry.',
+        updatedAt: Date.now(),
+      };
+      this.jobs.set(updated.id, updated);
+      recovered.push(clone(updated));
+    }
+    if (recovered.length > 0) this.save();
+    return recovered;
   }
 
   public createRule(
