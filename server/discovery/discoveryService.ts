@@ -5,6 +5,7 @@ import { detectDataQuality } from './dataQualityDetector.js';
 import { discoveryStore } from './discoveryStore.js';
 import { detectInventoryThresholds } from './inventoryDetector.js';
 import { detectTrendChanges } from './trendDetector.js';
+import { detectVersionChanges } from './versionChangeDetector.js';
 import { prioritizeInsight } from './prioritization.js';
 import { AnalysisRun, Insight, InsightStatus } from './types.js';
 
@@ -13,6 +14,7 @@ export const PHASE_2A_DETECTOR_IDS = [
   'balance.outstanding.v1',
   'inventory.threshold.v1',
   'data-quality.v1',
+  'version.change.v1',
 ];
 
 export class DiscoveryService {
@@ -58,11 +60,31 @@ export class DiscoveryService {
         referenceTime,
       };
 
+      const dataset = datasetStore.requireDataset(
+        params.accountId,
+        params.datasetId
+      );
+      const currentVersionIndex = dataset.versionIds.indexOf(version.id);
+      const previousVersionId =
+        currentVersionIndex > 0
+          ? dataset.versionIds[currentVersionIndex - 1]
+          : undefined;
+      const previousVersion = previousVersionId
+        ? datasetStore.getVersion(
+            params.accountId,
+            params.datasetId,
+            previousVersionId
+          )
+        : null;
+
       const candidates = [
         ...detectTrendChanges(context, version),
         ...detectOutstandingBalances(context, version),
         ...detectInventoryThresholds(context, version),
         ...detectDataQuality(context, version),
+        ...(previousVersion
+          ? detectVersionChanges(context, previousVersion, version)
+          : []),
       ].map(prioritizeInsight);
 
       const insights = discoveryStore.saveInsights(candidates);
