@@ -12,6 +12,7 @@
     "check:provider-boundary": "node scripts/check-provider-boundary.mjs",
     "check:secret-hygiene": "node scripts/check-secret-hygiene.mjs",
     "check:workspace-isolation": "tsx scripts/check-workspace-isolation.ts",
+    "check:workspace-http-isolation": "tsx scripts/check-workspace-http-isolation.ts",
     "check:telemetry-integrity": "tsx scripts/check-telemetry-integrity.ts",
     "benchmark:unseen": "tsx scripts/run-unseen-benchmark.ts",
     "benchmark:unseen:gemini": "tsx scripts/run-live-gemini-benchmark.ts"
