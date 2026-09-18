@@ -198,18 +198,22 @@ export class CompanyKnowledgeStore {
     accountId: string;
     type: CompanyEntityType;
     canonicalName: string;
+    identityKey?: string;
     aliases?: string[];
     sourceRef: KnowledgeSourceRef;
     observedAt: number;
   }): CompanyEntity {
     const normalizedName = normalizeEntityName(params.canonicalName);
-    if (!normalizedName) {
-      throw new Error('Entity name cannot be empty.');
+    const identityKey = normalizeEntityName(
+      params.identityKey || params.canonicalName
+    );
+    if (!normalizedName || !identityKey) {
+      throw new Error('Entity name and identity key cannot be empty.');
     }
 
     const id =
       'ent_' +
-      shortHash([params.accountId, params.type, normalizedName]);
+      shortHash([params.accountId, params.type, identityKey]);
     const existing = this.entities.get(id);
 
     if (existing && existing.accountId === params.accountId) {
@@ -220,8 +224,18 @@ export class CompanyKnowledgeStore {
         if (alias.trim()) aliases.add(alias.trim());
       }
 
+      const shouldImproveDisplayName =
+        normalizeEntityName(existing.canonicalName) === existing.identityKey &&
+        normalizedName !== identityKey;
+
       const updated: CompanyEntity = {
         ...existing,
+        canonicalName: shouldImproveDisplayName
+          ? params.canonicalName.trim()
+          : existing.canonicalName,
+        normalizedName: shouldImproveDisplayName
+          ? normalizedName
+          : existing.normalizedName,
         aliases: Array.from(aliases).filter(
           (alias) => normalizeEntityName(alias) !== normalizedName
         ),
@@ -241,6 +255,7 @@ export class CompanyKnowledgeStore {
       type: params.type,
       canonicalName: params.canonicalName.trim(),
       normalizedName,
+      identityKey,
       aliases: Array.from(
         new Set((params.aliases || []).map((alias) => alias.trim()).filter(Boolean))
       ).filter((alias) => normalizeEntityName(alias) !== normalizedName),
@@ -486,6 +501,7 @@ export class CompanyKnowledgeStore {
           (!params.type || entity.type === params.type) &&
           (!search ||
             entity.normalizedName.includes(search) ||
+            entity.identityKey.includes(search) ||
             entity.aliases.some((alias) =>
               normalizeEntityName(alias).includes(search)
             ))
