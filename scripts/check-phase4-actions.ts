@@ -4,7 +4,7 @@ import { actionExecutionService } from '../server/actions/actionExecutionService
 import { actionRefinementService } from '../server/actions/actionRefinementService.js';
 import { actionRouter } from '../server/actions/actionRouter.js';
 import { actionStore } from '../server/actions/actionStore.js';
-import { effectiveCompanyStateService } from '../server/actions/effectiveCompanyStateService.js';
+import { effectiveCompanyStateService } from '../server/companyKnowledge/effectiveCompanyStateService.js';
 import {
   ActionInterpretationError,
   hybridActionInterpreter,
