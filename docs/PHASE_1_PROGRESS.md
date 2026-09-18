@@ -7,8 +7,8 @@ Phase 1 turns structured business files into first-class queryable company data.
 ## Execution slices
 
 ```text
-1A Dataset foundation + CSV ingestion      IN PROGRESS
-1B XLSX + schema correction                NOT STARTED
+1A Dataset foundation + CSV ingestion      COMPLETE
+1B XLSX + schema correction                IN PROGRESS
 1C Deterministic analytical query layer    NOT STARTED
 1D Analytical routing + provenance         NOT STARTED
 1E Dataset UI + final Phase 1 audit        NOT STARTED
@@ -46,6 +46,19 @@ Required before 1A closes:
 - datasets are account-scoped at the store/service boundary
 - runtime dataset state remains under ignored `data/`
 - executable CI tests cover parser, inference, versioning, and cross-account isolation
+
+## Phase 1A verification
+
+Quality Gate run `35356803019` passed with:
+
+- structured data foundation proof
+- dataset HTTP isolation proof
+- TypeScript and production build
+- all Phase 0 trust/security regression gates
+- unseen-corpus benchmark
+- live-provider benchmark step
+
+The CI proof caught and fixed a real schema bug where `order_date` was initially misclassified as an identifier. Identifier inference now requires actual ID/code semantics rather than the word "order" alone.
 
 ## Phase 1B — XLSX + schema correction
 
