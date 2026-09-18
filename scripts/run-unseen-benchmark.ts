@@ -283,8 +283,29 @@ async function run() {
   console.log('UNSEEN_CORPUS_BENCHMARK_RESULTS');
   console.log(JSON.stringify(results, null, 2));
 
-  if (summary.retrievalHitRate < 0.5) {
-    throw new Error(`Unseen-corpus retrieval is critically low: ${(summary.retrievalHitRate * 100).toFixed(1)}%`);
+  const failures: string[] = [];
+
+  if (summary.answerAccuracy < 0.9) {
+    failures.push(`answer accuracy ${(summary.answerAccuracy * 100).toFixed(1)}% < 90%`);
+  }
+  if (summary.retrievalHitRate < 0.85) {
+    failures.push(`retrieval hit rate ${(summary.retrievalHitRate * 100).toFixed(1)}% < 85%`);
+  }
+  if (summary.citationPrecision < 0.9) {
+    failures.push(`citation precision ${(summary.citationPrecision * 100).toFixed(1)}% < 90%`);
+  }
+  if (summary.correctRefusalRate < 0.9) {
+    failures.push(`correct refusal rate ${(summary.correctRefusalRate * 100).toFixed(1)}% < 90%`);
+  }
+  if (summary.falseRefusalRate > 0.1) {
+    failures.push(`false refusal rate ${(summary.falseRefusalRate * 100).toFixed(1)}% > 10%`);
+  }
+  if (summary.averageGroundingScore < 0.9) {
+    failures.push(`average grounding score ${(summary.averageGroundingScore * 100).toFixed(1)}% < 90%`);
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Unseen-corpus quality gate failed: ${failures.join('; ')}`);
   }
 }
 
