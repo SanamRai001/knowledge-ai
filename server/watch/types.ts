@@ -197,6 +197,7 @@ export interface WatchDraft {
   status: WatchDraftStatus;
   parserSource: WatchDraftParserSource;
   proposedName: string;
+  parsedRequest?: ParsedWatchRequest;
   condition?: WatchCondition;
   candidates?: WatchDraftCandidate[];
   needsInputReason?: string;
@@ -205,3 +206,20 @@ export interface WatchDraft {
   expiresAt: number;
   savedRuleId?: string;
 }
+
+
+export type ParsedWatchRequest =
+  | {
+      kind: 'ENTITY_NUMERIC_THRESHOLD';
+      entityType: 'PRODUCT' | 'ORDER' | 'INVOICE';
+      entityReference: string;
+      predicate: 'CURRENT_STOCK' | 'BALANCE_DUE';
+      operator: WatchComparisonOperator;
+      threshold: number;
+    }
+  | {
+      kind: 'DATASET_AGGREGATE_THRESHOLD';
+      semantic: 'OUTSTANDING_TOTAL';
+      operator: WatchComparisonOperator;
+      threshold: number;
+    };
