@@ -434,6 +434,13 @@ function validatePlan(plan: AnalyticalQueryPlan): void {
     );
   }
 
+  if ((plan.groupBy?.length || 0) > 0 && (plan.aggregates?.length || 0) === 0) {
+    throw new AnalyticalQueryError(
+      'INVALID_QUERY_PLAN',
+      'groupBy requires at least one aggregate.'
+    );
+  }
+
   if (
     plan.limit !== undefined &&
     (!Number.isInteger(plan.limit) ||
@@ -797,6 +804,24 @@ export class StructuredAnalyticsEngine {
     const alias = aggregateAlias(params.plan.metric);
     const executionMs = Date.now() - started;
 
+    const baseProvenance = provenanceFor({
+      datasetId: params.datasetId,
+      context,
+      filters: baseFilters,
+      scannedRowCount: context.table.rows.length,
+      matchedRowCount: 0,
+      outputRowCount: 2,
+      groupBy: [],
+      aggregates: [params.plan.metric],
+      selectedColumns: [dateColumn.schema.name],
+      executionMs,
+    });
+    const {
+      matchedRowCount: _unusedMatchedRowCount,
+      outputRowCount: _unusedOutputRowCount,
+      ...comparisonProvenance
+    } = baseProvenance;
+
     return {
       firstPeriod: {
         range: params.plan.firstPeriod,
@@ -812,22 +837,10 @@ export class StructuredAnalyticsEngine {
       percentChange,
       metricAlias: alias,
       provenance: {
-        ...provenanceFor({
-          datasetId: params.datasetId,
-          context,
-          filters: baseFilters,
-          scannedRowCount: context.table.rows.length,
-          matchedRowCount: 0,
-          outputRowCount: 2,
-          groupBy: [],
-          aggregates: [params.plan.metric],
-          selectedColumns: [dateColumn.schema.name],
-          executionMs,
-        }),
+        ...comparisonProvenance,
         firstPeriodMatchedRowCount: firstRows.length,
         secondPeriodMatchedRowCount: secondRows.length,
         outputRowCount: 2,
-        matchedRowCount: undefined as never,
       },
     };
   }
