@@ -68,6 +68,9 @@ jobs:
       - name: Phase 2A discovery proof
         run: npm run check:phase2a-discovery
 
+      - name: Phase 2B prioritization proof
+        run: npm run check:phase2b-prioritization
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
