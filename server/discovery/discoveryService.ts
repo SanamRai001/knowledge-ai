@@ -2,10 +2,13 @@ import crypto from 'crypto';
 import { datasetStore } from '../datasets/datasetStore.js';
 import { workspaceAccessService } from '../workspaceAccessService.js';
 import { detectOutstandingBalances } from './balanceDetector.js';
+import { detectCustomerConcentration } from './concentrationDetector.js';
 import { detectDataQuality } from './dataQualityDetector.js';
+import { detectTrendAnomalies } from './anomalyDetector.js';
 import { detectDocumentDeadlines } from './documentDeadlineDetector.js';
 import { discoveryStore } from './discoveryStore.js';
 import { detectInventoryThresholds } from './inventoryDetector.js';
+import { detectMarginOpportunities } from './marginOpportunityDetector.js';
 import { detectTrendChanges } from './trendDetector.js';
 import { detectVersionChanges } from './versionChangeDetector.js';
 import { prioritizeInsight } from './prioritization.js';
@@ -17,6 +20,9 @@ export const PHASE_2A_DETECTOR_IDS = [
   'inventory.threshold.v1',
   'data-quality.v1',
   'version.change.v1',
+  'trend.anomaly.v1',
+  'customer.concentration.v1',
+  'margin.opportunity.v1',
 ];
 
 export class DiscoveryService {
@@ -84,6 +90,9 @@ export class DiscoveryService {
         ...detectOutstandingBalances(context, version),
         ...detectInventoryThresholds(context, version),
         ...detectDataQuality(context, version),
+        ...detectTrendAnomalies(context, version),
+        ...detectCustomerConcentration(context, version),
+        ...detectMarginOpportunities(context, version),
         ...(previousVersion
           ? detectVersionChanges(context, previousVersion, version)
           : []),
