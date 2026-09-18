@@ -39,6 +39,7 @@ export class DiscoveryService {
     const run: AnalysisRun = {
       id: 'anr_' + crypto.randomBytes(8).toString('hex'),
       accountId: params.accountId,
+      sourceType: 'DATASET',
       datasetId: params.datasetId,
       datasetVersionId: version.id,
       status: 'RUNNING',
