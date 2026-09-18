@@ -970,6 +970,15 @@ export class WatchDraftService {
         candidate.entityId
       );
 
+      if (request.kind === 'ENTITY_DATE_WINDOW') {
+        return {
+          kind: 'ENTITY_DATE_WINDOW',
+          entityId: candidate.entityId,
+          predicate: request.predicate,
+          daysBefore: request.daysBefore,
+        };
+      }
+
       return {
         kind: 'ENTITY_NUMERIC_THRESHOLD',
         entityId: candidate.entityId,
@@ -977,6 +986,14 @@ export class WatchDraftService {
         operator: request.operator,
         threshold: request.threshold,
       };
+    }
+
+    if (request.kind !== 'DATASET_AGGREGATE_THRESHOLD') {
+      throw new WatchDraftError(
+        'WATCH_DRAFT_TARGET_INVALID',
+        422,
+        'This watch intent does not use a selectable dataset target.'
+      );
     }
 
     if (
