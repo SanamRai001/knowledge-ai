@@ -17,6 +17,10 @@ import { CSV_LIMITS, CsvParseError } from './csvParser.js';
 import { XLSX_LIMITS, XlsxParseError } from './xlsxParser.js';
 import { SchemaCorrectionError } from './schemaInference.js';
 import { DatasetColumnType } from './types.js';
+import {
+  AnalyticalQueryError,
+  structuredAnalyticsEngine,
+} from './structuredAnalyticsEngine.js';
 
 export const datasetRouter = express.Router();
 
@@ -125,6 +129,13 @@ function handleError(
     });
     return;
   }
+  if (error instanceof AnalyticalQueryError) {
+    res.status(error.statusCode).json({
+      error: error.message,
+      code: error.code,
+    });
+    return;
+  }
   if (error instanceof multer.MulterError) {
     res.status(400).json({
       error: error.message,
@@ -172,6 +183,42 @@ datasetRouter.get('/:id/versions/:versionId', (req, res) => {
     res.json({ version });
   } catch (error) {
     handleError(res, error, 'Failed to retrieve dataset version');
+  }
+});
+
+datasetRouter.post('/:id/query', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const result = structuredAnalyticsEngine.execute({
+      accountId,
+      datasetId: req.params.id,
+      versionId:
+        typeof req.body?.versionId === 'string' && req.body.versionId.trim()
+          ? req.body.versionId.trim()
+          : undefined,
+      plan: req.body?.plan,
+    });
+    res.json(result);
+  } catch (error) {
+    handleError(res, error, 'Failed to execute analytical query');
+  }
+});
+
+datasetRouter.post('/:id/compare-periods', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const result = structuredAnalyticsEngine.comparePeriods({
+      accountId,
+      datasetId: req.params.id,
+      versionId:
+        typeof req.body?.versionId === 'string' && req.body.versionId.trim()
+          ? req.body.versionId.trim()
+          : undefined,
+      plan: req.body?.plan,
+    });
+    res.json(result);
+  } catch (error) {
+    handleError(res, error, 'Failed to compare dataset periods');
   }
 });
 
