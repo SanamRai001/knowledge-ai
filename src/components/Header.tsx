@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Database,
+  TableProperties,
   Plus,
   ShieldCheck,
   RefreshCw,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 
-export type ActiveTab = 'playground' | 'knowledge' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
+export type ActiveTab = 'playground' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -61,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-normal">
-              Ask your private documents. Get source-backed answers, clear citations, and honest refusals when evidence is missing.
+              Turn company documents and business data into evidence-backed answers, calculations, and decisions.
             </p>
           </div>
         </div>
@@ -146,6 +147,19 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-mono">
             {activeKb?.documents?.length || 0}
           </span>
+        </button>
+
+        <button
+          id="nav-tab-datasets"
+          onClick={() => onTabChange('datasets')}
+          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            currentTab === 'datasets'
+              ? 'border-emerald-700 text-emerald-800 bg-emerald-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+          }`}
+        >
+          <TableProperties className="w-3.5 h-3.5 text-emerald-700" />
+          <span>Datasets</span>
         </button>
 
         <button
