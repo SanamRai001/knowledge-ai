@@ -35,7 +35,6 @@ export default function App() {
   // Loading states
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingSamples, setIsLoadingSamples] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [isSavingAiConfig, setIsSavingAiConfig] = useState(false);
   const [isRunningEvaluation, setIsRunningEvaluation] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -157,68 +156,6 @@ export default function App() {
     } catch (err: any) {
       console.error('Retry document error:', err);
       setGlobalError(err.message || 'Failed to retry document');
-    }
-  };
-
-  // Send Chat message
-  const handleSendMessage = async (question: string) => {
-    if (!question.trim() || isSending) return;
-    setIsSending(true);
-    setGlobalError(null);
-
-    // Optimistically show user message
-    const tempUserMsg = {
-      id: 'temp_user_' + Date.now(),
-      role: 'user' as const,
-      content: question,
-      timestamp: Date.now(),
-    };
-
-    if (activeKb) {
-      setActiveKb({
-        ...activeKb,
-        chatHistory: [...activeKb.chatHistory, tempUserMsg],
-      });
-    }
-
-    try {
-      const res = await fetch('/api/kb/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to get answer from documents');
-      }
-
-      if (data.kb) {
-        setActiveKb(data.kb);
-      }
-    } catch (err: any) {
-      console.error('Chat error:', err);
-      setGlobalError(err.message || 'Error querying documents');
-      fetchActiveKb();
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  // Clear Chat history
-  const handleClearChat = async () => {
-    try {
-      const res = await fetch('/api/kb/chat', {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to clear chat');
-      if (data.kb) {
-        setActiveKb(data.kb);
-      }
-    } catch (err: any) {
-      console.error('Clear chat error:', err);
-      setGlobalError(err.message || 'Failed to clear chat');
     }
   };
 
@@ -422,16 +359,6 @@ export default function App() {
     setIsTestSuiteModalOpen(true);
     if (testResults.length === 0) {
       handleRunTestSuite('phase4');
-    }
-  };
-
-  // Jump directly to citation page inside DocumentViewerModal
-  const handleViewDocumentPage = (docName: string, pageNumber: number) => {
-    if (!activeKb) return;
-    const doc = activeKb.documents.find((d) => d.filename === docName);
-    if (doc) {
-      setViewingInitialPage(pageNumber);
-      setViewingDocument(doc);
     }
   };
 
