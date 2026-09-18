@@ -43,9 +43,9 @@ async function main() {
     });
 
     const csv = [
-      'order_id,customer,amount,paid',
-      'O-1,Acme,NPR 1000,true',
-      'O-2,Beta,NPR 500,false',
+      'order_id,order_date,customer,amount,paid',
+      'O-1,2026-08-10,Acme,NPR 1000,true',
+      'O-2,2026-09-10,Beta,NPR 500,false',
     ].join('\n');
 
     const previewForm = new FormData();
@@ -102,6 +102,84 @@ async function main() {
       throw new Error(`Owning account could not read dataset: ${ownRead.status}`);
     }
 
+    const queryResponse = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretA}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: {
+            tableName: 'orders',
+            aggregates: [
+              { operator: 'SUM', column: 'amount', alias: 'revenue' },
+              { operator: 'COUNT', alias: 'orders' },
+            ],
+          },
+        }),
+      }
+    );
+    if (queryResponse.status !== 200) {
+      throw new Error(
+        `Dataset analytics query failed with ${queryResponse.status}.`
+      );
+    }
+    const queryBody = await queryResponse.json();
+    if (
+      queryBody.rows?.[0]?.revenue !== 1500 ||
+      queryBody.rows?.[0]?.orders !== 2
+    ) {
+      throw new Error('Dataset analytics API returned incorrect aggregates.');
+    }
+    if (
+      queryBody.provenance?.datasetVersionId !== versionId ||
+      queryBody.provenance?.sourceSha256 !== imported.version?.source?.sha256
+    ) {
+      throw new Error('Dataset analytics API provenance is incomplete.');
+    }
+
+    const compareResponse = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/compare-periods`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretA}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: {
+            tableName: 'orders',
+            dateColumn: 'order_date',
+            metric: { operator: 'SUM', column: 'amount', alias: 'revenue' },
+            firstPeriod: {
+              label: 'August',
+              start: '2026-08-01',
+              end: '2026-08-31',
+            },
+            secondPeriod: {
+              label: 'September',
+              start: '2026-09-01',
+              end: '2026-09-30',
+            },
+          },
+        }),
+      }
+    );
+    if (compareResponse.status !== 200) {
+      throw new Error(
+        `Dataset period comparison failed with ${compareResponse.status}.`
+      );
+    }
+    const compareBody = await compareResponse.json();
+    if (
+      compareBody.firstPeriod?.value !== 1000 ||
+      compareBody.secondPeriod?.value !== 500
+    ) {
+      throw new Error('Dataset period comparison returned incorrect values.');
+    }
+
     const foreignRead = await fetch(baseUrl + `/api/datasets/${datasetId}`, {
       headers: {
         Authorization: `Bearer ${secretB}`,
@@ -111,6 +189,29 @@ async function main() {
     if (foreignRead.status !== 404) {
       throw new Error(
         `Foreign dataset read must return 404; got ${foreignRead.status}.`
+      );
+    }
+
+    const foreignQuery = await fetch(
+      baseUrl + `/api/datasets/${datasetId}/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretB}`,
+          'Content-Type': 'application/json',
+          'X-Account-ID': 'acc_dataset_http_a',
+        },
+        body: JSON.stringify({
+          plan: {
+            tableName: 'orders',
+            aggregates: [{ operator: 'COUNT', alias: 'orders' }],
+          },
+        }),
+      }
+    );
+    if (foreignQuery.status !== 404) {
+      throw new Error(
+        `Foreign analytical query must return 404; got ${foreignQuery.status}.`
       );
     }
 
@@ -145,7 +246,7 @@ async function main() {
 
     console.log('DATASET_HTTP_ISOLATION_CHECK_PASSED');
     console.log(
-      'Dataset preview/import/read/version routes preserve authenticated account isolation.'
+      'Dataset preview/import/read/version/analytics routes preserve authenticated account isolation.'
     );
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
