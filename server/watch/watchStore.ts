@@ -35,6 +35,7 @@ export class WatchAccessError extends Error {
   public readonly code:
     | 'WATCH_RULE_NOT_FOUND'
     | 'WATCH_DRAFT_NOT_FOUND'
+    | 'WATCH_JOB_NOT_FOUND'
     | 'WATCH_EVALUATION_NOT_FOUND'
     | 'WATCH_ALERT_NOT_FOUND';
 
@@ -42,6 +43,7 @@ export class WatchAccessError extends Error {
     code:
       | 'WATCH_RULE_NOT_FOUND'
       | 'WATCH_DRAFT_NOT_FOUND'
+      | 'WATCH_JOB_NOT_FOUND'
       | 'WATCH_EVALUATION_NOT_FOUND'
       | 'WATCH_ALERT_NOT_FOUND',
     message: string
@@ -281,8 +283,8 @@ export class WatchStore {
     const current = this.jobs.get(jobId);
     if (!current) {
       throw new WatchAccessError(
-        'WATCH_EVALUATION_NOT_FOUND',
-        'Watch job not found.'
+        'WATCH_JOB_NOT_FOUND',
+        'Watch job not found in the current account scope.'
       );
     }
     const updated: WatchJob = {
