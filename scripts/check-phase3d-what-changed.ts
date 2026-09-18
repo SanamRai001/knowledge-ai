@@ -3,8 +3,11 @@ import { apiKeyStore } from '../server/apiKeyStore.js';
 import { companyKnowledgeChangeService } from '../server/companyKnowledge/companyKnowledgeChangeService.js';
 import { companyKnowledgeRouter } from '../server/companyKnowledge/companyKnowledgeRouter.js';
 import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowledgeStore.js';
+import { documentKnowledgeProjectionService } from '../server/companyKnowledge/documentKnowledgeProjectionService.js';
 import { structuredKnowledgeProjectionService } from '../server/companyKnowledge/structuredKnowledgeProjectionService.js';
 import { datasetService } from '../server/datasets/datasetService.js';
+import { workspaceAccessService } from '../server/workspaceAccessService.js';
+import { KnowledgeDocument } from '../src/types.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -180,6 +183,73 @@ async function main() {
   assert(
     incompatibleRejected,
     'What changed? must reject unrelated projection source scopes.'
+  );
+
+  const kb = workspaceAccessService.createKB(
+    accountA,
+    'Temporal Documents',
+    'Document content fingerprint proof'
+  );
+  const documentV1: KnowledgeDocument = {
+    id: 'doc_temporal_order',
+    filename: 'order-status.pdf',
+    fileType: 'application/pdf',
+    fileSize: 1024,
+    uploadTimestamp: 1,
+    processingStatus: 'processed',
+    pageCount: 1,
+    pages: [
+      {
+        pageNumber: 1,
+        text: 'Order O-200 status is OPEN.',
+      },
+    ],
+  };
+  workspaceAccessService.addDocument(accountA, kb.id, documentV1);
+  const documentRun1 =
+    documentKnowledgeProjectionService.projectKnowledgeBase({
+      accountId: accountA,
+      knowledgeBaseId: kb.id,
+    });
+
+  const documentV2: KnowledgeDocument = {
+    ...documentV1,
+    fileSize: 1030,
+    uploadTimestamp: 2,
+    pages: [
+      {
+        pageNumber: 1,
+        text: 'Order O-200 status is PAID.',
+      },
+    ],
+  };
+  workspaceAccessService.addDocument(accountA, kb.id, documentV2);
+  const documentRun2 =
+    documentKnowledgeProjectionService.projectKnowledgeBase({
+      accountId: accountA,
+      knowledgeBaseId: kb.id,
+    });
+
+  assert(
+    documentRun1.sourceVersionLabel === documentRun2.sourceVersionLabel &&
+      documentRun1.sourceVersionId !== documentRun2.sourceVersionId,
+    'Document content changes must create distinct snapshot identities even when the human version label is unchanged.'
+  );
+
+  const documentChanges =
+    companyKnowledgeChangeService.compareProjectionRuns({
+      accountId: accountA,
+      fromRunId: documentRun1.id,
+      toRunId: documentRun2.id,
+    });
+  const documentStatusChange = documentChanges.claimChanges.find(
+    (change) => change.predicate === 'STATUS'
+  );
+  assert(
+    documentStatusChange &&
+      documentStatusChange.previousValues[0] === 'OPEN' &&
+      documentStatusChange.currentValues[0] === 'PAID',
+    'What changed? must detect document observation changes by content snapshot.'
   );
 
   const app = express();
