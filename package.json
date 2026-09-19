@@ -41,7 +41,8 @@
     "check:phase5f-watch-ui": "tsx scripts/check-phase5f-watch-ui-contract.ts",
     "check:phase5-watch-quality": "tsx scripts/check-phase5-watch-quality.ts",
     "check:phase6a-integration-foundation": "tsx scripts/check-phase6a-integration-foundation.ts",
-    "check:phase6b-google-drive": "tsx scripts/check-phase6b-google-drive.ts"
+    "check:phase6b-google-drive": "tsx scripts/check-phase6b-google-drive.ts",
+    "check:phase6c-onedrive": "tsx scripts/check-phase6c-onedrive.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
