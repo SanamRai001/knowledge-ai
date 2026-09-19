@@ -158,6 +158,9 @@ jobs:
       - name: Phase 8B registered tool proof
         run: npm run check:phase8b-registered-tools
 
+      - name: Phase 8C custom detector proof
+        run: npm run check:phase8c-custom-detectors
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
