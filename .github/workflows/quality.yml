@@ -164,6 +164,9 @@ jobs:
       - name: Phase 8D domain pack proof
         run: npm run check:phase8d-domain-packs
 
+      - name: Phase 8E developer platform proof
+        run: npm run check:phase8e-platform-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
