@@ -134,6 +134,9 @@ jobs:
       - name: Phase 6E Integrations UI proof
         run: npm run check:phase6e-integrations-ui
 
+      - name: Phase 7A automation policy proof
+        run: npm run check:phase7a-automation-policy
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
