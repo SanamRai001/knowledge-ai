@@ -46,7 +46,8 @@
     "check:phase6d-integration-hardening": "tsx scripts/check-phase6d-integration-hardening.ts",
     "check:phase6e-integrations-ui": "tsx scripts/check-phase6e-integrations-ui-contract.ts",
     "check:phase7a-automation-policy": "tsx scripts/check-phase7a-automation-policy.ts",
-    "check:phase7b-approval-enforcement": "tsx scripts/check-phase7b-approval-enforcement.ts"
+    "check:phase7b-approval-enforcement": "tsx scripts/check-phase7b-approval-enforcement.ts",
+    "check:phase7c-auto-execution": "tsx scripts/check-phase7c-auto-execution.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
