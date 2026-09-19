@@ -12,6 +12,7 @@ import {
   IntegrationSyncError,
   integrationSyncService,
 } from './integrationSyncService.js';
+import { googleDriveOAuthService } from './googleDriveOAuthService.js';
 
 export const integrationRouter = express.Router();
 
@@ -73,6 +74,95 @@ function handleError(res: express.Response, error: any): void {
     error: error?.message || 'Integration request failed.',
   });
 }
+
+integrationRouter.post(
+  '/google-drive/oauth/start',
+  (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      const result = googleDriveOAuthService.begin({
+        accountId,
+        displayName:
+          typeof req.body?.displayName === 'string'
+            ? req.body.displayName
+            : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/google-drive/oauth/callback',
+  async (req, res) => {
+    try {
+      if (
+        typeof req.query.error === 'string' &&
+        req.query.error
+      ) {
+        res.status(400).json({
+          error:
+            typeof req.query.error_description === 'string'
+              ? req.query.error_description
+              : 'Google Drive authorization was not completed.',
+          code: 'GOOGLE_OAUTH_DENIED',
+        });
+        return;
+      }
+
+      const state =
+        typeof req.query.state === 'string'
+          ? req.query.state
+          : '';
+      const code =
+        typeof req.query.code === 'string'
+          ? req.query.code
+          : '';
+
+      const result = await googleDriveOAuthService.complete({
+        state,
+        code,
+      });
+      res.status(201).json(result);
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/google-drive/connections/:id/health',
+  async (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      const health = await googleDriveOAuthService.health({
+        accountId,
+        connectionId: req.params.id,
+      });
+      res.status(health.ok ? 200 : 422).json({ health });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.post(
+  '/google-drive/connections/:id/disconnect',
+  async (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      const result = await googleDriveOAuthService.disconnect({
+        accountId,
+        connectionId: req.params.id,
+      });
+      res.json(result);
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
 
 integrationRouter.get('/connections', (_req, res) => {
   try {
