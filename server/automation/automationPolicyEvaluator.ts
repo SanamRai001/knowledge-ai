@@ -165,6 +165,19 @@ export class AutomationPolicyEvaluator {
       });
     }
 
+    if (input.proposal.intent === 'CREATE_ORDER') {
+      return result({
+        input,
+        risk,
+        decision: 'DENY',
+        reasonCodes: ['ACTION_UNSUPPORTED'],
+        reasons: [
+          'Create Order has no executable Phase 4 action path and cannot be approved or auto-executed by automation policy.',
+        ],
+        policy,
+      });
+    }
+
     if (policy.mode === 'SUGGEST_ONLY') {
       return result({
         input,
