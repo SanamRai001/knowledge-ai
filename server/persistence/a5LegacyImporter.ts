@@ -99,6 +99,7 @@ function canonical(value: unknown): unknown {
   if (typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
+        .filter(([, nested]) => nested !== undefined)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, nested]) => [key, canonical(nested)])
     );
