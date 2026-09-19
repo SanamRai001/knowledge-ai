@@ -689,25 +689,18 @@ Complete when:
 
 ## Current status
 
-**IN PROGRESS**
+**COMPLETE**
 
-### Exact next implementation task
+### Completion evidence
 
-Start **Phase 6A — Integration foundation**.
+- Final Phase 6 audit: `docs/PHASE_6_FINAL_AUDIT.md`
+- Final integrated Quality Gate: `35423633294`
+- Live providers: Google Drive + Microsoft OneDrive
+- Shared connector/sync/retry/recovery/UI architecture: PASS
 
-1. define one shared `IntegrationConnector` contract
-2. introduce account-scoped `IntegrationConnection`, `SyncRun`, cursor/checkpoint, and external-record provenance models
-3. keep credential secrets outside persisted connector metadata
-4. build a deterministic test connector to prove incremental/idempotent sync semantics
-5. bridge connector output into the existing Source/Dataset/Document ingestion paths rather than inventing parallel knowledge stores
-6. prove revocation/disconnection fails safely
-7. add executable account-isolation and retry/idempotency coverage
-8. only then implement the first live cloud-file connector
-
-Continue from `docs/PHASE_6_PROGRESS.md`.
+Phase 6 is closed. Continue with Phase 7.
 
 ---
-
 # 12. Phase 7 — Controlled Automation
 
 ## Goal
@@ -751,7 +744,27 @@ Complete when:
 
 ## Current status
 
-**PLANNED**
+**IN PROGRESS**
+
+### Exact next implementation task
+
+Start **Phase 7A — Automation policy foundation**.
+
+1. audit the existing Phase 4 action types, risk classes, validation, confirmation, audit, and idempotency boundaries
+2. define one authoritative `AutomationPolicy` model scoped by account/workspace
+3. define policy modes:
+   - SUGGEST_ONLY
+   - REQUIRE_APPROVAL
+   - AUTO_EXECUTE_LOW_RISK
+4. keep the default mode conservative
+5. define role/action/risk/amount/target constraints outside the LLM
+6. add a deterministic policy evaluator that returns ALLOW / REQUIRE_APPROVAL / DENY with reasons
+7. prove prompt text cannot override policy
+8. prove unsupported/high-risk actions cannot auto-execute
+9. add account isolation and immutable policy audit history
+10. only after the policy engine is green, connect it to one existing low-risk Phase 4 action path
+
+Continue from `docs/PHASE_7_PROGRESS.md`.
 
 ---
 
@@ -866,11 +879,11 @@ Implemented in Phase 5 for the bounded deterministic Watch rule set. Production 
 
 ## External integrations
 
-Phase 6 is now the current focus. No production external connector has passed the Phase 6 exit gate yet.
+Phase 6 is complete for the first two cloud-file providers: Google Drive and Microsoft OneDrive. Production persistence/secret infrastructure remains future hardening work.
 
 ## Autonomous execution
 
-Not implemented until Phase 7.
+Phase 7 is now the current focus. No action is allowed to auto-execute until the explicit policy engine and its exit gates are implemented.
 
 ---
 
@@ -994,8 +1007,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 6E — Integrations UI + final Phase 6 audit.**
+> **Continue with Phase 7A — Automation policy foundation.**
 
-Phase 6D is complete and green in Quality Gate `35422900472`. Cross-provider retry classification, bounded backoff, explicit cursor recovery, connection attention states, sync leases/concurrency protection, permission-loss handling, and in-place Google/OneDrive reauthorization are now authoritative.
+Phase 6 is complete and green in Quality Gate `35423633294`. Google Drive and Microsoft OneDrive now synchronize through the same hardened connector architecture and the Integrations workspace exposes real OAuth, sync, recovery, provenance, and lifecycle state.
 
-The remaining Phase 6 work is the first-class Integrations UI, Google Picker file sharing for the narrow drive.file model, browser OAuth return UX, real sync/provenance history, and the final integrated Phase 6 audit.
+The next concrete work is not “make the AI autonomous.” It is the policy layer that decides whether an already-supported Phase 4 action must stay suggestion-only, require explicit approval, or may auto-execute as a bounded low-risk action. Policy must be deterministic, account-scoped, auditable, and impossible to bypass with prompt text.
