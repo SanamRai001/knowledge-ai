@@ -51,13 +51,15 @@ export class IntegrationStateError extends Error {
   public readonly code:
     | 'CONNECTION_REVOKED'
     | 'CONNECTION_NOT_ACTIVE'
-    | 'CONNECTION_ALREADY_REVOKED';
+    | 'CONNECTION_ALREADY_REVOKED'
+    | 'SYNC_ALREADY_RUNNING';
 
   constructor(
     code:
       | 'CONNECTION_REVOKED'
       | 'CONNECTION_NOT_ACTIVE'
-      | 'CONNECTION_ALREADY_REVOKED',
+      | 'CONNECTION_ALREADY_REVOKED'
+      | 'SYNC_ALREADY_RUNNING',
     statusCode: number,
     message: string
   ) {
@@ -71,10 +73,15 @@ export class IntegrationStateError extends Error {
 export function publicConnection(
   connection: IntegrationConnection
 ): PublicIntegrationConnection {
-  const { credentialRef, ...safe } = clone(connection);
+  const { credentialRef, syncLeaseId, ...safe } = clone(connection);
   return {
     ...safe,
     hasCredential: Boolean(credentialRef),
+    syncInProgress: Boolean(
+      syncLeaseId &&
+        connection.syncLeaseExpiresAt &&
+        connection.syncLeaseExpiresAt > Date.now()
+    ),
   };
 }
 
@@ -201,6 +208,12 @@ export class IntegrationStore {
         | 'settings'
         | 'credentialRef'
         | 'cursor'
+        | 'attentionReason'
+        | 'lastFailureCategory'
+        | 'consecutiveFailureCount'
+        | 'nextRetryAt'
+        | 'syncLeaseId'
+        | 'syncLeaseExpiresAt'
         | 'lastSyncAt'
         | 'lastSuccessfulSyncAt'
         | 'lastError'
@@ -240,9 +253,82 @@ export class IntegrationStore {
 
     return this.updateConnection(accountId, connectionId, {
       status,
+      attentionReason:
+        status === 'ACTIVE' ? undefined : current.attentionReason,
+      lastFailureCategory:
+        status === 'ACTIVE'
+          ? undefined
+          : current.lastFailureCategory,
+      consecutiveFailureCount:
+        status === 'ACTIVE' ? 0 : current.consecutiveFailureCount,
+      nextRetryAt:
+        status === 'ACTIVE' ? undefined : current.nextRetryAt,
       lastError:
         status === 'ACTIVE' ? undefined : current.lastError,
     });
+  }
+
+  public acquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseMs: number;
+    now?: number;
+  }): IntegrationConnection {
+    const now = params.now ?? Date.now();
+    const current = this.requireConnection(
+      params.accountId,
+      params.connectionId
+    );
+
+    if (
+      current.syncLeaseId &&
+      current.syncLeaseExpiresAt &&
+      current.syncLeaseExpiresAt > now
+    ) {
+      throw new IntegrationStateError(
+        'SYNC_ALREADY_RUNNING',
+        409,
+        'A sync is already running for this integration connection.'
+      );
+    }
+
+    return this.updateConnection(
+      params.accountId,
+      params.connectionId,
+      {
+        syncLeaseId: params.leaseId,
+        syncLeaseExpiresAt:
+          now + Math.max(1_000, params.leaseMs),
+      }
+    );
+  }
+
+  public releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+  }): IntegrationConnection {
+    const current = this.requireConnection(
+      params.accountId,
+      params.connectionId
+    );
+
+    if (
+      current.syncLeaseId &&
+      current.syncLeaseId !== params.leaseId
+    ) {
+      return current;
+    }
+
+    return this.updateConnection(
+      params.accountId,
+      params.connectionId,
+      {
+        syncLeaseId: undefined,
+        syncLeaseExpiresAt: undefined,
+      }
+    );
   }
 
   public createSyncRun(params: {
@@ -250,6 +336,7 @@ export class IntegrationStore {
     connectionId: string;
     provider: IntegrationProvider;
     cursorBefore?: string;
+    maxAttempts?: number;
   }): SyncRun {
     const run: SyncRun = {
       id: id('sync'),
@@ -259,6 +346,11 @@ export class IntegrationStore {
       status: 'RUNNING',
       cursorBefore: params.cursorBefore,
       startedAt: Date.now(),
+      attemptCount: 0,
+      maxAttempts: Math.max(
+        1,
+        Math.min(params.maxAttempts || 3, 5)
+      ),
       processedCount: 0,
       importedCount: 0,
       skippedCount: 0,
