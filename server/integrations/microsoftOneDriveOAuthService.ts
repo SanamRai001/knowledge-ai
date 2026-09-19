@@ -80,6 +80,7 @@ export class MicrosoftOneDriveOAuthService {
   public begin(params: {
     accountId: string;
     displayName?: string;
+    connectionId?: string;
   }): {
     authorizationUrl: string;
     expiresAt: number;
@@ -89,8 +90,30 @@ export class MicrosoftOneDriveOAuthService {
     const config = microsoftOneDriveServerConfig({
       requireRedirectUri: true,
     });
-    const displayName =
+    let displayName =
       params.displayName?.trim() || 'Microsoft OneDrive';
+
+    if (params.connectionId) {
+      const existing = integrationStore.requireConnection(
+        params.accountId,
+        params.connectionId
+      );
+      if (existing.provider !== 'MICROSOFT_ONEDRIVE') {
+        throw new MicrosoftOneDriveOAuthError(
+          'ONEDRIVE_OAUTH_SCOPE_INVALID',
+          422,
+          'Only a Microsoft OneDrive integration can be reauthorized with this OAuth flow.'
+        );
+      }
+      if (existing.status === 'REVOKED') {
+        throw new MicrosoftOneDriveOAuthError(
+          'ONEDRIVE_OAUTH_SCOPE_INVALID',
+          409,
+          'Revoked OneDrive connections cannot be reauthorized in place.'
+        );
+      }
+      displayName = existing.displayName;
+    }
 
     const { state, codeChallenge, attempt } =
       this.stateStore.create({
@@ -98,6 +121,7 @@ export class MicrosoftOneDriveOAuthService {
         displayName,
         redirectUri: config.redirectUri,
         tenant: config.tenant,
+        connectionId: params.connectionId,
       });
 
     const scopes = [
@@ -238,20 +262,73 @@ export class MicrosoftOneDriveOAuthService {
     });
 
     try {
-      const connection = integrationSyncService.createConnection({
-        accountId: attempt.accountId,
-        provider: 'MICROSOFT_ONEDRIVE',
-        displayName: attempt.displayName,
-        credentialRef,
-        settings: {
-          oauthScope:
-            MICROSOFT_OFFLINE_SCOPE +
-            ' ' +
-            MICROSOFT_GRAPH_FILES_READ_SCOPE,
-          tenant: attempt.tenant,
-          connectedAt: Date.now(),
-        },
-      });
+      let connection;
+      if (attempt.connectionId) {
+        const current = integrationStore.requireConnection(
+          attempt.accountId,
+          attempt.connectionId
+        );
+        if (
+          current.provider !== 'MICROSOFT_ONEDRIVE' ||
+          current.status === 'REVOKED'
+        ) {
+          throw new MicrosoftOneDriveOAuthError(
+            'ONEDRIVE_OAUTH_SCOPE_INVALID',
+            409,
+            'Existing OneDrive connection cannot be reauthorized in its current state.'
+          );
+        }
+
+        const oldCredentialRef = current.credentialRef;
+        connection = integrationStore.updateConnection(
+          attempt.accountId,
+          current.id,
+          {
+            credentialRef,
+            status: 'ACTIVE',
+            attentionReason: undefined,
+            lastFailureCategory: undefined,
+            consecutiveFailureCount: 0,
+            nextRetryAt: undefined,
+            lastError: undefined,
+            settings: {
+              ...current.settings,
+              oauthScope:
+                MICROSOFT_OFFLINE_SCOPE +
+                ' ' +
+                MICROSOFT_GRAPH_FILES_READ_SCOPE,
+              tenant: attempt.tenant,
+              reauthorizedAt: Date.now(),
+            },
+          }
+        );
+
+        if (
+          oldCredentialRef &&
+          oldCredentialRef !== credentialRef
+        ) {
+          this.credentialStore.delete({
+            accountId: attempt.accountId,
+            provider: 'MICROSOFT_ONEDRIVE',
+            credentialRef: oldCredentialRef,
+          });
+        }
+      } else {
+        connection = integrationSyncService.createConnection({
+          accountId: attempt.accountId,
+          provider: 'MICROSOFT_ONEDRIVE',
+          displayName: attempt.displayName,
+          credentialRef,
+          settings: {
+            oauthScope:
+              MICROSOFT_OFFLINE_SCOPE +
+              ' ' +
+              MICROSOFT_GRAPH_FILES_READ_SCOPE,
+            tenant: attempt.tenant,
+            connectedAt: Date.now(),
+          },
+        });
+      }
 
       return {
         connection: publicConnection(connection),
