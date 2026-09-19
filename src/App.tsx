@@ -10,6 +10,7 @@ import { UnifiedAskView } from './components/UnifiedAskView';
 import { InsightsWorkspace } from './components/InsightsWorkspace';
 import { CompanyKnowledgeWorkspace } from './components/CompanyKnowledgeWorkspace';
 import { ActionsWorkspace } from './components/ActionsWorkspace';
+import { AutomationWorkspace } from './components/AutomationWorkspace';
 import { WatchWorkspace } from './components/WatchWorkspace';
 import { IntegrationsWorkspace } from './components/IntegrationsWorkspace';
 import { SpecializedAIConfig } from './components/SpecializedAIConfig';
@@ -41,6 +42,7 @@ export default function App() {
       'insights',
       'company',
       'actions',
+      'automation',
       'watch',
       'integrations',
       'knowledge',
@@ -461,6 +463,9 @@ export default function App() {
 
         {/* Safe natural-language write proposals and audit history */}
         {currentTab === 'actions' && <ActionsWorkspace />}
+
+        {/* Governed automatic execution, approvals, recovery, and quality */}
+        {currentTab === 'automation' && <AutomationWorkspace />}
 
         {/* Continuous monitoring, reminders, and alert lifecycle */}
         {currentTab === 'watch' && <WatchWorkspace />}
