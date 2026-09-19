@@ -1296,9 +1296,9 @@ Continue with:
         ↓
 6B. First live cloud-file connector ✅
         ↓
-6C. Second connector through the same abstraction ← CURRENT
+6C. Second connector through the same abstraction ✅
         ↓
-6D. Incremental sync / retry / revocation / permission hardening
+6D. Incremental sync / retry / revocation / permission hardening ← CURRENT
         ↓
 6E. Integrations UI + final Phase 6 exit-gate audit
 ```
