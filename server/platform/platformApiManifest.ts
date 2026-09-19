@@ -7,12 +7,14 @@ export type PlatformApiFamily =
   | 'ACTIONS'
   | 'WATCH'
   | 'AUDIT'
-  | 'TOOLS';
+  | 'TOOLS'
+  | 'DETECTORS';
 
 export type PlatformRiskClass =
   | 'READ_ONLY'
   | 'QUERY'
-  | 'PROPOSAL_WRITE';
+  | 'PROPOSAL_WRITE'
+  | 'ANALYSIS_WRITE';
 
 export type PlatformRateLimitClass =
   | 'PUBLIC'
@@ -51,6 +53,8 @@ export const PLATFORM_SCOPES = {
   auditRead: 'platform:audit:read',
   toolsRead: 'platform:tools:read',
   toolsInvoke: 'platform:tools:invoke',
+  detectorsRead: 'platform:detectors:read',
+  detectorsWrite: 'platform:detectors:write',
 } as const;
 
 export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
@@ -252,6 +256,36 @@ export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
     stability: 'STABLE',
     description:
       'Invoke a trusted registered tool. Tool-specific capability scopes are enforced in addition to the generic invoke scope.',
+  },
+  {
+    operationId: 'detectors.list',
+    version: 'v1',
+    method: 'GET',
+    path: '/detectors',
+    family: 'DETECTORS',
+    requiredScopes: [PLATFORM_SCOPES.detectorsRead],
+    mutation: false,
+    riskClass: 'READ_ONLY',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'READ',
+    stability: 'STABLE',
+    description:
+      'List deterministic registered detector contracts and closed config schemas.',
+  },
+  {
+    operationId: 'detectors.run',
+    version: 'v1',
+    method: 'POST',
+    path: '/detectors/:id/run',
+    family: 'DETECTORS',
+    requiredScopes: [PLATFORM_SCOPES.detectorsWrite],
+    mutation: true,
+    riskClass: 'ANALYSIS_WRITE',
+    auditBehavior: 'REQUEST_USAGE_AND_DOMAIN_AUDIT',
+    rateLimitClass: 'WRITE',
+    stability: 'STABLE',
+    description:
+      'Run a trusted deterministic registered detector against an authorized DatasetVersion and persist evidence-backed Insights.',
   },
   {
     operationId: 'audit.activity.list',
