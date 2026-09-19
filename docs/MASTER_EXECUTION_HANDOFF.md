@@ -994,8 +994,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 6C — Microsoft OneDrive connector.**
+> **Continue with Phase 6D — integration hardening.**
 
-Phase 6B is complete and green in Quality Gate `35421434768`. Google Drive now proves the first real provider through the shared connector abstraction with per-file OAuth, encrypted refresh tokens, snapshot-safe initial discovery, Drive changes cursors, CSV/XLSX ingestion, Google Sheets XLSX export, token refresh, tombstones, disconnect, and account isolation.
+Phase 6C is complete and green in Quality Gate `35421700960`. Google Drive and Microsoft OneDrive now share the same IntegrationConnector → IntegrationConnection → SyncRun → external import mapping → Dataset ingestion architecture.
 
-The next concrete work is a second vendor through the same architecture: Microsoft identity delegated OAuth → OneDrive/Graph delta cursor → CSV/XLSX download → existing Dataset ingestion.
+The next concrete work is operational hardening across both providers: failure classification/retry, invalid-cursor recovery, connection ERROR/re-authorize lifecycle, permission/revocation behavior, per-connection sync concurrency protection, and sync observability. Do not add a third connector before these invariants are strong.
