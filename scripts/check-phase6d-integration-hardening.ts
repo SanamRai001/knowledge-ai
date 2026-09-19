@@ -469,7 +469,8 @@ async function main() {
           : input.url
     );
     if (
-      url.pathname === '/drive/v3/changes/startPageToken'
+      url.pathname === '/drive/v3/changes/startPageToken' ||
+      url.pathname === '/drive/v3/changes'
     ) {
       return new Response(
         JSON.stringify({
@@ -497,10 +498,18 @@ async function main() {
       displayName: 'Google hardening',
       credentialRef: googleOldCredential,
     });
+  const preservedGoogleCursor = Buffer.from(
+    JSON.stringify({
+      v: 1,
+      mode: 'CHANGES',
+      pageToken: 'preserve-google-cursor',
+    }),
+    'utf8'
+  ).toString('base64url');
   integrationStore.updateConnection(
     googleAccount,
     googleConnection.id,
-    { cursor: 'preserve-google-cursor' }
+    { cursor: preservedGoogleCursor }
   );
 
   const googlePermissionRun =
@@ -603,7 +612,7 @@ async function main() {
       integrationStore.requireConnection(
         googleAccount,
         googleConnection.id
-      ).cursor === 'preserve-google-cursor',
+      ).cursor === preservedGoogleCursor,
     'Google reauthorization must repair the existing connection without losing its checkpoint.'
   );
 
