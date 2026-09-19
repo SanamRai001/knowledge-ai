@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A5 — Automation + Platform state PostgreSQL persistence.**
+> **Continue with Production Hardening A7 — PostgreSQL runtime cutover.**
 
 Phases 0–8 are complete.
 
@@ -1050,11 +1050,11 @@ Relational persistence milestones:
 - A1 forensic audit — COMPLETE
 - A2 core metadata — COMPLETE
 - A3 Living Knowledge + Actions — COMPLETE
-- A4 Watch + Integrations — COMPLETE, authoritative workflow `35458772829`
-- A5 Automation + Platform state — IN PROGRESS
+- A4 Watch + Integrations — COMPLETE
+- A5 Automation + Platform state — COMPLETE
+- A6 Discovery / Insights — COMPLETE, authoritative workflow `35459661040`
+- A7 production runtime cutover — IN PROGRESS
 
-A4 evidence: `docs/PRODUCTION_A4_POSTGRES_WATCH_INTEGRATIONS.md`.
+A6 evidence: `docs/PRODUCTION_A6_POSTGRES_DISCOVERY.md`.
 
-A5 already has migration 004, repository contracts/adapters, transactional policy/control revision boundaries, and a legacy importer under active verification.
-
-The exact next step is to make `scripts/check-production-a5-postgres.ts` pass in the PostgreSQL CI chain after A2→A4, then record A5 completion. Do not redo Phase 6 or A2–A4 unless a regression requires it.
+The primary relational schemas/repositories are now modeled. The next risk is that normal runtime services still have legacy file-store paths. A7 must introduce explicit production repository selection and cut over bounded domain slices with executable parity/isolation/restart tests. Do not delete file adapters or claim PostgreSQL durability merely because repositories exist.
