@@ -11,6 +11,7 @@ import { InsightsWorkspace } from './components/InsightsWorkspace';
 import { CompanyKnowledgeWorkspace } from './components/CompanyKnowledgeWorkspace';
 import { ActionsWorkspace } from './components/ActionsWorkspace';
 import { WatchWorkspace } from './components/WatchWorkspace';
+import { IntegrationsWorkspace } from './components/IntegrationsWorkspace';
 import { SpecializedAIConfig } from './components/SpecializedAIConfig';
 import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
@@ -33,7 +34,28 @@ import { AlertCircle, X } from 'lucide-react';
 export default function App() {
   const [activeKb, setActiveKb] = useState<KnowledgeBase | null>(null);
   const [allKbs, setAllKbs] = useState<{ id: string; name: string; documentCount: number }[]>([]);
-  const [currentTab, setCurrentTab] = useState<ActiveTab>('playground');
+  const [currentTab, setCurrentTab] = useState<ActiveTab>(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    const supported: ActiveTab[] = [
+      'playground',
+      'insights',
+      'company',
+      'actions',
+      'watch',
+      'integrations',
+      'knowledge',
+      'datasets',
+      'config',
+      'evaluations',
+      'developer',
+      'sandbox',
+      'mediator',
+      'cognitive',
+    ];
+    return supported.includes(requested as ActiveTab)
+      ? (requested as ActiveTab)
+      : 'playground';
+  });
   const [preferredDatasetId, setPreferredDatasetId] = useState<string | null>(null);
 
   // Loading states
@@ -442,6 +464,9 @@ export default function App() {
 
         {/* Continuous monitoring, reminders, and alert lifecycle */}
         {currentTab === 'watch' && <WatchWorkspace />}
+
+        {/* External provider connections and sync history */}
+        {currentTab === 'integrations' && <IntegrationsWorkspace />}
 
         {/* Structured business datasets */}
         {currentTab === 'datasets' && (
