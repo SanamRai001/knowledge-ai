@@ -156,7 +156,7 @@ export const DeveloperPlatform: React.FC<
   }, []);
 
   const fetchKeys = useCallback(async () => {
-    const response = await fetch('/api/v1/developer/keys');
+    const response = await fetch('/api/platform-management/keys');
     const body = await response.json();
     if (!response.ok) {
       throw new Error(
@@ -167,7 +167,7 @@ export const DeveloperPlatform: React.FC<
   }, []);
 
   const fetchUsage = useCallback(async () => {
-    const response = await fetch('/api/v1/developer/usage');
+    const response = await fetch('/api/platform-management/usage');
     const body = await response.json();
     if (!response.ok) {
       throw new Error(
@@ -263,7 +263,7 @@ export const DeveloperPlatform: React.FC<
     setNotice(null);
     try {
       const response = await fetch(
-        '/api/v1/developer/keys',
+        '/api/platform-management/keys',
         {
           method: 'POST',
           headers: {
@@ -302,7 +302,7 @@ export const DeveloperPlatform: React.FC<
     setError(null);
     try {
       const response = await fetch(
-        '/api/v1/developer/keys/' + keyId,
+        '/api/platform-management/keys/' + keyId,
         { method: 'DELETE' }
       );
       const body = await response.json();
