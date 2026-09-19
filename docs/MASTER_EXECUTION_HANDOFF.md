@@ -994,8 +994,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 6D — integration hardening.**
+> **Continue with Phase 6E — Integrations UI + final Phase 6 audit.**
 
-Phase 6C is complete and green in Quality Gate `35421700960`. Google Drive and Microsoft OneDrive now share the same IntegrationConnector → IntegrationConnection → SyncRun → external import mapping → Dataset ingestion architecture.
+Phase 6D is complete and green in Quality Gate `35422900472`. Cross-provider retry classification, bounded backoff, explicit cursor recovery, connection attention states, sync leases/concurrency protection, permission-loss handling, and in-place Google/OneDrive reauthorization are now authoritative.
 
-The next concrete work is operational hardening across both providers: failure classification/retry, invalid-cursor recovery, connection ERROR/re-authorize lifecycle, permission/revocation behavior, per-connection sync concurrency protection, and sync observability. Do not add a third connector before these invariants are strong.
+The remaining Phase 6 work is the first-class Integrations UI, Google Picker file sharing for the narrow drive.file model, browser OAuth return UX, real sync/provenance history, and the final integrated Phase 6 audit.
