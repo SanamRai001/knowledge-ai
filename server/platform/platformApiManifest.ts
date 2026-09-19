@@ -224,6 +224,21 @@ export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
       'List governed registered tools and their permission/schema metadata.',
   },
   {
+    operationId: 'tools.invocations.list',
+    version: 'v1',
+    method: 'GET',
+    path: '/tools/invocations',
+    family: 'TOOLS',
+    requiredScopes: [PLATFORM_SCOPES.toolsRead],
+    mutation: false,
+    riskClass: 'READ_ONLY',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'READ',
+    stability: 'STABLE',
+    description:
+      'List privacy-safe account-scoped registered tool invocation audit records.',
+  },
+  {
     operationId: 'tools.invoke',
     version: 'v1',
     method: 'POST',
