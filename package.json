@@ -60,7 +60,8 @@
     "db:import-legacy": "tsx scripts/db-import-legacy.ts",
     "check:production-a2-postgres": "tsx scripts/check-production-a2-postgres.ts",
     "check:production-a3-postgres": "tsx scripts/check-production-a3-postgres.ts",
-    "check:production-a4-postgres": "tsx scripts/check-production-a4-postgres.ts"
+    "check:production-a4-postgres": "tsx scripts/check-production-a4-postgres.ts",
+    "check:production-a5-postgres": "tsx scripts/check-production-a5-postgres.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
