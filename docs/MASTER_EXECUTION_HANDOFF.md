@@ -1031,8 +1031,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 8C — custom detector framework.**
+> **Continue with Phase 8D — declarative domain packs.**
 
-Phase 8B is complete and green in Quality Gate `35432530926`. Registered tools now use closed schemas, trusted built-in handlers, generic + capability scopes, privacy-safe invocation audit, tenant isolation, and proposal-only mutation.
+Phase 8C is complete and green in Quality Gate `35432753760`. Registered deterministic detectors now use closed configs, effective Dataset overlays, reproducibility hashes, existing Discovery/Insight persistence, stable detector scopes, and tenant isolation.
 
-The next concrete work is a registered deterministic detector layer over the existing Discovery/Insight system: versioned detector descriptors → closed config schema → authorized DatasetVersion + effective overlay → deterministic handler → existing Insight evidence/persistence → stable detector inventory/run API. No arbitrary runtime code.
+The next concrete work is a data-only versioned DomainPack layer that packages registered detector templates, suggested Watches, entity vocabulary, proposal-only action templates, and UI metadata without embedding runtime code or bypassing core services.
