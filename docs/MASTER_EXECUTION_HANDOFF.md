@@ -1041,12 +1041,20 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A3 — Living Knowledge + Actions relational persistence.**
+> **Continue with Production Hardening A5 — Automation + Platform state PostgreSQL persistence.**
 
-Phases 0–8 are complete. Production Hardening A1 and A2 are complete.
+Phases 0–8 are complete.
 
-A2 authoritative workflow: `35435257972`.
+Relational persistence milestones:
 
-PostgreSQL migration/repository/import infrastructure is now proven for accounts, workspace metadata/per-account active selection, API keys/usage, and Dataset metadata/version provenance. File mode remains available during the transition.
+- A1 forensic audit — COMPLETE
+- A2 core metadata — COMPLETE
+- A3 Living Knowledge + Actions — COMPLETE
+- A4 Watch + Integrations — COMPLETE, authoritative workflow `35458772829`
+- A5 Automation + Platform state — IN PROGRESS
 
-The next relational slice is deliberately focused on Living Company Knowledge + Actions because confirmed-state mutation, idempotency, and audit need stronger transactional semantics. Do not move Watch/Integrations/Automation into migration 002; those remain A4/A5.
+A4 evidence: `docs/PRODUCTION_A4_POSTGRES_WATCH_INTEGRATIONS.md`.
+
+A5 already has migration 004, repository contracts/adapters, transactional policy/control revision boundaries, and a legacy importer under active verification.
+
+The exact next step is to make `scripts/check-production-a5-postgres.ts` pass in the PostgreSQL CI chain after A2→A4, then record A5 completion. Do not redo Phase 6 or A2–A4 unless a regression requires it.
