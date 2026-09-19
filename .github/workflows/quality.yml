@@ -137,6 +137,9 @@ jobs:
       - name: Phase 7A automation policy proof
         run: npm run check:phase7a-automation-policy
 
+      - name: Phase 7B approval enforcement proof
+        run: npm run check:phase7b-approval-enforcement
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
