@@ -30,6 +30,8 @@ export interface InsightEvidence {
   excerpt?: string;
   detectorId: string;
   detectorVersion: string;
+  detectorConfigHash?: string;
+  detectorConfig?: Record<string, string | number | boolean>;
   calculation: string;
   values: Record<string, string | number | boolean | null>;
   rowReferences?: InsightRowReference[];
@@ -90,6 +92,12 @@ export interface AnalysisRun {
   completedAt?: number;
   referenceTime: number;
   detectorIds: string[];
+  detectorRegistrations?: Array<{
+    detectorId: string;
+    detectorVersion: string;
+    configHash: string;
+    config: Record<string, string | number | boolean>;
+  }>;
   insightIds: string[];
   error?: string;
 }
