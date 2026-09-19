@@ -18,8 +18,8 @@ Phase 6 connects Knowledge AI to external systems without creating isolated prov
 6A Integration foundation / connector contract          COMPLETE
 6B First live cloud-file connector                      COMPLETE
 6C Second connector on the same abstraction             COMPLETE
-6D Sync/retry/revocation/permission hardening           IN PROGRESS
-6E Integrations UI + final Phase 6 audit                NOT STARTED
+6D Sync/retry/revocation/permission hardening           COMPLETE
+6E Integrations UI + final Phase 6 audit                IN PROGRESS
 ```
 
 ## Non-negotiable architecture
@@ -307,3 +307,48 @@ Focus on cross-provider operational behavior rather than adding another provider
 7. add sync concurrency/idempotency protection so two workers cannot process the same connection simultaneously
 8. add retention/observability for sync failures
 9. then build the Phase 6E Integrations UI and final Phase 6 audit
+
+
+## Phase 6D verification
+
+Quality Gate `35422900472` passed the cross-provider hardening slice.
+
+Verified:
+
+- shared failure categories: AUTHORIZATION, PERMISSION, RATE_LIMIT, TRANSIENT, CURSOR_INVALID, DATA_INVALID, UNSUPPORTED, CONFLICT, UNKNOWN
+- retryable vs non-retryable failure metadata on SyncRun
+- bounded exponential retry/backoff for transient and rate-limit failures
+- provider checkpoint remains frozen across failed attempts
+- checkpoint advances only after successful sync completion
+- exhausted retries become observable ERROR/SYNC_FAILED state
+- explicit failure category, attempt count, and retryability remain in sync history
+- expired/invalid provider cursors become ERROR/CURSOR_RESET_REQUIRED rather than silently forcing a full resync
+- explicit cursor reset clears the broken checkpoint and permits a new snapshot
+- generic resume cannot bypass reauthorization/permission/cursor recovery states
+- per-connection persisted sync lease
+- overlapping sync requests are rejected with SYNC_ALREADY_RUNNING
+- public API exposes only syncInProgress, never the internal lease identifier
+- expired leases can be reclaimed after worker/process loss
+- Google Drive 403 permission loss becomes ERROR/PERMISSION_LOST
+- OneDrive 403 permission loss becomes ERROR/PERMISSION_LOST
+- Google Drive reauthorization repairs the same IntegrationConnection ID
+- OneDrive S256-PKCE reauthorization repairs the same IntegrationConnection ID
+- reauthorization preserves provider cursor/import history
+- superseded encrypted OAuth credentials are deleted
+- TypeScript, production build, all Phase 0–6C proofs, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 6E — Integrations UI + final Phase 6 exit gate**
+
+1. add Integrations as a first-class product workspace
+2. expose Google Drive and Microsoft OneDrive connection flows
+3. expose real connection health/status/attention state
+4. expose Sync now, pause/resume, reauthorize, explicit cursor reset, and disconnect
+5. expose sync-run history and imported external sources/provenance
+6. integrate Google Picker for explicit drive.file file sharing before sync
+7. improve browser OAuth callback UX so successful authorization returns to the Integrations workspace
+8. add an executable Integrations UI contract proof
+9. run the full Quality Gate
+10. create `docs/PHASE_6_FINAL_AUDIT.md`
+11. advance the master handoff to Phase 7 only after the complete integrated gate is green
