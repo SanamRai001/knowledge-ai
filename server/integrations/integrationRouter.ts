@@ -335,6 +335,23 @@ integrationRouter.post('/connections/:id/sync', async (req, res) => {
   }
 });
 
+integrationRouter.post(
+  '/connections/:id/reset-cursor',
+  (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      res.json({
+        connection: integrationSyncService.resetCursor(
+          accountId,
+          req.params.id
+        ),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
 integrationRouter.post('/connections/:id/pause', (req, res) => {
   try {
     const { accountId } = identity(res);
