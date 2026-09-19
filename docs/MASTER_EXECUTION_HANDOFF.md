@@ -1007,8 +1007,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 7C — first bounded low-risk auto-execution path.**
+> **Continue with Phase 7D — recovery / compensation / emergency kill switch.**
 
-Phase 7B is complete and green in Quality Gate `35427776401`. Role/target constraints and durable approval escalation are now authoritative, and approval itself still performs no write.
+Phase 7C is complete and green in Quality Gate `35428055078`. RECEIVE_INVENTORY is now the only policy-authorized automatic write path and it reuses Phase 4 validation, stale-state checks, idempotency, provenance, and audit.
 
-The next work is to connect only RECEIVE_INVENTORY to the existing Phase 4 ActionExecutionService when a fresh deterministic policy evaluation returns ALLOW_AUTO_EXECUTE. The automatic path must preserve Phase 4 stale-state checks, idempotency, audit, and account isolation.
+The next work is operational safety: a workspace emergency stop independent of ordinary policy edits, durable automation-run failure state, bounded retry for technical failures only, and explicit inventory compensation that refuses to overwrite later state.
