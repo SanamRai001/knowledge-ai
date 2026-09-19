@@ -456,15 +456,60 @@ A1 findings:
 - integration OAuth secrets remain outside ordinary relational tables
 - telemetry/rate limits/OAuth state remain separate ephemeral infrastructure concerns
 
+## Previous milestone
+
+**Production Hardening A2 — PostgreSQL foundation + repository contracts — COMPLETE**
+
+See the A2 completion evidence below.
+
+
+## A2 completion evidence
+
+Production Hardening A2 is complete.
+
+Authoritative integrated workflow:
+
+`35435257972`
+
+Both required jobs passed:
+
+- `quality` — all Phase 0–8 regression gates, TypeScript, production build, unseen benchmark, and live Gemini benchmark
+- `Production A2 PostgreSQL` — real PostgreSQL 16 migration/import/isolation proof
+
+Verified:
+
+- optional PostgreSQL runtime configuration preserves file-mode development
+- connection pool + transaction helper
+- checksum-safe versioned migration runner
+- migration `001_core_metadata.sql`
+- accounts / workspaces / per-account active workspace
+- API-key metadata / usage
+- Dataset / DatasetVersion metadata / import-run metadata
+- explicit `account_id` ownership on tenant-owned DatasetVersion rows
+- relational current-version ownership constraints
+- account-scoped PostgreSQL repositories
+- legacy metadata snapshot adapter
+- legacy Dataset payload compatibility adapter
+- dry-run legacy importer
+- ID-preserving idempotent legacy import
+- source JSON remains unchanged
+- raw API secrets are absent from PostgreSQL
+- cross-account workspace/key/dataset metadata access is blocked
+- cross-account DatasetVersion/import-run relationships are rejected by the database
+- migrations are repeatable against an empty PostgreSQL database
+
+A2 intentionally does **not** switch every runtime service to PostgreSQL yet.
+
 ## Current exact next work
 
-**Production Hardening A2 — PostgreSQL foundation + repository contracts**
+**Production Hardening A3 — Living Knowledge + Actions relational persistence**
 
-1. add optional PostgreSQL runtime configuration without breaking file-mode development
-2. add versioned migrations
-3. create migration 001 for account/workspace/API-key/Dataset metadata
-4. define repository contracts and legacy/Postgres adapters
-5. add a legacy metadata importer with dry-run/idempotency semantics
-6. add an isolated PostgreSQL CI proof
-7. do not switch all runtime services in one commit
-8. preserve every Phase 0–8 Quality Gate
+1. audit CompanyKnowledgeStore and ActionStore record/write dependencies
+2. add migration 002 for company entities, relationships, claims, business events, projection runs, action proposals, action executions, and action audit entries
+3. put account ownership and idempotency/relationship constraints in PostgreSQL
+4. define repository contracts and PostgreSQL adapters for Living Knowledge + Actions
+5. create explicit legacy importer for A3 records
+6. introduce transaction boundaries for confirmed action execution where relational state can be committed together
+7. preserve effective-state authority semantics and Action stale/idempotency behavior
+8. add an isolated PostgreSQL A3 proof
+9. keep the full Phase 0–8 Quality Gate green
