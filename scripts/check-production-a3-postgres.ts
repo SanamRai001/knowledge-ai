@@ -855,6 +855,9 @@ async function main() {
   );
 
   const repeated = await importLegacyA3({ snapshot });
+  console.log(
+    'A3_LEGACY_REPEAT_REPORT=' + JSON.stringify(repeated)
+  );
   assert(
     repeated.conflicts.length === 0 &&
       Object.values(repeated.imported).every(
