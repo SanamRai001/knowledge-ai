@@ -44,7 +44,8 @@
     "check:phase6b-google-drive": "tsx scripts/check-phase6b-google-drive.ts",
     "check:phase6c-onedrive": "tsx scripts/check-phase6c-onedrive.ts",
     "check:phase6d-integration-hardening": "tsx scripts/check-phase6d-integration-hardening.ts",
-    "check:phase6e-integrations-ui": "tsx scripts/check-phase6e-integrations-ui-contract.ts"
+    "check:phase6e-integrations-ui": "tsx scripts/check-phase6e-integrations-ui-contract.ts",
+    "check:phase7a-automation-policy": "tsx scripts/check-phase7a-automation-policy.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
