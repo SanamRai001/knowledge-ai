@@ -87,7 +87,8 @@ export interface ActionProposal {
 
 export type ActionExecutionMode =
   | 'MANUAL_CONFIRMATION'
-  | 'AUTOMATION_POLICY';
+  | 'AUTOMATION_POLICY'
+  | 'AUTOMATION_COMPENSATION';
 
 export interface ActionExecution {
   id: string;
