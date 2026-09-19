@@ -1298,9 +1298,9 @@ Continue with:
         ↓
 6C. Second connector through the same abstraction ✅
         ↓
-6D. Incremental sync / retry / revocation / permission hardening ← CURRENT
+6D. Incremental sync / retry / revocation / permission hardening ✅
         ↓
-6E. Integrations UI + final Phase 6 exit-gate audit
+6E. Integrations UI + final Phase 6 exit-gate audit ← CURRENT
 ```
 
 Phase 6A must establish the shared internal contract before provider-specific code spreads through the repository.
