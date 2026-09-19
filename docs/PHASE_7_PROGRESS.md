@@ -20,8 +20,8 @@ This phase does **not** give an LLM unrestricted authority to mutate company sta
 7A Automation policy foundation                         COMPLETE
 7B Approval / role / risk / amount enforcement          COMPLETE
 7C First bounded low-risk auto-execution path           COMPLETE
-7D Recovery / compensating actions / kill switch        IN PROGRESS
-7E Automation analytics + UI + final audit              NOT STARTED
+7D Recovery / compensating actions / kill switch        COMPLETE
+7E Automation analytics + UI + final audit              IN PROGRESS
 ```
 
 ## Non-negotiable safety architecture
@@ -295,3 +295,43 @@ Verified:
 8. refuse blind compensation if later state changed; mark operator recovery required instead
 9. route compensation through the existing audited action execution machinery
 10. add executable 7D CI proof
+
+
+## Phase 7D verification
+
+Quality Gate `35428379304` passed the automation recovery and emergency-control slice.
+
+Verified:
+
+- independent account-scoped emergency automation kill switch
+- OWNER/ADMIN-only kill-switch control
+- immutable kill-switch revision history
+- kill switch is checked by deterministic policy evaluation and immediately before execution
+- durable AutomationRun state
+- BLOCKED / FAILED / SUCCEEDED / COMPENSATED / RECOVERY_REQUIRED outcomes
+- deterministic policy/stale failures remain non-retryable
+- unexpected technical failures receive only bounded retry
+- retry exhaustion remains observable and leaves company state unchanged
+- explicit inventory compensation reuses the audited Phase 4 execution path
+- compensation is idempotent
+- compensation refuses to overwrite newer effective company state
+- unsafe compensation becomes RECOVERY_REQUIRED
+- compensation provenance is explicit
+- foreign accounts cannot inspect or compensate another account's runs
+- TypeScript, production build, all Phase 0–7C gates, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 7E — Automation analytics + UI + final Phase 7 audit**
+
+1. add deterministic account-scoped automation quality analytics
+2. expose success, failure, policy-block, approval-escalation, compensation, recovery-required, and feedback metrics
+3. add explicit run feedback for CORRECT / FALSE_TRIGGER / NEEDS_CORRECTION
+4. do not invent time-saved numbers without a measured baseline
+5. add Automation as a first-class advanced workspace
+6. expose policy mode, emergency stop, approvals, runs, failure/recovery state, and quality metrics
+7. expose emergency disable/enable and compensation through real APIs with existing role enforcement
+8. add executable analytics + UI contract proofs
+9. run the full integrated Quality Gate
+10. create `docs/PHASE_7_FINAL_AUDIT.md`
+11. advance the master handoff to Phase 8 only after the complete gate is green
