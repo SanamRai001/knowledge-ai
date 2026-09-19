@@ -97,10 +97,30 @@ function readJson<T>(filePath: string, fallback: T): T {
   return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
 }
 
+function canonicalJsonValue(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (value === null) return null;
+
+  if (Array.isArray(value)) {
+    return value.map(canonicalJsonValue);
+  }
+
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [
+          key,
+          canonicalJsonValue(nested),
+        ])
+    );
+  }
+
+  return value;
+}
+
 function comparable(value: unknown): string {
-  return JSON.stringify(value, (_key, nested) =>
-    nested === undefined ? null : nested
-  );
+  return JSON.stringify(canonicalJsonValue(value));
 }
 
 function sameEntity(
