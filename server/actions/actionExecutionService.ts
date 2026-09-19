@@ -5,7 +5,11 @@ import { KnowledgeSourceRef } from '../companyKnowledge/types.js';
 import { discoveryService } from '../discovery/discoveryService.js';
 import { actionStore } from './actionStore.js';
 import { effectiveCompanyStateService } from '../companyKnowledge/effectiveCompanyStateService.js';
-import { ActionExecution, ActionProposal } from './types.js';
+import {
+  ActionExecution,
+  ActionExecutionMode,
+  ActionProposal,
+} from './types.js';
 
 export class ActionExecutionError extends Error {
   public readonly statusCode: number;
@@ -35,13 +39,27 @@ function valueKey(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function sourceRefFor(proposal: ActionProposal): KnowledgeSourceRef {
+interface ActionAuthorizationContext {
+  mode: ActionExecutionMode;
+  actor: string;
+  actorRole?: string;
+  automationPolicyId?: string;
+  automationPolicyVersion?: number;
+}
+
+function sourceRefFor(
+  proposal: ActionProposal,
+  authorization: ActionAuthorizationContext
+): KnowledgeSourceRef {
   return {
     sourceType: 'USER',
     sourceId: 'confirmed-company-state',
     sourceVersionId: proposal.id,
     sourceVersionLabel: 'action ' + proposal.id,
-    sourceName: 'Confirmed business action',
+    sourceName:
+      authorization.mode === 'AUTOMATION_POLICY'
+        ? 'Policy-authorized business action'
+        : 'Confirmed business action',
     excerpt: proposal.instruction,
   };
 }
@@ -108,6 +126,7 @@ export class ActionExecutionService {
     accountId: string;
     proposal: ActionProposal;
     now: number;
+    authorization: ActionAuthorizationContext;
   }): ActionExecution | null {
     const recoveredClaimIds: string[] = [];
 
@@ -157,6 +176,12 @@ export class ActionExecutionService {
       accountId: params.accountId,
       proposalId: params.proposal.id,
       intent: params.proposal.intent,
+      executionMode: params.authorization.mode,
+      authorizedBy: params.authorization.actor,
+      authorizedByRole: params.authorization.actorRole,
+      automationPolicyId: params.authorization.automationPolicyId,
+      automationPolicyVersion:
+        params.authorization.automationPolicyVersion,
       claimIds: recoveredClaimIds,
       eventIds: matchingEvents.map((event) => event.id),
       downstreamAnalysisRunIds: downstream.runIds,
@@ -173,7 +198,11 @@ export class ActionExecutionService {
       proposalId: params.proposal.id,
       status: 'CONFIRMED',
       detail:
-        'Recovered an already-applied idempotent company-state write and finalized the action audit record.',
+        'Recovered an already-applied idempotent company-state write and finalized the action audit record. Authorization mode: ' +
+        params.authorization.mode +
+        '; actor: ' +
+        params.authorization.actor +
+        '.',
       executionId: execution.id,
     });
 
@@ -184,6 +213,13 @@ export class ActionExecutionService {
     accountId: string;
     proposalId: string;
     now?: number;
+    authorization?: {
+      mode: ActionExecutionMode;
+      actor: string;
+      actorRole?: string;
+      automationPolicyId?: string;
+      automationPolicyVersion?: number;
+    };
   }): {
     proposal: ActionProposal;
     execution: ActionExecution;
@@ -207,12 +243,18 @@ export class ActionExecutionService {
       params.proposalId
     );
     const now = params.now ?? Date.now();
+    const authorization: ActionAuthorizationContext =
+      params.authorization || {
+        mode: 'MANUAL_CONFIRMATION',
+        actor: 'user:explicit-confirmation',
+      };
 
     if (proposal.status === 'PROPOSED') {
       const recovered = this.recoverAppliedProposal({
         accountId: params.accountId,
         proposal,
         now,
+        authorization,
       });
       if (recovered) {
         return {
@@ -303,7 +345,7 @@ export class ActionExecutionService {
 
     const claimIds: string[] = [];
     const eventIds: string[] = [];
-    const sourceRef = sourceRefFor(proposal);
+    const sourceRef = sourceRefFor(proposal, authorization);
 
     companyKnowledgeStore.withBatch(() => {
       for (const mutation of proposal.mutations) {
@@ -351,6 +393,11 @@ export class ActionExecutionService {
       accountId: params.accountId,
       proposalId: proposal.id,
       intent: proposal.intent,
+      executionMode: authorization.mode,
+      authorizedBy: authorization.actor,
+      authorizedByRole: authorization.actorRole,
+      automationPolicyId: authorization.automationPolicyId,
+      automationPolicyVersion: authorization.automationPolicyVersion,
       claimIds,
       eventIds,
       downstreamAnalysisRunIds: downstream.runIds,
@@ -363,7 +410,16 @@ export class ActionExecutionService {
       proposalId: proposal.id,
       status: 'CONFIRMED',
       detail:
-        'User explicitly confirmed the proposal. USER_CONFIRMED company-state claims and audit events were written. Downstream discovery refreshes: ' +
+        (authorization.mode === 'AUTOMATION_POLICY'
+          ? 'Automation policy authorized this proposal without a manual confirm click. '
+          : 'User explicitly confirmed the proposal. ') +
+        'Authorization actor: ' +
+        authorization.actor +
+        (authorization.automationPolicyVersion
+          ? '; policy version: ' +
+            String(authorization.automationPolicyVersion)
+          : '') +
+        '. USER_CONFIRMED company-state claims and audit events were written. Downstream discovery refreshes: ' +
         String(execution.downstreamAnalysisRunIds?.length || 0) +
         (execution.downstreamWarnings?.length
           ? '; warnings: ' + execution.downstreamWarnings.join(' | ')
