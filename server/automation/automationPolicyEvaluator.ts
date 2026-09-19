@@ -1,6 +1,7 @@
 import type { ActionIntent, ActionProposal } from '../actions/types.js';
 import type { RequestIdentity } from '../requestIdentity.js';
 import { automationPolicyStore } from './automationPolicyStore.js';
+import { automationControlStore } from './automationControlStore.js';
 import { resolveAutomationActorRole } from './automationActor.js';
 import {
   AutomationEvaluation,
@@ -112,6 +113,23 @@ export class AutomationPolicyEvaluator {
         reasonCodes: ['PROPOSAL_NOT_READY'],
         reasons: [
           'Only a current PROPOSED action in the same account scope can be considered for automation.',
+        ],
+        policy,
+      });
+    }
+
+    const control = automationControlStore.get(input.accountId);
+    if (control.emergencyDisabled) {
+      return result({
+        input,
+        risk,
+        decision: 'DENY',
+        reasonCodes: ['AUTOMATION_KILL_SWITCH_ACTIVE'],
+        reasons: [
+          control.reason
+            ? 'Workspace emergency automation stop is active: ' +
+              control.reason
+            : 'Workspace emergency automation stop is active.',
         ],
         policy,
       });
