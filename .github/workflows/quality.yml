@@ -125,6 +125,9 @@ jobs:
       - name: Phase 6B Google Drive proof
         run: npm run check:phase6b-google-drive
 
+      - name: Phase 6C OneDrive proof
+        run: npm run check:phase6c-onedrive
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
