@@ -155,6 +155,9 @@ jobs:
       - name: Phase 8A stable platform API proof
         run: npm run check:phase8a-platform-api
 
+      - name: Phase 8B registered tool proof
+        run: npm run check:phase8b-registered-tools
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
