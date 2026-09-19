@@ -87,6 +87,10 @@ integrationRouter.post(
           typeof req.body?.displayName === 'string'
             ? req.body.displayName
             : undefined,
+        connectionId:
+          typeof req.body?.connectionId === 'string'
+            ? req.body.connectionId
+            : undefined,
       });
       res.json(result);
     } catch (error) {
@@ -175,6 +179,10 @@ integrationRouter.post(
         displayName:
           typeof req.body?.displayName === 'string'
             ? req.body.displayName
+            : undefined,
+        connectionId:
+          typeof req.body?.connectionId === 'string'
+            ? req.body.connectionId
             : undefined,
       });
       res.json(result);
