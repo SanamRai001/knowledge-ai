@@ -18,6 +18,7 @@ import {
 } from './platformApiManifest.js';
 import { toolInvocationService } from './tools/toolInvocationService.js';
 import { toolInvocationAuditStore } from './tools/toolInvocationAuditStore.js';
+import { detectorExecutionService } from './detectors/detectorExecutionService.js';
 import {
   platformContext,
   requirePlatformOperation,
@@ -505,6 +506,56 @@ platformApiRouter.get(
               : undefined,
           limit: limitFrom(req.query.limit, 100, 500),
         }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.get(
+  '/detectors',
+  requirePlatformOperation('detectors.list'),
+  (_req, res) => {
+    try {
+      res.json({
+        detectors: detectorExecutionService.list(),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.post(
+  '/detectors/:id/run',
+  requirePlatformOperation('detectors.run'),
+  (req, res) => {
+    try {
+      const { accountId, requestId } = platformContext(res);
+      const result = detectorExecutionService.run({
+        accountId,
+        detectorId: req.params.id,
+        datasetId:
+          typeof req.body?.datasetId === 'string'
+            ? req.body.datasetId.trim()
+            : '',
+        datasetVersionId:
+          typeof req.body?.datasetVersionId === 'string' &&
+          req.body.datasetVersionId.trim()
+            ? req.body.datasetVersionId.trim()
+            : undefined,
+        config: req.body?.config ?? {},
+        referenceTime:
+          typeof req.body?.referenceTime === 'number' &&
+          Number.isFinite(req.body.referenceTime)
+            ? req.body.referenceTime
+            : undefined,
+      });
+
+      res.status(201).json({
+        request_id: requestId,
+        ...result,
       });
     } catch (error) {
       handleError(res, error);
