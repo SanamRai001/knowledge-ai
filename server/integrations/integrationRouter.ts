@@ -13,6 +13,7 @@ import {
   integrationSyncService,
 } from './integrationSyncService.js';
 import { googleDriveOAuthService } from './googleDriveOAuthService.js';
+import { microsoftOneDriveOAuthService } from './microsoftOneDriveOAuthService.js';
 
 export const integrationRouter = express.Router();
 
@@ -74,6 +75,95 @@ function handleError(res: express.Response, error: any): void {
     error: error?.message || 'Integration request failed.',
   });
 }
+
+integrationRouter.post(
+  '/onedrive/oauth/start',
+  (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      const result = microsoftOneDriveOAuthService.begin({
+        accountId,
+        displayName:
+          typeof req.body?.displayName === 'string'
+            ? req.body.displayName
+            : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/onedrive/oauth/callback',
+  async (req, res) => {
+    try {
+      if (
+        typeof req.query.error === 'string' &&
+        req.query.error
+      ) {
+        res.status(400).json({
+          error:
+            typeof req.query.error_description === 'string'
+              ? req.query.error_description
+              : 'Microsoft OneDrive authorization was not completed.',
+          code: 'ONEDRIVE_OAUTH_DENIED',
+        });
+        return;
+      }
+
+      const result =
+        await microsoftOneDriveOAuthService.complete({
+          state:
+            typeof req.query.state === 'string'
+              ? req.query.state
+              : '',
+          code:
+            typeof req.query.code === 'string'
+              ? req.query.code
+              : '',
+        });
+      res.status(201).json(result);
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/onedrive/connections/:id/health',
+  async (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      const health =
+        await microsoftOneDriveOAuthService.health({
+          accountId,
+          connectionId: req.params.id,
+        });
+      res.status(health.ok ? 200 : 422).json({ health });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.post(
+  '/onedrive/connections/:id/disconnect',
+  (req, res) => {
+    try {
+      const { accountId } = identity(res);
+      res.json(
+        microsoftOneDriveOAuthService.disconnect({
+          accountId,
+          connectionId: req.params.id,
+        })
+      );
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
 
 integrationRouter.post(
   '/google-drive/oauth/start',
