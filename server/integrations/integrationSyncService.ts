@@ -1,12 +1,13 @@
+import crypto from 'crypto';
 import { structuredKnowledgeProjectionService } from '../companyKnowledge/structuredKnowledgeProjectionService.js';
 import { datasetService } from '../datasets/datasetService.js';
 import { connectorRegistry } from './connectorRegistry.js';
 import {
-  IntegrationAccessError,
   IntegrationStateError,
   integrationStore,
   publicConnection,
 } from './integrationStore.js';
+import { classifyIntegrationFailure } from './integrationFailure.js';
 import { testIntegrationConnector } from './connectors/testConnector.js';
 import { googleDriveConnector } from './connectors/googleDriveConnector.js';
 import { microsoftOneDriveConnector } from './connectors/microsoftOneDriveConnector.js';
@@ -31,20 +32,23 @@ if (!connectorRegistry.get('MICROSOFT_ONEDRIVE')) {
   connectorRegistry.register(microsoftOneDriveConnector);
 }
 
+const SYNC_LEASE_MS = 5 * 60 * 1000;
+const DEFAULT_MAX_ATTEMPTS = 3;
+
 export class IntegrationSyncError extends Error {
   public readonly statusCode: number;
   public readonly code:
     | 'CONNECTION_NAME_INVALID'
-    | 'CONNECTION_VALIDATION_FAILED'
     | 'UNSUPPORTED_EXTERNAL_RESOURCE'
-    | 'EXTERNAL_RECORD_INVALID';
+    | 'EXTERNAL_RECORD_INVALID'
+    | 'CURSOR_RESET_NOT_REQUIRED';
 
   constructor(
     code:
       | 'CONNECTION_NAME_INVALID'
-      | 'CONNECTION_VALIDATION_FAILED'
       | 'UNSUPPORTED_EXTERNAL_RESOURCE'
-      | 'EXTERNAL_RECORD_INVALID',
+      | 'EXTERNAL_RECORD_INVALID'
+      | 'CURSOR_RESET_NOT_REQUIRED',
     statusCode: number,
     message: string
   ) {
@@ -52,6 +56,28 @@ export class IntegrationSyncError extends Error {
     this.name = 'IntegrationSyncError';
     this.code = code;
     this.statusCode = statusCode;
+  }
+}
+
+type AttemptResult = {
+  cursorAfter?: string;
+  processedCount: number;
+  importedCount: number;
+  skippedCount: number;
+  tombstoneCount: number;
+  failedCount: number;
+  recordResults: SyncRunRecordResult[];
+};
+
+class AttemptFailure extends Error {
+  public readonly causeError: any;
+  public readonly progress: AttemptResult;
+
+  constructor(error: any, progress: AttemptResult) {
+    super(error?.message || 'Integration sync attempt failed.');
+    this.name = 'AttemptFailure';
+    this.causeError = error;
+    this.progress = progress;
   }
 }
 
@@ -71,6 +97,27 @@ function provenanceFor(ref: ExternalSourceRef) {
 function isStructuredFile(ref: ExternalSourceRef): boolean {
   const lower = ref.name.toLowerCase();
   return lower.endsWith('.csv') || lower.endsWith('.xlsx');
+}
+
+function retryBaseMs(): number {
+  const configured = Number(
+    process.env.INTEGRATION_SYNC_RETRY_BASE_MS || '250'
+  );
+  return Number.isFinite(configured) && configured >= 0
+    ? Math.min(configured, 10_000)
+    : 250;
+}
+
+function retryDelayMs(attemptCount: number): number {
+  return Math.min(
+    10_000,
+    retryBaseMs() * Math.pow(2, Math.max(0, attemptCount - 1))
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class IntegrationSyncService {
@@ -152,12 +199,60 @@ export class IntegrationSyncService {
     accountId: string,
     connectionId: string
   ): PublicIntegrationConnection {
+    const connection = integrationStore.requireConnection(
+      accountId,
+      connectionId
+    );
+
+    if (
+      connection.status === 'ERROR' &&
+      (connection.attentionReason === 'REAUTHORIZE' ||
+        connection.attentionReason === 'PERMISSION_LOST' ||
+        connection.attentionReason === 'CURSOR_RESET_REQUIRED')
+    ) {
+      throw new IntegrationStateError(
+        'CONNECTION_NOT_ACTIVE',
+        409,
+        'This integration requires its explicit recovery action before it can resume.'
+      );
+    }
+
     return publicConnection(
       integrationStore.setConnectionStatus(
         accountId,
         connectionId,
         'ACTIVE'
       )
+    );
+  }
+
+  public resetCursor(
+    accountId: string,
+    connectionId: string
+  ): PublicIntegrationConnection {
+    const connection = integrationStore.requireConnection(
+      accountId,
+      connectionId
+    );
+
+    if (connection.attentionReason !== 'CURSOR_RESET_REQUIRED') {
+      throw new IntegrationSyncError(
+        'CURSOR_RESET_NOT_REQUIRED',
+        409,
+        'Cursor reset is only allowed when the provider cursor has explicitly failed.'
+      );
+    }
+
+    return publicConnection(
+      integrationStore.updateConnection(accountId, connectionId, {
+        cursor: undefined,
+        status: 'ACTIVE',
+        attentionReason: undefined,
+        lastFailureCategory: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        lastError: undefined,
+      })
     );
   }
 
@@ -177,20 +272,21 @@ export class IntegrationSyncService {
   public async sync(params: {
     accountId: string;
     connectionId: string;
+    maxAttempts?: number;
   }): Promise<SyncRun> {
-    const connection = integrationStore.requireConnection(
+    const initial = integrationStore.requireConnection(
       params.accountId,
       params.connectionId
     );
 
-    if (connection.status === 'REVOKED') {
+    if (initial.status === 'REVOKED') {
       throw new IntegrationStateError(
         'CONNECTION_REVOKED',
         409,
         'Revoked integration connections cannot sync.'
       );
     }
-    if (connection.status !== 'ACTIVE') {
+    if (initial.status !== 'ACTIVE') {
       throw new IntegrationStateError(
         'CONNECTION_NOT_ACTIVE',
         409,
@@ -198,127 +294,288 @@ export class IntegrationSyncService {
       );
     }
 
-    const connector = connectorRegistry.require(connection.provider);
-    const run = integrationStore.createSyncRun({
+    const leaseId =
+      'synclease_' + crypto.randomBytes(12).toString('hex');
+    integrationStore.acquireSyncLease({
       accountId: params.accountId,
-      connectionId: connection.id,
-      provider: connection.provider,
-      cursorBefore: connection.cursor,
+      connectionId: initial.id,
+      leaseId,
+      leaseMs: SYNC_LEASE_MS,
     });
 
-    const results: SyncRunRecordResult[] = [];
-    let processedCount = 0;
-    let importedCount = 0;
-    let skippedCount = 0;
-    let tombstoneCount = 0;
-    let failedCount = 0;
+    const maxAttempts = Math.max(
+      1,
+      Math.min(
+        params.maxAttempts || DEFAULT_MAX_ATTEMPTS,
+        5
+      )
+    );
+
+    const run = integrationStore.createSyncRun({
+      accountId: params.accountId,
+      connectionId: initial.id,
+      provider: initial.provider,
+      cursorBefore: initial.cursor,
+      maxAttempts,
+    });
 
     try {
-      const validation = await connector.validateConnection({
-        connection,
-      });
-      if ('error' in validation) {
-        throw new IntegrationSyncError(
-          'CONNECTION_VALIDATION_FAILED',
-          422,
-          validation.error
+      for (
+        let attemptCount = 1;
+        attemptCount <= maxAttempts;
+        attemptCount += 1
+      ) {
+        const connection = integrationStore.requireConnection(
+          params.accountId,
+          initial.id
         );
-      }
 
-      const page = await connector.listChanges(
-        { connection },
-        { cursor: connection.cursor }
-      );
-
-      for (const ref of page.records) {
-        processedCount += 1;
+        integrationStore.updateSyncRun(
+          params.accountId,
+          run.id,
+          {
+            attemptCount,
+            nextRetryAt: undefined,
+          }
+        );
 
         try {
-          const result = await this.processChange({
+          const result = await this.executeAttempt({
             accountId: params.accountId,
             connection,
+          });
+          const completedAt = Date.now();
+
+          const completed = integrationStore.updateSyncRun(
+            params.accountId,
+            run.id,
+            {
+              status: 'COMPLETED',
+              cursorAfter: result.cursorAfter,
+              completedAt,
+              attemptCount,
+              retryable: undefined,
+              failureCategory: undefined,
+              nextRetryAt: undefined,
+              processedCount: result.processedCount,
+              importedCount: result.importedCount,
+              skippedCount: result.skippedCount,
+              tombstoneCount: result.tombstoneCount,
+              failedCount: result.failedCount,
+              recordResults: result.recordResults,
+              error: undefined,
+            }
+          );
+
+          integrationStore.updateConnection(
+            params.accountId,
+            connection.id,
+            {
+              cursor: result.cursorAfter,
+              status: 'ACTIVE',
+              attentionReason: undefined,
+              lastFailureCategory: undefined,
+              consecutiveFailureCount: 0,
+              nextRetryAt: undefined,
+              lastSyncAt: completedAt,
+              lastSuccessfulSyncAt: completedAt,
+              lastError: undefined,
+            }
+          );
+
+          return completed;
+        } catch (rawError: any) {
+          const attemptFailure =
+            rawError instanceof AttemptFailure
+              ? rawError
+              : new AttemptFailure(rawError, {
+                  processedCount: 0,
+                  importedCount: 0,
+                  skippedCount: 0,
+                  tombstoneCount: 0,
+                  failedCount: 1,
+                  recordResults: [],
+                });
+          const classification = classifyIntegrationFailure(
+            attemptFailure.causeError
+          );
+          const canRetry =
+            classification.retryable &&
+            attemptCount < maxAttempts;
+
+          if (canRetry) {
+            const delay = retryDelayMs(attemptCount);
+            const nextRetryAt = Date.now() + delay;
+
+            integrationStore.updateSyncRun(
+              params.accountId,
+              run.id,
+              {
+                status: 'RUNNING',
+                attemptCount,
+                retryable: true,
+                failureCategory: classification.category,
+                nextRetryAt,
+                processedCount:
+                  attemptFailure.progress.processedCount,
+                importedCount:
+                  attemptFailure.progress.importedCount,
+                skippedCount:
+                  attemptFailure.progress.skippedCount,
+                tombstoneCount:
+                  attemptFailure.progress.tombstoneCount,
+                failedCount: Math.max(
+                  1,
+                  attemptFailure.progress.failedCount
+                ),
+                recordResults:
+                  attemptFailure.progress.recordResults,
+                error: classification.message,
+              }
+            );
+
+            integrationStore.updateConnection(
+              params.accountId,
+              connection.id,
+              {
+                lastSyncAt: Date.now(),
+                lastFailureCategory:
+                  classification.category,
+                consecutiveFailureCount:
+                  (connection.consecutiveFailureCount || 0) + 1,
+                nextRetryAt,
+                lastError: classification.message,
+              }
+            );
+
+            await sleep(delay);
+            continue;
+          }
+
+          const completedAt = Date.now();
+          const attentionReason =
+            classification.attentionReason ||
+            'SYNC_FAILED';
+
+          integrationStore.updateConnection(
+            params.accountId,
+            connection.id,
+            {
+              status: 'ERROR',
+              attentionReason,
+              lastFailureCategory:
+                classification.category,
+              consecutiveFailureCount:
+                (connection.consecutiveFailureCount || 0) + 1,
+              nextRetryAt: undefined,
+              lastSyncAt: completedAt,
+              lastError: classification.message,
+            }
+          );
+
+          return integrationStore.updateSyncRun(
+            params.accountId,
+            run.id,
+            {
+              status: 'FAILED',
+              completedAt,
+              attemptCount,
+              retryable: classification.retryable,
+              failureCategory:
+                classification.category,
+              nextRetryAt: undefined,
+              processedCount:
+                attemptFailure.progress.processedCount,
+              importedCount:
+                attemptFailure.progress.importedCount,
+              skippedCount:
+                attemptFailure.progress.skippedCount,
+              tombstoneCount:
+                attemptFailure.progress.tombstoneCount,
+              failedCount: Math.max(
+                1,
+                attemptFailure.progress.failedCount
+              ),
+              recordResults:
+                attemptFailure.progress.recordResults,
+              error: classification.message,
+            }
+          );
+        }
+      }
+
+      throw new Error(
+        'Integration sync retry loop exited unexpectedly.'
+      );
+    } finally {
+      integrationStore.releaseSyncLease({
+        accountId: params.accountId,
+        connectionId: initial.id,
+        leaseId,
+      });
+    }
+  }
+
+  private async executeAttempt(params: {
+    accountId: string;
+    connection: IntegrationConnection;
+  }): Promise<AttemptResult> {
+    const connector = connectorRegistry.require(
+      params.connection.provider
+    );
+    const result: AttemptResult = {
+      processedCount: 0,
+      importedCount: 0,
+      skippedCount: 0,
+      tombstoneCount: 0,
+      failedCount: 0,
+      recordResults: [],
+    };
+
+    try {
+      const page = await connector.listChanges(
+        { connection: params.connection },
+        { cursor: params.connection.cursor }
+      );
+      result.cursorAfter = page.nextCursor;
+
+      for (const ref of page.records) {
+        result.processedCount += 1;
+
+        try {
+          const recordResult = await this.processChange({
+            accountId: params.accountId,
+            connection: params.connection,
             ref,
             connector,
           });
-          results.push(result);
+          result.recordResults.push(recordResult);
 
-          if (result.status === 'IMPORTED') importedCount += 1;
-          else if (result.status === 'SKIPPED') skippedCount += 1;
-          else if (result.status === 'TOMBSTONED') {
-            tombstoneCount += 1;
+          if (recordResult.status === 'IMPORTED') {
+            result.importedCount += 1;
+          } else if (recordResult.status === 'SKIPPED') {
+            result.skippedCount += 1;
+          } else if (recordResult.status === 'TOMBSTONED') {
+            result.tombstoneCount += 1;
           }
         } catch (error: any) {
-          failedCount += 1;
-          results.push({
+          result.failedCount += 1;
+          result.recordResults.push({
             externalId: ref.externalId,
             externalVersion: ref.externalVersion,
             name: ref.name,
             status: 'FAILED',
-            error: error?.message || 'External record sync failed.',
+            error:
+              error?.message ||
+              'External record sync failed.',
           });
           throw error;
         }
       }
 
-      const completedAt = Date.now();
-      const completed = integrationStore.updateSyncRun(
-        params.accountId,
-        run.id,
-        {
-          status: 'COMPLETED',
-          cursorAfter: page.nextCursor,
-          completedAt,
-          processedCount,
-          importedCount,
-          skippedCount,
-          tombstoneCount,
-          failedCount,
-          recordResults: results,
-          error: undefined,
-        }
-      );
-
-      integrationStore.updateConnection(
-        params.accountId,
-        connection.id,
-        {
-          cursor: page.nextCursor,
-          lastSyncAt: completedAt,
-          lastSuccessfulSyncAt: completedAt,
-          lastError: undefined,
-        }
-      );
-
-      return completed;
+      return result;
     } catch (error: any) {
-      const completedAt = Date.now();
-      const message =
-        error?.message || 'Integration sync failed.';
-
-      integrationStore.updateConnection(
-        params.accountId,
-        connection.id,
-        {
-          lastSyncAt: completedAt,
-          lastError: message,
-        }
-      );
-
-      return integrationStore.updateSyncRun(
-        params.accountId,
-        run.id,
-        {
-          status: 'FAILED',
-          completedAt,
-          processedCount,
-          importedCount,
-          skippedCount,
-          tombstoneCount,
-          failedCount: Math.max(1, failedCount),
-          recordResults: results,
-          error: message,
-        }
-      );
+      throw new AttemptFailure(error, result);
     }
   }
 
@@ -412,7 +669,7 @@ export class IntegrationSyncService {
       throw new IntegrationSyncError(
         'UNSUPPORTED_EXTERNAL_RESOURCE',
         415,
-        'Phase 6A currently imports external CSV/XLSX records through the shared sync engine. PDF/document dispatch is reserved for the next connector slice.'
+        'Structured integration sync currently imports CSV/XLSX records only.'
       );
     }
 
@@ -526,7 +783,8 @@ export class IntegrationSyncService {
       integrationStore.updateImport(accountId, importState.id, {
         status: 'INGESTED',
         lastError:
-          error?.message || 'Knowledge projection failed.',
+          error?.message ||
+          'Knowledge projection failed.',
       });
       throw error;
     }
