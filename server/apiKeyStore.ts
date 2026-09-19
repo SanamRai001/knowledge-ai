@@ -164,6 +164,21 @@ export class ApiKeyStore {
     return { apiKey, secret };
   }
 
+  public publicApiKey(
+    apiKey: ApiKey
+  ): Omit<ApiKey, 'keyHash'> {
+    const { keyHash: _keyHash, ...safe } = apiKey;
+    return structuredClone(safe);
+  }
+
+  public listApiKeyMetadata(
+    accountId: string = 'acc_default'
+  ): Array<Omit<ApiKey, 'keyHash'>> {
+    return this.listApiKeys(accountId).map((key) =>
+      this.publicApiKey(key)
+    );
+  }
+
   /**
    * List all API keys for an account (masked only).
    */
