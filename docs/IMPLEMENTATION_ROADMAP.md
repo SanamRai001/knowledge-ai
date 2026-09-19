@@ -1298,9 +1298,9 @@ Continue with:
         ↓
 7C. First bounded low-risk auto-execution path
         ↓
-7D. Recovery / compensating actions / kill switch
+7D. Recovery / compensating actions / kill switch ✅
         ↓
-7E. Automation quality analytics + UI + final Phase 7 audit
+7E. Automation quality analytics + UI + final Phase 7 audit ← CURRENT
 ```
 
 Phase 7 must remain governed automation, not unrestricted autonomy.
