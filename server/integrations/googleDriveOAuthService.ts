@@ -69,6 +69,7 @@ export class GoogleDriveOAuthService {
   public begin(params: {
     accountId: string;
     displayName?: string;
+    connectionId?: string;
   }): {
     authorizationUrl: string;
     expiresAt: number;
@@ -78,13 +79,36 @@ export class GoogleDriveOAuthService {
     const config = googleDriveServerConfig({
       requireRedirectUri: true,
     });
-    const displayName =
+    let displayName =
       params.displayName?.trim() || 'Google Drive';
+
+    if (params.connectionId) {
+      const existing = integrationStore.requireConnection(
+        params.accountId,
+        params.connectionId
+      );
+      if (existing.provider !== 'GOOGLE_DRIVE') {
+        throw new GoogleDriveOAuthError(
+          'OAUTH_SCOPE_INVALID',
+          422,
+          'Only a Google Drive integration can be reauthorized with the Google Drive OAuth flow.'
+        );
+      }
+      if (existing.status === 'REVOKED') {
+        throw new GoogleDriveOAuthError(
+          'OAUTH_SCOPE_INVALID',
+          409,
+          'Revoked Google Drive connections cannot be reauthorized in place.'
+        );
+      }
+      displayName = existing.displayName;
+    }
 
     const { state, attempt } = this.stateStore.create({
       accountId: params.accountId,
       displayName,
       redirectUri: config.redirectUri,
+      connectionId: params.connectionId,
     });
 
     const query = new URLSearchParams({
@@ -216,18 +240,69 @@ export class GoogleDriveOAuthService {
     });
 
     try {
-      const connection = integrationSyncService.createConnection({
-        accountId: attempt.accountId,
-        provider: 'GOOGLE_DRIVE',
-        displayName: attempt.displayName,
-        credentialRef,
-        settings: {
-          accessModel: 'PER_FILE',
-          oauthScope: GOOGLE_DRIVE_FILE_SCOPE,
-          fileSelection: 'GOOGLE_PICKER',
-          connectedAt: Date.now(),
-        },
-      });
+      let connection;
+      if (attempt.connectionId) {
+        const current = integrationStore.requireConnection(
+          attempt.accountId,
+          attempt.connectionId
+        );
+        if (
+          current.provider !== 'GOOGLE_DRIVE' ||
+          current.status === 'REVOKED'
+        ) {
+          throw new GoogleDriveOAuthError(
+            'OAUTH_SCOPE_INVALID',
+            409,
+            'Existing Google Drive connection cannot be reauthorized in its current state.'
+          );
+        }
+
+        const oldCredentialRef = current.credentialRef;
+        connection = integrationStore.updateConnection(
+          attempt.accountId,
+          current.id,
+          {
+            credentialRef,
+            status: 'ACTIVE',
+            attentionReason: undefined,
+            lastFailureCategory: undefined,
+            consecutiveFailureCount: 0,
+            nextRetryAt: undefined,
+            lastError: undefined,
+            settings: {
+              ...current.settings,
+              accessModel: 'PER_FILE',
+              oauthScope: GOOGLE_DRIVE_FILE_SCOPE,
+              fileSelection: 'GOOGLE_PICKER',
+              reauthorizedAt: Date.now(),
+            },
+          }
+        );
+
+        if (
+          oldCredentialRef &&
+          oldCredentialRef !== credentialRef
+        ) {
+          this.credentialStore.delete({
+            accountId: attempt.accountId,
+            provider: 'GOOGLE_DRIVE',
+            credentialRef: oldCredentialRef,
+          });
+        }
+      } else {
+        connection = integrationSyncService.createConnection({
+          accountId: attempt.accountId,
+          provider: 'GOOGLE_DRIVE',
+          displayName: attempt.displayName,
+          credentialRef,
+          settings: {
+            accessModel: 'PER_FILE',
+            oauthScope: GOOGLE_DRIVE_FILE_SCOPE,
+            fileSelection: 'GOOGLE_PICKER',
+            connectedAt: Date.now(),
+          },
+        });
+      }
 
       return {
         connection: publicConnection(connection),
