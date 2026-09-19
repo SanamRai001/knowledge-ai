@@ -59,7 +59,9 @@ function sourceRefFor(
     sourceName:
       authorization.mode === 'AUTOMATION_POLICY'
         ? 'Policy-authorized business action'
-        : 'Confirmed business action',
+        : authorization.mode === 'AUTOMATION_COMPENSATION'
+          ? 'Automation compensating action'
+          : 'Confirmed business action',
     excerpt: proposal.instruction,
   };
 }
@@ -412,7 +414,9 @@ export class ActionExecutionService {
       detail:
         (authorization.mode === 'AUTOMATION_POLICY'
           ? 'Automation policy authorized this proposal without a manual confirm click. '
-          : 'User explicitly confirmed the proposal. ') +
+          : authorization.mode === 'AUTOMATION_COMPENSATION'
+            ? 'An authorized operator executed a compensating automation action. '
+            : 'User explicitly confirmed the proposal. ') +
         'Authorization actor: ' +
         authorization.actor +
         (authorization.automationPolicyVersion
