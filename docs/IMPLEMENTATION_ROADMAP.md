@@ -1271,7 +1271,7 @@ Use this section as the high-level progress board.
 | 5 | Watch & Proactive Intelligence | **Complete** |
 | 6 | Integrations | **Complete** |
 | 7 | Controlled Automation | **Complete** |
-| 8 | Extensible Platform | **In Progress** |
+| 8 | Extensible Platform | **Complete** |
 
 Update statuses only when phase exit gates are genuinely met.
 
@@ -1285,33 +1285,37 @@ Suggested status values:
 
 ---
 
-# 8. Immediate next work — Phase 8
+# 8. Product roadmap completion and next work
 
-Phases 0–7 have passed their exit gates.
-
-Continue with:
+Phases 0–8 have passed their exit gates.
 
 ```text
-8A. Stable developer API + permission manifest ✅
-        ↓
-8B. Plugin/tool registration + sandboxed execution contract ← CURRENT
-        ↓
-8C. Custom detector framework
-        ↓
-8D. Domain-pack packaging
-        ↓
-8E. Platform UI / developer docs / final Phase 8 audit
+0 Trustworthy Foundation                  ✅
+1 Structured Data                         ✅
+2 Discovery & Insights                    ✅
+3 Living Company Knowledge                ✅
+4 Safe Actions                            ✅
+5 Watch                                   ✅
+6 Integrations                            ✅
+7 Controlled Automation                   ✅
+8 Extensible Platform                     ✅
 ```
 
-Phase 8 must let extensions add value without bypassing provenance, authorization, audit, safety, or the controlled-automation boundary.
+Final Phase 8 integrated gate:
 
-The continuity source of truth is:
+`35433633151`
 
-`docs/MASTER_EXECUTION_HANDOFF.md`
+The product capability roadmap is complete.
 
-Detailed current execution notes:
+The next execution roadmap is:
 
-`docs/PHASE_8_PROGRESS.md`
+`docs/PRODUCTION_HARDENING_ROADMAP.md`
+
+Current task:
+
+**Production Hardening A1 — persistence forensic audit**
+
+Do not add another feature phase until the persistence/identity/deployment risks are deliberately re-prioritized.
 
 ---
 
