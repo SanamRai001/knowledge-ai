@@ -1041,20 +1041,21 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7 — PostgreSQL runtime cutover.**
+> **Continue with Production Hardening A7B — Integrations runtime PostgreSQL cutover.**
 
 Phases 0–8 are complete.
 
-Relational persistence milestones:
+Persistence/runtime milestones:
 
 - A1 forensic audit — COMPLETE
-- A2 core metadata — COMPLETE
-- A3 Living Knowledge + Actions — COMPLETE
-- A4 Watch + Integrations — COMPLETE
-- A5 Automation + Platform state — COMPLETE
-- A6 Discovery / Insights — COMPLETE, authoritative workflow `35459661040`
-- A7 production runtime cutover — IN PROGRESS
+- A2 core PostgreSQL metadata — COMPLETE
+- A3 Living Knowledge + Actions schema/repositories — COMPLETE
+- A4 Watch + Integrations schema/repositories — COMPLETE
+- A5 Automation + Platform schema/repositories — COMPLETE
+- A6 Discovery / Insights schema/repositories — COMPLETE
+- A7A Discovery / Insights runtime cutover — COMPLETE, workflow `35460199628`
+- A7B Integrations runtime cutover — IN PROGRESS
 
-A6 evidence: `docs/PRODUCTION_A6_POSTGRES_DISCOVERY.md`.
+A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
 
-The primary relational schemas/repositories are now modeled. The next risk is that normal runtime services still have legacy file-store paths. A7 must introduce explicit production repository selection and cut over bounded domain slices with executable parity/isolation/restart tests. Do not delete file adapters or claim PostgreSQL durability merely because repositories exist.
+Next, route non-secret IntegrationConnection / SyncRun / external import state and successful checkpoint commits through the A4 PostgreSQL repositories when production persistence mode is enabled. Keep OAuth token material in the encrypted credential vault. Preserve file mode and all Phase 6 behavior.
