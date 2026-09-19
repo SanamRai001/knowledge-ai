@@ -1031,8 +1031,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 8D — declarative domain packs.**
+> **Continue with Phase 8E — Platform UI/docs + final Phase 8 audit.**
 
-Phase 8C is complete and green in Quality Gate `35432753760`. Registered deterministic detectors now use closed configs, effective Dataset overlays, reproducibility hashes, existing Discovery/Insight persistence, stable detector scopes, and tenant isolation.
+Phase 8D is complete and green in Quality Gate `35433062179`. Declarative domain packs now package registered detector templates, suggestion-only Watches, proposal-only Actions, entity vocabulary, and UI metadata with account-scoped installation and no executable pack code.
 
-The next concrete work is a data-only versioned DomainPack layer that packages registered detector templates, suggested Watches, entity vocabulary, proposal-only action templates, and UI metadata without embedding runtime code or bypassing core services.
+The remaining Phase 8 work is the real developer/platform product surface, UI contract proof, full integrated gate, and final Phase 8 audit.
