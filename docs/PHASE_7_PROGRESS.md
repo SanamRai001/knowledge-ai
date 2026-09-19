@@ -1,0 +1,182 @@
+# Knowledge AI — Phase 7 Progress
+
+Last updated: **2026-09-19**
+
+## Status
+
+# 🚧 PHASE 7 IN PROGRESS
+
+Phase 7 introduces controlled automation over the already-audited Phase 4 action system.
+
+This phase does **not** give an LLM unrestricted authority to mutate company state.
+
+## Goal
+
+> Allow trusted low-risk actions to execute automatically only when explicit deterministic workspace policy permits it.
+
+## Execution slices
+
+```text
+7A Automation policy foundation                         IN PROGRESS
+7B Approval / role / risk / amount enforcement          NOT STARTED
+7C First bounded low-risk auto-execution path           NOT STARTED
+7D Recovery / compensating actions / kill switch        NOT STARTED
+7E Automation analytics + UI + final audit              NOT STARTED
+```
+
+## Non-negotiable safety architecture
+
+```text
+natural-language instruction
+        ↓
+existing Phase 4 action planner
+        ↓
+deterministic action validation
+        ↓
+AutomationPolicyEvaluator
+        ↓
+DENY
+  or
+REQUIRE_APPROVAL
+  or
+ALLOW_AUTO_EXECUTE
+        ↓
+existing audited execution path
+        ↓
+BusinessEvent + AuditLog
+```
+
+The LLM may help interpret intent.
+
+It must never choose its own automation permission.
+
+## Policy modes
+
+Initial authoritative modes:
+
+- `SUGGEST_ONLY`
+- `REQUIRE_APPROVAL`
+- `AUTO_EXECUTE_LOW_RISK`
+
+Default:
+
+`SUGGEST_ONLY`
+
+## Phase 7A — policy foundation
+
+### Required durable concepts
+
+Introduce account-scoped records such as:
+
+- `AutomationPolicy`
+- policy version
+- policy mode
+- allowed action types
+- allowed roles / actors where applicable
+- maximum risk class
+- amount/value thresholds where applicable
+- allowed target/source constraints
+- createdBy / updatedBy
+- active/disabled state
+- audit/version history
+
+### Deterministic decision result
+
+The evaluator should return a structured decision such as:
+
+```text
+ALLOW_AUTO_EXECUTE
+REQUIRE_APPROVAL
+DENY
+```
+
+with deterministic reason codes.
+
+### Required invariants
+
+- prompt text cannot override policy
+- LLM output cannot raise its own risk allowance
+- unsupported actions cannot auto-execute
+- high-risk actions cannot auto-execute
+- missing policy defaults conservatively
+- disabled automation denies automatic execution
+- foreign accounts cannot inspect/change policy
+- policy changes are auditable/versioned
+- ordinary action validation still runs after policy approval
+
+## Phase 7B — enforcement
+
+Add:
+
+- actor/role controls
+- action-type allowlists
+- risk thresholds
+- amount/value thresholds
+- target-system constraints
+- explicit approval escalation
+
+Policy evaluation stays outside the language model.
+
+## Phase 7C — first low-risk automation
+
+Do not enable all action types.
+
+Choose one existing Phase 4 action with:
+
+- deterministic validation
+- strong idempotency
+- clear rollback/compensation story
+- low financial/operational risk
+
+Execute only through the existing Phase 4 write/audit path.
+
+## Phase 7D — recovery and kill switch
+
+Required:
+
+- workspace-wide automation disable switch
+- immediate effect
+- action failure state
+- retry boundary
+- compensating action where meaningful
+- clear operator recovery path
+
+## Phase 7E — quality and product surface
+
+Track at minimum:
+
+- automatic execution count
+- success rate
+- failure rate
+- approval escalation rate
+- policy denials
+- human overrides/corrections
+- rollback/compensation
+- time saved estimate where defensible
+
+UI must clearly distinguish:
+
+- suggested
+- approval required
+- automatically executed
+- blocked by policy
+
+## Phase 7 exit gate
+
+Phase 7 is complete only when:
+
+- auto-execution is governed by explicit deterministic policy
+- policy defaults conservative
+- high-risk/unsupported actions cannot bypass approval by prompt
+- automatic actions use the existing audited action execution path
+- every automatic action is attributable and auditable
+- failures have defined recovery
+- workspace automation can be disabled immediately
+- policy/account isolation is executable
+- automation quality has measurable regression coverage
+
+## Current exact next work
+
+**Phase 7A — Automation policy foundation**
+
+First audit the existing action contracts, risk classification, execution service, audit trail, and user identity/role model. Then implement the smallest authoritative AutomationPolicy store/evaluator and prove its denial/approval/allow decisions in CI before connecting it to any live auto-execution path.
