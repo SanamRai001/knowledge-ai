@@ -1031,8 +1031,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 8A — stable developer API foundation.**
+> **Continue with Phase 8B — registered tool framework.**
 
-Phase 7 is complete. Its authoritative final audit is `docs/PHASE_7_FINAL_AUDIT.md` and its final integrated Quality Gate is `35429595070`.
+Phase 8A is complete and green in Quality Gate `35429943049`. The authoritative stable external API is now `/api/platform/v1`, driven by a machine-readable permission manifest and explicit `platform:*` scopes. Legacy `/api/v1` remains compatibility-only.
 
-The next concrete work is to audit the APIs that already exist and define one stable external developer contract for Sources, Ask, Insights, Actions, Watch, and Audit without exposing experimental internals or bypassing existing authorization/provenance boundaries.
+The next concrete work is a schema-validated registered-tool layer using trusted built-in handlers only. Tool invocation must require generic invoke permission plus each tool's capability scopes, delegate existing Phase 0–7 services, and provide no arbitrary runtime-code or direct-write escape hatch.
