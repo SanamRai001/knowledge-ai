@@ -1,0 +1,1064 @@
+import type { PoolClient } from 'pg';
+import { postgresPool, withTransaction } from './postgres.js';
+import type {
+  WatchAlert,
+  WatchDraft,
+  WatchEvaluation,
+  WatchJob,
+  WatchRule,
+} from '../watch/types.js';
+import type {
+  ExternalImportState,
+  IntegrationConnection,
+  SyncRun,
+} from '../integrations/types.js';
+import type {
+  IntegrationCheckpointCommitInput,
+  IntegrationCheckpointRepository,
+  IntegrationRepository,
+  WatchRepository,
+} from './a4Types.js';
+
+function epoch(value: Date | string | number | null): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value;
+  const parsed =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
+  if (!Number.isFinite(parsed)) {
+    throw new Error('PostgreSQL returned an invalid timestamp.');
+  }
+  return parsed;
+}
+
+function date(value: number | undefined): Date | null {
+  return value === undefined ? null : new Date(value);
+}
+
+function json(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function watchRuleFromRow(row: any): WatchRule {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    name: row.name,
+    description: row.description ?? undefined,
+    status: row.status,
+    origin: row.origin,
+    version: row.version,
+    condition: row.condition,
+    evaluationMode: row.evaluation_mode,
+    intervalMinutes: row.interval_minutes ?? undefined,
+    currentState: row.current_state,
+    lastEvaluationAt: epoch(row.last_evaluation_at) ?? undefined,
+    lastTriggeredAt: epoch(row.last_triggered_at) ?? undefined,
+    nextEvaluationAt: epoch(row.next_evaluation_at) ?? undefined,
+    createdAt: epoch(row.created_at)!,
+    updatedAt: epoch(row.updated_at)!,
+  };
+}
+
+function watchDraftFromRow(row: any): WatchDraft {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    instruction: row.instruction,
+    status: row.status,
+    parserSource: row.parser_source,
+    proposedName: row.proposed_name,
+    parsedRequest: row.parsed_request ?? undefined,
+    condition: row.condition ?? undefined,
+    candidates: row.candidates ?? undefined,
+    needsInputReason: row.needs_input_reason ?? undefined,
+    createdAt: epoch(row.created_at)!,
+    updatedAt: epoch(row.updated_at)!,
+    expiresAt: epoch(row.expires_at)!,
+    savedRuleId: row.saved_rule_id ?? undefined,
+  };
+}
+
+function watchEvaluationFromRow(row: any): WatchEvaluation {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    watchRuleId: row.watch_rule_id,
+    ruleVersion: row.rule_version,
+    status: row.status,
+    conditionMatched:
+      row.condition_matched === null ? undefined : row.condition_matched,
+    observedValue:
+      row.observed_value === null ? undefined : Number(row.observed_value),
+    comparisonOperator: row.comparison_operator,
+    threshold: Number(row.threshold),
+    previousConditionState: row.previous_condition_state,
+    nextConditionState: row.next_condition_state,
+    evidence: row.evidence ?? undefined,
+    evaluatedAt: epoch(row.evaluated_at)!,
+    error: row.error ?? undefined,
+  };
+}
+
+function watchAlertFromRow(row: any): WatchAlert {
+  return {
+    id: row.id,
+    episodeKey: row.episode_key,
+    accountId: row.account_id,
+    watchRuleId: row.watch_rule_id,
+    ruleVersion: row.rule_version,
+    status: row.status,
+    title: row.title,
+    summary: row.summary,
+    firstTriggeredAt: epoch(row.first_triggered_at)!,
+    lastTriggeredAt: epoch(row.last_triggered_at)!,
+    occurrenceCount: row.occurrence_count,
+    evaluationIds: row.evaluation_ids || [],
+    lastEvaluationId: row.last_evaluation_id,
+    evidence: row.evidence,
+    acknowledgedAt: epoch(row.acknowledged_at) ?? undefined,
+    resolvedAt: epoch(row.resolved_at) ?? undefined,
+    resolutionReason: row.resolution_reason ?? undefined,
+    snoozedUntil: epoch(row.snoozed_until) ?? undefined,
+    createdAt: epoch(row.created_at)!,
+    updatedAt: epoch(row.updated_at)!,
+  };
+}
+
+function watchJobFromRow(row: any): WatchJob {
+  return {
+    id: row.id,
+    fingerprint: row.fingerprint,
+    accountId: row.account_id,
+    watchRuleId: row.watch_rule_id,
+    ruleVersion: row.rule_version,
+    scheduledFor: epoch(row.scheduled_for)!,
+    status: row.status,
+    attemptCount: row.attempt_count,
+    maxAttempts: row.max_attempts,
+    nextAttemptAt: epoch(row.next_attempt_at)!,
+    createdAt: epoch(row.created_at)!,
+    updatedAt: epoch(row.updated_at)!,
+    startedAt: epoch(row.started_at) ?? undefined,
+    completedAt: epoch(row.completed_at) ?? undefined,
+    evaluationId: row.evaluation_id ?? undefined,
+    lastError: row.last_error ?? undefined,
+    skipReason: row.skip_reason ?? undefined,
+  };
+}
+
+function integrationConnectionFromRow(row: any): IntegrationConnection {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    provider: row.provider,
+    displayName: row.display_name,
+    status: row.status,
+    capabilities: row.capabilities,
+    settings: row.settings || {},
+    credentialRef: row.credential_ref ?? undefined,
+    cursor: row.cursor ?? undefined,
+    attentionReason: row.attention_reason ?? undefined,
+    lastFailureCategory: row.last_failure_category ?? undefined,
+    consecutiveFailureCount:
+      row.consecutive_failure_count ?? undefined,
+    nextRetryAt: epoch(row.next_retry_at) ?? undefined,
+    syncLeaseId: row.sync_lease_id ?? undefined,
+    syncLeaseExpiresAt: epoch(row.sync_lease_expires_at) ?? undefined,
+    lastSyncAt: epoch(row.last_sync_at) ?? undefined,
+    lastSuccessfulSyncAt:
+      epoch(row.last_successful_sync_at) ?? undefined,
+    lastError: row.last_error ?? undefined,
+    createdAt: epoch(row.created_at)!,
+    updatedAt: epoch(row.updated_at)!,
+  };
+}
+
+function syncRunFromRow(row: any): SyncRun {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    connectionId: row.connection_id,
+    provider: row.provider,
+    status: row.status,
+    cursorBefore: row.cursor_before ?? undefined,
+    cursorAfter: row.cursor_after ?? undefined,
+    startedAt: epoch(row.started_at)!,
+    completedAt: epoch(row.completed_at) ?? undefined,
+    attemptCount: row.attempt_count,
+    maxAttempts: row.max_attempts,
+    retryable:
+      row.retryable === null ? undefined : row.retryable,
+    failureCategory: row.failure_category ?? undefined,
+    nextRetryAt: epoch(row.next_retry_at) ?? undefined,
+    processedCount: row.processed_count,
+    importedCount: row.imported_count,
+    skippedCount: row.skipped_count,
+    tombstoneCount: row.tombstone_count,
+    failedCount: row.failed_count,
+    recordResults: row.record_results || [],
+    error: row.error ?? undefined,
+  };
+}
+
+function externalImportFromRow(row: any): ExternalImportState {
+  return {
+    id: row.id,
+    status: row.status,
+    accountId: row.account_id,
+    connectionId: row.connection_id,
+    provider: row.provider,
+    externalId: row.external_id,
+    externalVersion: row.external_version,
+    externalName: row.external_name,
+    resourceKind: row.resource_kind,
+    internalKind: row.internal_kind,
+    internalId: row.internal_id ?? undefined,
+    internalVersionId: row.internal_version_id ?? undefined,
+    knowledgeProjectionRunId:
+      row.knowledge_projection_run_id ?? undefined,
+    lastError: row.last_error ?? undefined,
+    importedAt: epoch(row.imported_at)!,
+    updatedAt: epoch(row.updated_at)!,
+    provenance: row.provenance,
+  };
+}
+
+async function assertOwnedUpsert(
+  result: { rowCount: number | null },
+  label: string
+): Promise<void> {
+  if (!result.rowCount) {
+    throw new Error(
+      label +
+        ' could not be saved because the primary ID belongs to a different account.'
+    );
+  }
+}
+
+async function saveRuleWith(
+  client: Pick<PoolClient, 'query'>,
+  rule: WatchRule
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO watch_rules
+      (id, account_id, name, description, status, origin, version,
+       condition, evaluation_mode, interval_minutes, current_state,
+       last_evaluation_at, last_triggered_at, next_evaluation_at,
+       created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14,$15,$16)
+     ON CONFLICT (id) DO UPDATE SET
+       name = EXCLUDED.name,
+       description = EXCLUDED.description,
+       status = EXCLUDED.status,
+       origin = EXCLUDED.origin,
+       version = EXCLUDED.version,
+       condition = EXCLUDED.condition,
+       evaluation_mode = EXCLUDED.evaluation_mode,
+       interval_minutes = EXCLUDED.interval_minutes,
+       current_state = EXCLUDED.current_state,
+       last_evaluation_at = EXCLUDED.last_evaluation_at,
+       last_triggered_at = EXCLUDED.last_triggered_at,
+       next_evaluation_at = EXCLUDED.next_evaluation_at,
+       updated_at = EXCLUDED.updated_at
+     WHERE watch_rules.account_id = EXCLUDED.account_id
+     RETURNING id`,
+    [
+      rule.id,
+      rule.accountId,
+      rule.name,
+      rule.description ?? null,
+      rule.status,
+      rule.origin,
+      rule.version,
+      json(rule.condition),
+      rule.evaluationMode,
+      rule.intervalMinutes ?? null,
+      rule.currentState,
+      date(rule.lastEvaluationAt),
+      date(rule.lastTriggeredAt),
+      date(rule.nextEvaluationAt),
+      new Date(rule.createdAt),
+      new Date(rule.updatedAt),
+    ]
+  );
+  await assertOwnedUpsert(result, 'WatchRule');
+}
+
+async function saveDraftWith(
+  client: Pick<PoolClient, 'query'>,
+  draft: WatchDraft
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO watch_drafts
+      (id, account_id, instruction, status, parser_source, proposed_name,
+       parsed_request, condition, candidates, needs_input_reason,
+       created_at, updated_at, expires_at, saved_rule_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11,$12,$13,$14)
+     ON CONFLICT (id) DO UPDATE SET
+       instruction = EXCLUDED.instruction,
+       status = EXCLUDED.status,
+       parser_source = EXCLUDED.parser_source,
+       proposed_name = EXCLUDED.proposed_name,
+       parsed_request = EXCLUDED.parsed_request,
+       condition = EXCLUDED.condition,
+       candidates = EXCLUDED.candidates,
+       needs_input_reason = EXCLUDED.needs_input_reason,
+       updated_at = EXCLUDED.updated_at,
+       expires_at = EXCLUDED.expires_at,
+       saved_rule_id = EXCLUDED.saved_rule_id
+     WHERE watch_drafts.account_id = EXCLUDED.account_id
+     RETURNING id`,
+    [
+      draft.id,
+      draft.accountId,
+      draft.instruction,
+      draft.status,
+      draft.parserSource,
+      draft.proposedName,
+      draft.parsedRequest ? json(draft.parsedRequest) : null,
+      draft.condition ? json(draft.condition) : null,
+      draft.candidates ? json(draft.candidates) : null,
+      draft.needsInputReason ?? null,
+      new Date(draft.createdAt),
+      new Date(draft.updatedAt),
+      new Date(draft.expiresAt),
+      draft.savedRuleId ?? null,
+    ]
+  );
+  await assertOwnedUpsert(result, 'WatchDraft');
+}
+
+async function saveEvaluationWith(
+  client: Pick<PoolClient, 'query'>,
+  evaluation: WatchEvaluation
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO watch_evaluations
+      (id, account_id, watch_rule_id, rule_version, status,
+       condition_matched, observed_value, comparison_operator, threshold,
+       previous_condition_state, next_condition_state, evidence,
+       evaluated_at, error)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14)
+     ON CONFLICT (id) DO UPDATE SET
+       status = EXCLUDED.status,
+       condition_matched = EXCLUDED.condition_matched,
+       observed_value = EXCLUDED.observed_value,
+       comparison_operator = EXCLUDED.comparison_operator,
+       threshold = EXCLUDED.threshold,
+       previous_condition_state = EXCLUDED.previous_condition_state,
+       next_condition_state = EXCLUDED.next_condition_state,
+       evidence = EXCLUDED.evidence,
+       evaluated_at = EXCLUDED.evaluated_at,
+       error = EXCLUDED.error
+     WHERE watch_evaluations.account_id = EXCLUDED.account_id
+       AND watch_evaluations.watch_rule_id = EXCLUDED.watch_rule_id
+     RETURNING id`,
+    [
+      evaluation.id,
+      evaluation.accountId,
+      evaluation.watchRuleId,
+      evaluation.ruleVersion,
+      evaluation.status,
+      evaluation.conditionMatched ?? null,
+      evaluation.observedValue ?? null,
+      evaluation.comparisonOperator,
+      evaluation.threshold,
+      evaluation.previousConditionState,
+      evaluation.nextConditionState,
+      evaluation.evidence ? json(evaluation.evidence) : null,
+      new Date(evaluation.evaluatedAt),
+      evaluation.error ?? null,
+    ]
+  );
+  await assertOwnedUpsert(result, 'WatchEvaluation');
+}
+
+async function saveAlertWith(
+  client: Pick<PoolClient, 'query'>,
+  alert: WatchAlert
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO watch_alerts
+      (id, episode_key, account_id, watch_rule_id, rule_version, status,
+       title, summary, first_triggered_at, last_triggered_at,
+       occurrence_count, evaluation_ids, last_evaluation_id, evidence,
+       acknowledged_at, resolved_at, resolution_reason, snoozed_until,
+       created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,
+             $15,$16,$17,$18,$19,$20)
+     ON CONFLICT (id) DO UPDATE SET
+       status = EXCLUDED.status,
+       title = EXCLUDED.title,
+       summary = EXCLUDED.summary,
+       last_triggered_at = EXCLUDED.last_triggered_at,
+       occurrence_count = EXCLUDED.occurrence_count,
+       evaluation_ids = EXCLUDED.evaluation_ids,
+       last_evaluation_id = EXCLUDED.last_evaluation_id,
+       evidence = EXCLUDED.evidence,
+       acknowledged_at = EXCLUDED.acknowledged_at,
+       resolved_at = EXCLUDED.resolved_at,
+       resolution_reason = EXCLUDED.resolution_reason,
+       snoozed_until = EXCLUDED.snoozed_until,
+       updated_at = EXCLUDED.updated_at
+     WHERE watch_alerts.account_id = EXCLUDED.account_id
+       AND watch_alerts.watch_rule_id = EXCLUDED.watch_rule_id
+     RETURNING id`,
+    [
+      alert.id,
+      alert.episodeKey,
+      alert.accountId,
+      alert.watchRuleId,
+      alert.ruleVersion,
+      alert.status,
+      alert.title,
+      alert.summary,
+      new Date(alert.firstTriggeredAt),
+      new Date(alert.lastTriggeredAt),
+      alert.occurrenceCount,
+      json(alert.evaluationIds),
+      alert.lastEvaluationId,
+      json(alert.evidence),
+      date(alert.acknowledgedAt),
+      date(alert.resolvedAt),
+      alert.resolutionReason ?? null,
+      date(alert.snoozedUntil),
+      new Date(alert.createdAt),
+      new Date(alert.updatedAt),
+    ]
+  );
+  await assertOwnedUpsert(result, 'WatchAlert');
+}
+
+async function saveJobWith(
+  client: Pick<PoolClient, 'query'>,
+  job: WatchJob
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO watch_jobs
+      (id, fingerprint, account_id, watch_rule_id, rule_version,
+       scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+       created_at, updated_at, started_at, completed_at, evaluation_id,
+       last_error, skip_reason)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+     ON CONFLICT (id) DO UPDATE SET
+       status = EXCLUDED.status,
+       attempt_count = EXCLUDED.attempt_count,
+       max_attempts = EXCLUDED.max_attempts,
+       next_attempt_at = EXCLUDED.next_attempt_at,
+       updated_at = EXCLUDED.updated_at,
+       started_at = EXCLUDED.started_at,
+       completed_at = EXCLUDED.completed_at,
+       evaluation_id = EXCLUDED.evaluation_id,
+       last_error = EXCLUDED.last_error,
+       skip_reason = EXCLUDED.skip_reason
+     WHERE watch_jobs.account_id = EXCLUDED.account_id
+       AND watch_jobs.fingerprint = EXCLUDED.fingerprint
+     RETURNING id`,
+    [
+      job.id,
+      job.fingerprint,
+      job.accountId,
+      job.watchRuleId,
+      job.ruleVersion,
+      new Date(job.scheduledFor),
+      job.status,
+      job.attemptCount,
+      job.maxAttempts,
+      new Date(job.nextAttemptAt),
+      new Date(job.createdAt),
+      new Date(job.updatedAt),
+      date(job.startedAt),
+      date(job.completedAt),
+      job.evaluationId ?? null,
+      job.lastError ?? null,
+      job.skipReason ?? null,
+    ]
+  );
+  await assertOwnedUpsert(result, 'WatchJob');
+}
+
+async function saveConnectionWith(
+  client: Pick<PoolClient, 'query'>,
+  connection: IntegrationConnection
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO integration_connections
+      (id, account_id, provider, display_name, status, capabilities,
+       settings, credential_ref, cursor, attention_reason,
+       last_failure_category, consecutive_failure_count, next_retry_at,
+       sync_lease_id, sync_lease_expires_at, last_sync_at,
+       last_successful_sync_at, last_error, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,
+             $16,$17,$18,$19,$20)
+     ON CONFLICT (id) DO UPDATE SET
+       display_name = EXCLUDED.display_name,
+       status = EXCLUDED.status,
+       capabilities = EXCLUDED.capabilities,
+       settings = EXCLUDED.settings,
+       credential_ref = EXCLUDED.credential_ref,
+       cursor = EXCLUDED.cursor,
+       attention_reason = EXCLUDED.attention_reason,
+       last_failure_category = EXCLUDED.last_failure_category,
+       consecutive_failure_count = EXCLUDED.consecutive_failure_count,
+       next_retry_at = EXCLUDED.next_retry_at,
+       sync_lease_id = EXCLUDED.sync_lease_id,
+       sync_lease_expires_at = EXCLUDED.sync_lease_expires_at,
+       last_sync_at = EXCLUDED.last_sync_at,
+       last_successful_sync_at = EXCLUDED.last_successful_sync_at,
+       last_error = EXCLUDED.last_error,
+       updated_at = EXCLUDED.updated_at
+     WHERE integration_connections.account_id = EXCLUDED.account_id
+       AND integration_connections.provider = EXCLUDED.provider
+     RETURNING id`,
+    [
+      connection.id,
+      connection.accountId,
+      connection.provider,
+      connection.displayName,
+      connection.status,
+      json(connection.capabilities),
+      json(connection.settings || {}),
+      connection.credentialRef ?? null,
+      connection.cursor ?? null,
+      connection.attentionReason ?? null,
+      connection.lastFailureCategory ?? null,
+      connection.consecutiveFailureCount ?? null,
+      date(connection.nextRetryAt),
+      connection.syncLeaseId ?? null,
+      date(connection.syncLeaseExpiresAt),
+      date(connection.lastSyncAt),
+      date(connection.lastSuccessfulSyncAt),
+      connection.lastError ?? null,
+      new Date(connection.createdAt),
+      new Date(connection.updatedAt),
+    ]
+  );
+  await assertOwnedUpsert(result, 'IntegrationConnection');
+}
+
+async function saveSyncRunWith(
+  client: Pick<PoolClient, 'query'>,
+  run: SyncRun
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO integration_sync_runs
+      (id, account_id, connection_id, provider, status, cursor_before,
+       cursor_after, started_at, completed_at, attempt_count, max_attempts,
+       retryable, failure_category, next_retry_at, processed_count,
+       imported_count, skipped_count, tombstone_count, failed_count,
+       record_results, error)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+             $18,$19,$20::jsonb,$21)
+     ON CONFLICT (id) DO UPDATE SET
+       status = EXCLUDED.status,
+       cursor_before = EXCLUDED.cursor_before,
+       cursor_after = EXCLUDED.cursor_after,
+       completed_at = EXCLUDED.completed_at,
+       attempt_count = EXCLUDED.attempt_count,
+       max_attempts = EXCLUDED.max_attempts,
+       retryable = EXCLUDED.retryable,
+       failure_category = EXCLUDED.failure_category,
+       next_retry_at = EXCLUDED.next_retry_at,
+       processed_count = EXCLUDED.processed_count,
+       imported_count = EXCLUDED.imported_count,
+       skipped_count = EXCLUDED.skipped_count,
+       tombstone_count = EXCLUDED.tombstone_count,
+       failed_count = EXCLUDED.failed_count,
+       record_results = EXCLUDED.record_results,
+       error = EXCLUDED.error
+     WHERE integration_sync_runs.account_id = EXCLUDED.account_id
+       AND integration_sync_runs.connection_id = EXCLUDED.connection_id
+     RETURNING id`,
+    [
+      run.id,
+      run.accountId,
+      run.connectionId,
+      run.provider,
+      run.status,
+      run.cursorBefore ?? null,
+      run.cursorAfter ?? null,
+      new Date(run.startedAt),
+      date(run.completedAt),
+      run.attemptCount,
+      run.maxAttempts,
+      run.retryable ?? null,
+      run.failureCategory ?? null,
+      date(run.nextRetryAt),
+      run.processedCount,
+      run.importedCount,
+      run.skippedCount,
+      run.tombstoneCount,
+      run.failedCount,
+      json(run.recordResults || []),
+      run.error ?? null,
+    ]
+  );
+  await assertOwnedUpsert(result, 'SyncRun');
+}
+
+async function saveImportWith(
+  client: Pick<PoolClient, 'query'>,
+  imported: ExternalImportState
+): Promise<void> {
+  const result = await client.query(
+    `INSERT INTO integration_external_imports
+      (id, status, account_id, connection_id, provider, external_id,
+       external_version, external_name, resource_kind, internal_kind,
+       internal_id, internal_version_id, knowledge_projection_run_id,
+       last_error, imported_at, updated_at, provenance)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb)
+     ON CONFLICT (id) DO UPDATE SET
+       status = EXCLUDED.status,
+       external_name = EXCLUDED.external_name,
+       internal_kind = EXCLUDED.internal_kind,
+       internal_id = EXCLUDED.internal_id,
+       internal_version_id = EXCLUDED.internal_version_id,
+       knowledge_projection_run_id = EXCLUDED.knowledge_projection_run_id,
+       last_error = EXCLUDED.last_error,
+       updated_at = EXCLUDED.updated_at,
+       provenance = EXCLUDED.provenance
+     WHERE integration_external_imports.account_id = EXCLUDED.account_id
+       AND integration_external_imports.connection_id = EXCLUDED.connection_id
+       AND integration_external_imports.external_id = EXCLUDED.external_id
+       AND integration_external_imports.external_version = EXCLUDED.external_version
+     RETURNING id`,
+    [
+      imported.id,
+      imported.status,
+      imported.accountId,
+      imported.connectionId,
+      imported.provider,
+      imported.externalId,
+      imported.externalVersion,
+      imported.externalName,
+      imported.resourceKind,
+      imported.internalKind,
+      imported.internalId ?? null,
+      imported.internalVersionId ?? null,
+      imported.knowledgeProjectionRunId ?? null,
+      imported.lastError ?? null,
+      new Date(imported.importedAt),
+      new Date(imported.updatedAt),
+      json(imported.provenance),
+    ]
+  );
+  await assertOwnedUpsert(result, 'ExternalImportState');
+}
+
+export class PostgresWatchRepository implements WatchRepository {
+  public async getRule(accountId: string, ruleId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_rules WHERE account_id = $1 AND id = $2',
+      [accountId, ruleId]
+    );
+    return result.rowCount ? watchRuleFromRow(result.rows[0]) : null;
+  }
+
+  public async listRules(params: {
+    accountId: string;
+    status?: WatchRule['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.status) {
+      values.push(params.status);
+      where += ' AND status = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 500)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_rules
+       WHERE ${where}
+       ORDER BY updated_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchRuleFromRow);
+  }
+
+  public async saveRule(rule: WatchRule) {
+    await saveRuleWith(postgresPool(), rule);
+  }
+
+  public async getDraft(accountId: string, draftId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_drafts WHERE account_id = $1 AND id = $2',
+      [accountId, draftId]
+    );
+    return result.rowCount ? watchDraftFromRow(result.rows[0]) : null;
+  }
+
+  public async saveDraft(draft: WatchDraft) {
+    await saveDraftWith(postgresPool(), draft);
+  }
+
+  public async getEvaluation(accountId: string, evaluationId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_evaluations WHERE account_id = $1 AND id = $2',
+      [accountId, evaluationId]
+    );
+    return result.rowCount ? watchEvaluationFromRow(result.rows[0]) : null;
+  }
+
+  public async saveEvaluation(evaluation: WatchEvaluation) {
+    await saveEvaluationWith(postgresPool(), evaluation);
+  }
+
+  public async getAlert(accountId: string, alertId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_alerts WHERE account_id = $1 AND id = $2',
+      [accountId, alertId]
+    );
+    return result.rowCount ? watchAlertFromRow(result.rows[0]) : null;
+  }
+
+  public async saveAlert(alert: WatchAlert) {
+    await saveAlertWith(postgresPool(), alert);
+  }
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
