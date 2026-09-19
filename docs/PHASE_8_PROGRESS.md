@@ -17,8 +17,8 @@ Phase 8 turns the mature product into an extensible platform without allowing ex
 ```text
 8A Stable developer API + permission manifest           COMPLETE
 8B Plugin/tool registration + execution contract        COMPLETE
-8C Custom detector framework                            IN PROGRESS
-8D Domain-pack packaging                                NOT STARTED
+8C Custom detector framework                            COMPLETE
+8D Domain-pack packaging                                IN PROGRESS
 8E Platform UI/docs + final Phase 8 audit              NOT STARTED
 ```
 
@@ -337,3 +337,45 @@ Verified:
 8. expose detector inventory + run through the stable platform API with dedicated scopes
 9. add executable tests for deterministic replay, provenance, scope/account isolation, unknown detector denial, and arbitrary-code denial
 10. only after that proceed to Phase 8D domain packs
+
+
+## Phase 8C verification
+
+Quality Gate `35432753760` passed the registered deterministic detector framework.
+
+Verified:
+
+- versioned registered detector descriptors
+- trusted built-in detector handlers only
+- DATASET-only execution boundary for the first detector slice
+- closed detector config schemas
+- arbitrary execution modes are rejected
+- stable detector inventory + run operations
+- dedicated `platform:detectors:read` and `platform:detectors:write` scopes
+- detector run is treated as an explicit analysis mutation because it persists Insights
+- Dataset/account authorization occurs before execution
+- explicit DatasetVersion selection is supported
+- effective confirmed-state overlays are applied before measurement
+- historical imported DatasetVersions remain immutable
+- normal DiscoveryStore / Insight persistence is reused
+- detector ID/version, normalized config, SHA-256 config hash, dataset/version/source hash, calculation, severity, row evidence, and overlay provenance are preserved
+- equivalent normalized config replays to the same deterministic fingerprint/Insight episode
+- changed config produces a different reproducibility hash/fingerprint
+- arbitrary/unknown detector IDs fail closed
+- caller-supplied account fields/headers cannot cross tenant boundaries
+- TypeScript, production build, all Phase 0–8B gates, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 8D — declarative domain packs**
+
+1. define a versioned declarative DomainPack descriptor
+2. package registered detector templates, suggested Watch templates, entity vocabulary, safe action proposal templates, and UI metadata
+3. keep packs data-only in the first slice: no handlers, JavaScript, shell, SQL, arbitrary HTTP, or runtime code
+4. validate every detector reference against the registered detector registry
+5. validate every action template as proposal-only and every Watch template as non-activated suggestion
+6. add account-scoped pack installation state without forking core schemas/services
+7. let a pack run its registered detector templates only through DetectorExecutionService
+8. expose pack inventory/installations/template-run through stable scoped platform operations
+9. prove pack installation/run is tenant isolated and cannot auto-execute Actions or silently activate Watches
+10. then proceed to Phase 8E platform UI/docs + final Phase 8 audit
