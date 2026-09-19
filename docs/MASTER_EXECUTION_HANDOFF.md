@@ -1007,8 +1007,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 7B — approval / role / target enforcement.**
+> **Continue with Phase 7C — first bounded low-risk auto-execution path.**
 
-Phase 7A is complete and green in Quality Gate `35426383338`. The deterministic policy engine already enforces conservative defaults, action allowlists, risk/amount/quantity limits, identity-source restrictions, unsupported-action denial, and immutable policy history.
+Phase 7B is complete and green in Quality Gate `35427776401`. Role/target constraints and durable approval escalation are now authoritative, and approval itself still performs no write.
 
-The next work is to add bounded actor-role and target constraints plus a persisted approval-escalation lifecycle. Do not connect ALLOW_AUTO_EXECUTE to the Phase 4 write path until Phase 7B is green.
+The next work is to connect only RECEIVE_INVENTORY to the existing Phase 4 ActionExecutionService when a fresh deterministic policy evaluation returns ALLOW_AUTO_EXECUTE. The automatic path must preserve Phase 4 stale-state checks, idempotency, audit, and account isolation.
