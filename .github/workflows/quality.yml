@@ -152,6 +152,9 @@ jobs:
       - name: Phase 7E Automation UI proof
         run: npm run check:phase7e-automation-ui
 
+      - name: Phase 8A stable platform API proof
+        run: npm run check:phase8a-platform-api
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
