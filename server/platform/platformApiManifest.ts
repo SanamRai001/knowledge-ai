@@ -8,7 +8,8 @@ export type PlatformApiFamily =
   | 'WATCH'
   | 'AUDIT'
   | 'TOOLS'
-  | 'DETECTORS';
+  | 'DETECTORS'
+  | 'DOMAIN_PACKS';
 
 export type PlatformRiskClass =
   | 'READ_ONLY'
@@ -55,6 +56,8 @@ export const PLATFORM_SCOPES = {
   toolsInvoke: 'platform:tools:invoke',
   detectorsRead: 'platform:detectors:read',
   detectorsWrite: 'platform:detectors:write',
+  domainPacksRead: 'platform:domain-packs:read',
+  domainPacksWrite: 'platform:domain-packs:write',
 } as const;
 
 export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
@@ -286,6 +289,66 @@ export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
     stability: 'STABLE',
     description:
       'Run a trusted deterministic registered detector against an authorized DatasetVersion and persist evidence-backed Insights.',
+  },
+  {
+    operationId: 'domain-packs.list',
+    version: 'v1',
+    method: 'GET',
+    path: '/domain-packs',
+    family: 'DOMAIN_PACKS',
+    requiredScopes: [PLATFORM_SCOPES.domainPacksRead],
+    mutation: false,
+    riskClass: 'READ_ONLY',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'READ',
+    stability: 'STABLE',
+    description:
+      'List declarative registered domain packs and their packaged templates.',
+  },
+  {
+    operationId: 'domain-packs.installations.list',
+    version: 'v1',
+    method: 'GET',
+    path: '/domain-packs/installations',
+    family: 'DOMAIN_PACKS',
+    requiredScopes: [PLATFORM_SCOPES.domainPacksRead],
+    mutation: false,
+    riskClass: 'READ_ONLY',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'READ',
+    stability: 'STABLE',
+    description:
+      'List account-scoped installed domain packs.',
+  },
+  {
+    operationId: 'domain-packs.install',
+    version: 'v1',
+    method: 'POST',
+    path: '/domain-packs/:id/install',
+    family: 'DOMAIN_PACKS',
+    requiredScopes: [PLATFORM_SCOPES.domainPacksWrite],
+    mutation: true,
+    riskClass: 'ANALYSIS_WRITE',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'WRITE',
+    stability: 'STABLE',
+    description:
+      'Install declarative domain-pack metadata for the authenticated account.',
+  },
+  {
+    operationId: 'domain-packs.detector.run',
+    version: 'v1',
+    method: 'POST',
+    path: '/domain-packs/:id/detectors/:templateId/run',
+    family: 'DOMAIN_PACKS',
+    requiredScopes: [PLATFORM_SCOPES.domainPacksWrite],
+    mutation: true,
+    riskClass: 'ANALYSIS_WRITE',
+    auditBehavior: 'REQUEST_USAGE_AND_DOMAIN_AUDIT',
+    rateLimitClass: 'WRITE',
+    stability: 'STABLE',
+    description:
+      'Run an installed pack detector template through the registered deterministic detector service.',
   },
   {
     operationId: 'audit.activity.list',
