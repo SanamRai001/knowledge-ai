@@ -744,7 +744,7 @@ Complete when:
 
 ## Current status
 
-**IN PROGRESS**
+**COMPLETE**
 
 ### Exact next implementation task
 
@@ -768,6 +768,17 @@ Continue from `docs/PHASE_7_PROGRESS.md`.
 
 ---
 
+
+### Completion evidence
+
+- Final Phase 7 audit: `docs/PHASE_7_FINAL_AUDIT.md`
+- Final integrated Quality Gate: `35429595070`
+- Controlled automatic action: RECEIVE_INVENTORY
+- Emergency kill switch / recovery / compensation / quality analytics / Automation UI: PASS
+
+Phase 7 is closed. Continue with Phase 8.
+
+---
 # 13. Phase 8 — Extensible Company Intelligence Platform
 
 ## Goal
@@ -839,7 +850,20 @@ Complete when extensions can add domain value without bypassing:
 
 ## Current status
 
-**FUTURE**
+**IN PROGRESS**
+
+### Exact next implementation task
+
+Start **Phase 8A — stable developer API foundation**.
+
+1. audit existing public/developer endpoints, API-key auth, scopes, and DeveloperPlatform UI
+2. define versioned external contracts for Sources, Ask, Insights, Actions, Watch, and Audit
+3. keep experimental/admin-only cognitive/mediator internals out of the stable API
+4. add capability metadata and explicit permission requirements per endpoint
+5. enforce rate-limit / scope boundaries before exposing mutation-capable operations
+6. add a stable API manifest/OpenAPI-style contract generated from authoritative definitions
+7. add executable cross-account/scope regression coverage
+8. only after the external contract is green, begin the plugin/tool framework
 
 ---
 
@@ -883,7 +907,7 @@ Phase 6 is complete for the first two cloud-file providers: Google Drive and Mic
 
 ## Autonomous execution
 
-Phase 7 is now the current focus. No action is allowed to auto-execute until the explicit policy engine and its exit gates are implemented.
+Phase 7 is complete for the bounded RECEIVE_INVENTORY automation path. Broader autonomous write authority is not implied; every new automatic action must earn its own deterministic policy/validation/recovery coverage.
 
 ---
 
@@ -1007,8 +1031,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 7E — automation analytics + UI + final audit.**
+> **Continue with Phase 8A — stable developer API foundation.**
 
-Phase 7D is complete and green in Quality Gate `35428379304`. Controlled automation now has deterministic policy, approval escalation, one bounded auto-execution path, an independent emergency stop, durable AutomationRun recovery state, bounded technical retry, and explicit safe compensation.
+Phase 7 is complete. Its authoritative final audit is `docs/PHASE_7_FINAL_AUDIT.md` and its final integrated Quality Gate is `35429595070`.
 
-The remaining Phase 7 work is measurable quality + the real operator/admin product surface, followed by the integrated Phase 7 exit gate and final audit.
+The next concrete work is to audit the APIs that already exist and define one stable external developer contract for Sources, Ask, Insights, Actions, Watch, and Audit without exposing experimental internals or bypassing existing authorization/provenance boundaries.
