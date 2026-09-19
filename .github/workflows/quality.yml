@@ -239,3 +239,6 @@ jobs:
 
       - name: Production A6 PostgreSQL proof
         run: npm run check:production-a6-postgres
+
+      - name: Production A7 Discovery runtime proof
+        run: npm run check:production-a7-discovery-runtime
