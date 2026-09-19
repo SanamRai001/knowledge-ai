@@ -95,7 +95,7 @@ function policy(params: {
     allowedActionIntents: ['RECEIVE_INVENTORY'],
     maxRiskClass: 'LOW',
     maxQuantity: 10,
-    allowedIdentitySources: ['api_key'],
+    allowedIdentitySources: ['API_KEY'],
     allowedActorRoles: ['SERVICE'],
     approvalRoles: ['OWNER', 'ADMIN', 'APPROVER'],
     allowedTargetEntityTypes: ['PRODUCT'],
