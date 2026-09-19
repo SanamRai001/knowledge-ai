@@ -162,6 +162,11 @@ export type AutomationFailureCategory =
   | 'TECHNICAL'
   | 'UNSUPPORTED';
 
+export type AutomationRunFeedback =
+  | 'CORRECT'
+  | 'FALSE_TRIGGER'
+  | 'NEEDS_CORRECTION';
+
 export interface AutomationRun {
   id: string;
   accountId: string;
@@ -182,4 +187,52 @@ export interface AutomationRun {
   completedAt?: number;
   compensationProposalId?: string;
   compensationExecutionId?: string;
+  feedback?: AutomationRunFeedback;
+  feedbackAt?: number;
+  feedbackBy?: string;
+  feedbackNote?: string;
+}
+
+export interface AutomationQualitySummary {
+  accountId: string;
+  generatedAt: number;
+  population: {
+    automationRuns: number;
+    approvalRequests: number;
+    feedbackRatedRuns: number;
+  };
+  executions: {
+    attempted: number;
+    successful: number;
+    failed: number;
+    successRate: number | null;
+    failureRate: number | null;
+  };
+  governance: {
+    blockedRuns: number;
+    policyDenials: number;
+    approvalEscalations: number;
+    approvalEscalationRate: number | null;
+    approvalsGranted: number;
+    approvalsRejected: number;
+    approvalsPending: number;
+  };
+  recovery: {
+    compensatedRuns: number;
+    compensationRate: number | null;
+    recoveryRequiredRuns: number;
+    technicalFailures: number;
+    staleStateFailures: number;
+  };
+  feedback: {
+    correct: number;
+    falseTriggers: number;
+    needsCorrection: number;
+    falseTriggerRate: number | null;
+    humanCorrectionSignals: number;
+  };
+  timeSaved: {
+    estimatedMinutes: null;
+    reason: string;
+  };
 }
