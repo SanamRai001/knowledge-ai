@@ -143,6 +143,9 @@ jobs:
       - name: Phase 7C auto-execution proof
         run: npm run check:phase7c-auto-execution
 
+      - name: Phase 7D automation recovery proof
+        run: npm run check:phase7d-automation-recovery
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
