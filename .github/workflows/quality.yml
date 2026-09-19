@@ -131,6 +131,9 @@ jobs:
       - name: Phase 6D integration hardening proof
         run: npm run check:phase6d-integration-hardening
 
+      - name: Phase 6E Integrations UI proof
+        run: npm run check:phase6e-integrations-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
