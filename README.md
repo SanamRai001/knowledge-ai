@@ -133,3 +133,10 @@ For the implementation sequence and phase exit gates, see `docs/IMPLEMENTATION_R
 ## Project continuity
 
 - [`docs/MASTER_EXECUTION_HANDOFF.md`](docs/MASTER_EXECUTION_HANDOFF.md) — canonical cross-chat execution status and exact next task.
+
+
+## Platform and production roadmap
+
+- [`docs/PLATFORM_API_V1.md`](docs/PLATFORM_API_V1.md) — stable Platform API v1 developer contract.
+- [`docs/PHASE_8_FINAL_AUDIT.md`](docs/PHASE_8_FINAL_AUDIT.md) — final extensible-platform exit audit.
+- [`docs/PRODUCTION_HARDENING_ROADMAP.md`](docs/PRODUCTION_HARDENING_ROADMAP.md) — current roadmap after completion of product Phases 0–8.
