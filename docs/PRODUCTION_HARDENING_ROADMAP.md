@@ -438,3 +438,33 @@ This establishes tenancy, credential ownership, and a major data-source backbone
 Production hardening is successful when Knowledge AI can be deployed, restarted, scaled, recovered, and administered without violating the trust contracts already proven by the product roadmap.
 
 Infrastructure maturity—not feature count—is now the priority.
+
+
+## A1 completion evidence
+
+Persistence forensic audit:
+
+`docs/PRODUCTION_PERSISTENCE_AUDIT.md`
+
+A1 findings:
+
+- current JSON stores must not be migrated 1:1
+- workspace metadata must be split from document/chat/evaluation payloads
+- global `activeKbId` must become per-account active-workspace state
+- Dataset metadata must be split from full analytical row payload
+- API keys are a first-slice relational target
+- integration OAuth secrets remain outside ordinary relational tables
+- telemetry/rate limits/OAuth state remain separate ephemeral infrastructure concerns
+
+## Current exact next work
+
+**Production Hardening A2 — PostgreSQL foundation + repository contracts**
+
+1. add optional PostgreSQL runtime configuration without breaking file-mode development
+2. add versioned migrations
+3. create migration 001 for account/workspace/API-key/Dataset metadata
+4. define repository contracts and legacy/Postgres adapters
+5. add a legacy metadata importer with dry-run/idempotency semantics
+6. add an isolated PostgreSQL CI proof
+7. do not switch all runtime services in one commit
+8. preserve every Phase 0–8 Quality Gate
