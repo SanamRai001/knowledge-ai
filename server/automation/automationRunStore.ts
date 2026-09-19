@@ -126,6 +126,28 @@ export class AutomationRunStore {
     return clone(updated);
   }
 
+  public setFeedback(params: {
+    accountId: string;
+    runId: string;
+    feedback: import('./types.js').AutomationRunFeedback;
+    actor: string;
+    note?: string;
+  }): AutomationRun {
+    return this.update(params.accountId, params.runId, {
+      feedback: params.feedback,
+      feedbackAt: Date.now(),
+      feedbackBy: params.actor,
+      feedbackNote: params.note?.trim() || undefined,
+    });
+  }
+
+  public listAll(accountId: string): AutomationRun[] {
+    return Array.from(this.runs.values())
+      .filter((run) => run.accountId === accountId)
+      .sort((a, b) => b.startedAt - a.startedAt)
+      .map(clone);
+  }
+
   public list(params: {
     accountId: string;
     proposalId?: string;
