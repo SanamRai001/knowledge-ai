@@ -31,6 +31,7 @@ async function main() {
     'http://127.0.0.1/oauth/google-drive/callback';
 
   const sheetBytes = await xlsxFixture();
+  const nativeFetch = globalThis.fetch;
 
   let authorizationCodeExchanges = 0;
   let refreshExchanges = 0;
@@ -50,6 +51,14 @@ async function main() {
           ? input.toString()
           : input.url;
     const url = new URL(rawUrl);
+
+    if (
+      url.hostname === '127.0.0.1' ||
+      url.hostname === 'localhost'
+    ) {
+      return nativeFetch(input as any, init);
+    }
+
     const headers = new Headers(init?.headers || {});
     const authorization = headers.get('Authorization');
     if (authorization) bearerTokens.push(authorization);
