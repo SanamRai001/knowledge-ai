@@ -82,7 +82,8 @@ CREATE TABLE dataset_import_runs (
   filename text NOT NULL,
   format text NOT NULL CHECK (format IN ('CSV','XLSX')),
   warnings jsonb NOT NULL DEFAULT '[]'::jsonb,
-  error text
+  error text,
+  UNIQUE (account_id, id)
 );
 
 CREATE TABLE datasets (
@@ -101,7 +102,8 @@ CREATE INDEX datasets_account_updated_idx
 
 CREATE TABLE dataset_versions (
   id text PRIMARY KEY,
-  dataset_id text NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+  account_id text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  dataset_id text NOT NULL,
   version_number integer NOT NULL CHECK (version_number > 0),
   created_at timestamptz NOT NULL,
   source_filename text NOT NULL,
@@ -109,15 +111,22 @@ CREATE TABLE dataset_versions (
   source_size_bytes bigint NOT NULL CHECK (source_size_bytes >= 0),
   source_sha256 char(64) NOT NULL,
   source_format text NOT NULL CHECK (source_format IN ('CSV','XLSX')),
-  import_run_id text NOT NULL REFERENCES dataset_import_runs(id),
+  import_run_id text NOT NULL,
   payload_backend text NOT NULL,
   payload_ref text NOT NULL,
-  UNIQUE (dataset_id, version_number),
-  UNIQUE (dataset_id, id)
+  UNIQUE (account_id, dataset_id, version_number),
+  UNIQUE (account_id, dataset_id, id),
+  CONSTRAINT dataset_versions_owned_dataset_fk
+    FOREIGN KEY (account_id, dataset_id)
+    REFERENCES datasets(account_id, id)
+    ON DELETE CASCADE,
+  CONSTRAINT dataset_versions_owned_import_run_fk
+    FOREIGN KEY (account_id, import_run_id)
+    REFERENCES dataset_import_runs(account_id, id)
 );
 
 ALTER TABLE datasets
   ADD CONSTRAINT datasets_current_version_fk
-  FOREIGN KEY (id, current_version_id)
-  REFERENCES dataset_versions(dataset_id, id)
+  FOREIGN KEY (account_id, id, current_version_id)
+  REFERENCES dataset_versions(account_id, dataset_id, id)
   DEFERRABLE INITIALLY DEFERRED;
