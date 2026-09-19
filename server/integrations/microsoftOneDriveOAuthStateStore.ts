@@ -7,6 +7,7 @@ export interface MicrosoftOneDriveOAuthAttempt {
   displayName: string;
   redirectUri: string;
   tenant: string;
+  connectionId?: string;
   codeVerifier: string;
   createdAt: number;
   expiresAt: number;
@@ -49,6 +50,7 @@ export class MicrosoftOneDriveOAuthStateStore {
     displayName: string;
     redirectUri: string;
     tenant: string;
+    connectionId?: string;
   }): {
     state: string;
     codeChallenge: string;
@@ -71,6 +73,7 @@ export class MicrosoftOneDriveOAuthStateStore {
       displayName: params.displayName,
       redirectUri: params.redirectUri,
       tenant: params.tenant,
+      connectionId: params.connectionId,
       codeVerifier,
       createdAt: now,
       expiresAt: now + STATE_TTL_MS,
@@ -87,6 +90,7 @@ export class MicrosoftOneDriveOAuthStateStore {
         displayName: attempt.displayName,
         redirectUri: attempt.redirectUri,
         tenant: attempt.tenant,
+        connectionId: attempt.connectionId,
         codeVerifier: attempt.codeVerifier,
         createdAt: attempt.createdAt,
         expiresAt: attempt.expiresAt,
