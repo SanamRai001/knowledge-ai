@@ -4,7 +4,7 @@ import { hybridActionInterpreter } from '../actions/hybridActionInterpreter.js';
 import { companyKnowledgeStore } from '../companyKnowledge/companyKnowledgeStore.js';
 import type { CompanyEntityType } from '../companyKnowledge/types.js';
 import { datasetStore } from '../datasets/datasetStore.js';
-import { discoveryService } from '../discovery/discoveryService.js';
+import { discoveryRuntimeService } from '../discovery/discoveryRuntimeService.js';
 import type { InsightStatus } from '../discovery/types.js';
 import { unifiedQueryService } from '../querying/unifiedQueryService.js';
 import { watchStore } from '../watch/watchStore.js';
@@ -19,7 +19,9 @@ import {
 import { toolInvocationService } from './tools/toolInvocationService.js';
 import { toolInvocationAuditStore } from './tools/toolInvocationAuditStore.js';
 import { detectorExecutionService } from './detectors/detectorExecutionService.js';
+import { detectorExecutionRuntimeService } from './detectors/detectorExecutionRuntimeService.js';
 import { domainPackService } from './domainPacks/domainPackService.js';
+import { domainPackRuntimeService } from './domainPacks/domainPackRuntimeService.js';
 import {
   platformContext,
   requirePlatformOperation,
@@ -324,11 +326,11 @@ platformApiRouter.post(
 platformApiRouter.get(
   '/insights',
   requirePlatformOperation('insights.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        insights: discoveryService.listInsights({
+        insights: await discoveryRuntimeService.listInsights({
           accountId,
           datasetId:
             typeof req.query.datasetId === 'string' &&
@@ -531,10 +533,10 @@ platformApiRouter.get(
 platformApiRouter.post(
   '/detectors/:id/run',
   requirePlatformOperation('detectors.run'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId, requestId } = platformContext(res);
-      const result = detectorExecutionService.run({
+      const result = await detectorExecutionRuntimeService.run({
         accountId,
         detectorId: req.params.id,
         datasetId:
@@ -618,10 +620,10 @@ platformApiRouter.post(
 platformApiRouter.post(
   '/domain-packs/:id/detectors/:templateId/run',
   requirePlatformOperation('domain-packs.detector.run'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId, requestId } = platformContext(res);
-      const result = domainPackService.runDetectorTemplate({
+      const result = await domainPackRuntimeService.runDetectorTemplate({
         accountId,
         packId: req.params.id,
         templateId: req.params.templateId,
