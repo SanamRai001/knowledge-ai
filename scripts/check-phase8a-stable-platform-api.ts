@@ -49,9 +49,10 @@ async function main() {
           operation.requiredScopes.every(
             (scope) =>
               scope.includes(':propose') ||
-              scope.includes(':write')
+              scope.includes(':write') ||
+              scope === PLATFORM_SCOPES.toolsInvoke
           ),
-        'Every stable mutation must require an explicit proposal/write scope.'
+        'Every stable mutation must require an explicit proposal/write/tool-invoke authority scope.'
       );
     }
   }
