@@ -17,8 +17,8 @@ Phase 6 connects Knowledge AI to external systems without creating isolated prov
 ```text
 6A Integration foundation / connector contract          COMPLETE
 6B First live cloud-file connector                      COMPLETE
-6C Second connector on the same abstraction             IN PROGRESS
-6D Sync/retry/revocation/permission hardening           NOT STARTED
+6C Second connector on the same abstraction             COMPLETE
+6D Sync/retry/revocation/permission hardening           IN PROGRESS
 6E Integrations UI + final Phase 6 audit                NOT STARTED
 ```
 
@@ -241,3 +241,69 @@ The connector does not request `drive.readonly` by default.
 6. feed records through the existing Phase 6A sync engine
 7. add deterministic mocked Microsoft Graph acceptance proof
 8. only then begin Phase 6D hardening / permissions / revocation edge cases
+
+
+## Phase 6C verification
+
+Quality Gate `35421700960` passed the second real provider on the shared integration architecture.
+
+Microsoft OneDrive implementation verifies:
+
+- Microsoft identity-platform authorization-code flow
+- delegated `Files.Read` permission plus `offline_access`
+- S256 PKCE on the server-side authorization flow
+- single-use account-bound OAuth state
+- encrypted access/refresh-token storage using the same Phase 6 credential vault
+- Microsoft app client secret remains environment-only
+- initial OneDrive hierarchy enumeration through Microsoft Graph delta
+- persistent `@odata.deltaLink` cursor
+- incremental delta synchronization
+- CSV and XLSX download through Graph `driveItem /content`
+- folders/non-file records ignored by the structured connector
+- stable eTag/cTag/date external version provenance
+- changed OneDrive versions append to the same internal Dataset
+- removed items create external tombstones
+- expired access tokens refresh automatically
+- rotated Microsoft refresh tokens replace the previous stored refresh token
+- stored delta cursors are origin/path validated before any HTTP request, blocking cursor-based SSRF
+- disconnect deletes local encrypted OAuth material and fails closed
+- foreign accounts cannot inspect/disconnect/sync another account's OneDrive connection
+- TypeScript, production build, all prior Phase 0–6B proofs, unseen benchmark, and live Gemini benchmark remain green
+
+### Two-provider architecture checkpoint
+
+Phase 6 now has two real connector implementations sharing the same foundation:
+
+```text
+GoogleDriveConnector ─┐
+                      ├─ IntegrationConnector
+OneDriveConnector ────┘
+                              ↓
+                    IntegrationConnection
+                              ↓
+                          SyncRun
+                              ↓
+                   external import map
+                              ↓
+                    Dataset ingestion
+                              ↓
+                  Living Company Knowledge
+```
+
+The connector abstraction is therefore no longer proven only by a synthetic test provider.
+
+## Current exact next work
+
+**Phase 6D — sync/revocation/permission hardening**
+
+Focus on cross-provider operational behavior rather than adding another provider:
+
+1. classify connector failures into retryable vs non-retryable categories
+2. add bounded automatic retry/backoff metadata to SyncRun
+3. handle expired/invalid provider cursors with explicit recovery states instead of silent full-resync
+4. strengthen connection ERROR → reconnect/re-authorize lifecycle
+5. model external deletion/revocation visibility more explicitly
+6. verify permission loss and token-revocation behavior for both Google and Microsoft
+7. add sync concurrency/idempotency protection so two workers cannot process the same connection simultaneously
+8. add retention/observability for sync failures
+9. then build the Phase 6E Integrations UI and final Phase 6 audit
