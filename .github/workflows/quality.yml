@@ -227,3 +227,6 @@ jobs:
 
       - name: Production A2 PostgreSQL proof
         run: npm run check:production-a2-postgres
+
+      - name: Production A3 PostgreSQL proof
+        run: npm run check:production-a3-postgres
