@@ -16,6 +16,8 @@ import { workspaceAccessService } from '../workspaceAccessService.js';
 import {
   publicPlatformManifest,
 } from './platformApiManifest.js';
+import { toolInvocationService } from './tools/toolInvocationService.js';
+import { toolInvocationAuditStore } from './tools/toolInvocationAuditStore.js';
 import {
   platformContext,
   requirePlatformOperation,
@@ -429,6 +431,78 @@ platformApiRouter.get(
               ? req.query.watchRuleId.trim()
               : undefined,
           status: watchAlertStatusFrom(req.query.status),
+          limit: limitFrom(req.query.limit, 100, 500),
+        }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.get(
+  '/tools',
+  requirePlatformOperation('tools.list'),
+  (_req, res) => {
+    try {
+      const { scopes } = platformContext(res);
+      res.json({
+        tools: toolInvocationService.list({ scopes }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.post(
+  '/tools/:id/invoke',
+  requirePlatformOperation('tools.invoke'),
+  async (req, res) => {
+    try {
+      const context = platformContext(res);
+      const result = await toolInvocationService.invoke({
+        toolId: req.params.id,
+        rawInput: req.body?.input ?? {},
+        context: {
+          accountId: context.accountId,
+          requestId: context.requestId,
+          apiKeyId: context.apiKeyId,
+          scopes: context.scopes,
+        },
+      });
+
+      res.json({
+        request_id: context.requestId,
+        invocation_id: result.invocationId,
+        tool: {
+          id: result.tool.id,
+          version: result.tool.version,
+          mutation: result.tool.mutation,
+          riskClass: result.tool.riskClass,
+        },
+        result: result.result,
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.get(
+  '/tools/invocations',
+  requirePlatformOperation('tools.list'),
+  (req, res) => {
+    try {
+      const { accountId } = platformContext(res);
+      res.json({
+        invocations: toolInvocationAuditStore.list({
+          accountId,
+          toolId:
+            typeof req.query.toolId === 'string' &&
+            req.query.toolId.trim()
+              ? req.query.toolId.trim()
+              : undefined,
           limit: limitFrom(req.query.limit, 100, 500),
         }),
       });
