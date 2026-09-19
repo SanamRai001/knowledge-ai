@@ -85,11 +85,20 @@ export interface ActionProposal {
   executionId?: string;
 }
 
+export type ActionExecutionMode =
+  | 'MANUAL_CONFIRMATION'
+  | 'AUTOMATION_POLICY';
+
 export interface ActionExecution {
   id: string;
   accountId: string;
   proposalId: string;
   intent: ActionIntent;
+  executionMode?: ActionExecutionMode;
+  authorizedBy?: string;
+  authorizedByRole?: string;
+  automationPolicyId?: string;
+  automationPolicyVersion?: number;
   claimIds: string[];
   eventIds: string[];
   downstreamAnalysisRunIds?: string[];
