@@ -513,3 +513,39 @@ A2 intentionally does **not** switch every runtime service to PostgreSQL yet.
 7. preserve effective-state authority semantics and Action stale/idempotency behavior
 8. add an isolated PostgreSQL A3 proof
 9. keep the full Phase 0–8 Quality Gate green
+
+
+---
+
+# Current relational execution status — 2026-09-19
+
+```text
+A1 Persistence forensic audit                         ✅ COMPLETE
+A2 Core PostgreSQL metadata                           ✅ COMPLETE
+A3 Living Knowledge + Actions PostgreSQL              ✅ COMPLETE
+A4 Watch + Integrations PostgreSQL                    ✅ COMPLETE
+A5 Automation + Platform state PostgreSQL             🚧 IN PROGRESS
+```
+
+A4 authoritative integrated workflow: `35458772829`.
+
+A4 completion evidence:
+
+`docs/PRODUCTION_A4_POSTGRES_WATCH_INTEGRATIONS.md`
+
+## Current exact task
+
+**Production Hardening A5 — Automation + Platform state relational persistence**
+
+Current implementation scope:
+
+1. migration 004 for Automation governance/run state + Platform installation/audit state
+2. PostgreSQL repository contracts/adapters
+3. transactional policy + immutable revision commit
+4. transactional emergency kill-switch + immutable revision commit
+5. same-account approval/run → Action relationships
+6. Domain Pack active-installation constraints
+7. ToolInvocationAudit → same-account API-key constraint
+8. A5 legacy dry-run/idempotent importer
+9. real PostgreSQL A5 proof
+10. preserve the complete Phase 0–8 Quality Gate
