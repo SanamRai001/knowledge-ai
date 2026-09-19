@@ -491,7 +491,7 @@ platformApiRouter.post(
 
 platformApiRouter.get(
   '/tools/invocations',
-  requirePlatformOperation('tools.list'),
+  requirePlatformOperation('tools.invocations.list'),
   (req, res) => {
     try {
       const { accountId } = platformContext(res);
