@@ -19,6 +19,7 @@ import {
 import { toolInvocationService } from './tools/toolInvocationService.js';
 import { toolInvocationAuditStore } from './tools/toolInvocationAuditStore.js';
 import { detectorExecutionService } from './detectors/detectorExecutionService.js';
+import { domainPackService } from './domainPacks/domainPackService.js';
 import {
   platformContext,
   requirePlatformOperation,
@@ -553,6 +554,93 @@ platformApiRouter.post(
             : undefined,
       });
 
+      res.status(201).json({
+        request_id: requestId,
+        ...result,
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.get(
+  '/domain-packs',
+  requirePlatformOperation('domain-packs.list'),
+  (_req, res) => {
+    try {
+      res.json({
+        packs: domainPackService.list(),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.get(
+  '/domain-packs/installations',
+  requirePlatformOperation('domain-packs.installations.list'),
+  (_req, res) => {
+    try {
+      const { accountId } = platformContext(res);
+      res.json({
+        installations:
+          domainPackService.listInstallations(accountId),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.post(
+  '/domain-packs/:id/install',
+  requirePlatformOperation('domain-packs.install'),
+  (req, res) => {
+    try {
+      const { accountId, requestId } = platformContext(res);
+      const installation = domainPackService.install({
+        accountId,
+        packId: req.params.id,
+      });
+      res.status(201).json({
+        request_id: requestId,
+        installation,
+        pack: domainPackService.get(req.params.id),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+platformApiRouter.post(
+  '/domain-packs/:id/detectors/:templateId/run',
+  requirePlatformOperation('domain-packs.detector.run'),
+  (req, res) => {
+    try {
+      const { accountId, requestId } = platformContext(res);
+      const result = domainPackService.runDetectorTemplate({
+        accountId,
+        packId: req.params.id,
+        templateId: req.params.templateId,
+        datasetId:
+          typeof req.body?.datasetId === 'string'
+            ? req.body.datasetId.trim()
+            : '',
+        datasetVersionId:
+          typeof req.body?.datasetVersionId === 'string' &&
+          req.body.datasetVersionId.trim()
+            ? req.body.datasetVersionId.trim()
+            : undefined,
+        configOverrides: req.body?.configOverrides ?? {},
+        referenceTime:
+          typeof req.body?.referenceTime === 'number' &&
+          Number.isFinite(req.body.referenceTime)
+            ? req.body.referenceTime
+            : undefined,
+      });
       res.status(201).json({
         request_id: requestId,
         ...result,
