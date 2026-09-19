@@ -16,8 +16,8 @@ Phase 6 connects Knowledge AI to external systems without creating isolated prov
 
 ```text
 6A Integration foundation / connector contract          COMPLETE
-6B First live cloud-file connector                      IN PROGRESS
-6C Second connector on the same abstraction             NOT STARTED
+6B First live cloud-file connector                      COMPLETE
+6C Second connector on the same abstraction             IN PROGRESS
 6D Sync/retry/revocation/permission hardening           NOT STARTED
 6E Integrations UI + final Phase 6 audit                NOT STARTED
 ```
@@ -192,3 +192,52 @@ The connector contract is resource-type agnostic, but unsupported external docum
 7. feed records through the existing Phase 6A sync engine
 8. add deterministic HTTP-mocked connector tests plus optional live smoke test when credentials are configured
 9. then proceed to a second connector through the same abstraction
+
+
+## Phase 6B verification
+
+Quality Gate `35421434768` passed the first live-provider connector.
+
+Google Drive implementation now verifies:
+
+- Google OAuth 2.0 web-server authorization flow
+- server-side single-use OAuth state with expiry
+- `drive.file` per-file scope rather than broad Drive-wide read access
+- offline access / refresh-token lifecycle
+- encrypted AES-256-GCM integration credential vault
+- Google client secret remains environment-only
+- normal IntegrationConnection/API records contain only an opaque credential reference
+- snapshot-safe initial sync: start-page token captured before file discovery
+- accessible CSV discovery and binary download
+- Google Sheets discovery and XLSX export
+- stable external file/version provenance
+- incremental `changes.list` cursor progression
+- removed Drive files become external tombstones
+- expired access tokens refresh automatically
+- changed Drive versions append to the existing internal Dataset
+- disconnect deletes local OAuth credentials and attempts Google token revocation
+- disconnected connections fail closed
+- OAuth-state replay is rejected
+- foreign accounts cannot inspect/disconnect/sync another account's Drive connection
+- TypeScript, production build, all Phase 0–6A gates, unseen benchmark, and live Gemini benchmark remain green
+
+### Google Drive scope boundary
+
+The connector intentionally uses `https://www.googleapis.com/auth/drive.file`.
+
+This follows Google's narrower per-file access model. A future Integrations UI should use Google Picker so users explicitly choose which files Knowledge AI may continuously synchronize.
+
+The connector does not request `drive.readonly` by default.
+
+## Current exact next work
+
+**Phase 6C — Microsoft OneDrive connector on the same abstraction**
+
+1. verify current Microsoft identity-platform delegated OAuth and Graph Drive delta behavior
+2. reuse the encrypted credential vault and OAuth-state pattern
+3. implement least-privilege delegated OneDrive read access with offline refresh
+4. implement initial/delta file discovery
+5. download CSV/XLSX through Microsoft Graph
+6. feed records through the existing Phase 6A sync engine
+7. add deterministic mocked Microsoft Graph acceptance proof
+8. only then begin Phase 6D hardening / permissions / revocation edge cases
