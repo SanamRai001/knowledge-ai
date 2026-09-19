@@ -16,6 +16,23 @@ export type IntegrationConnectionStatus =
   | 'REVOKED'
   | 'ERROR';
 
+export type IntegrationAttentionReason =
+  | 'REAUTHORIZE'
+  | 'PERMISSION_LOST'
+  | 'CURSOR_RESET_REQUIRED'
+  | 'SYNC_FAILED';
+
+export type IntegrationFailureCategory =
+  | 'AUTHORIZATION'
+  | 'PERMISSION'
+  | 'RATE_LIMIT'
+  | 'TRANSIENT'
+  | 'CURSOR_INVALID'
+  | 'DATA_INVALID'
+  | 'UNSUPPORTED'
+  | 'CONFLICT'
+  | 'UNKNOWN';
+
 export type SyncRunStatus =
   | 'RUNNING'
   | 'COMPLETED'
@@ -44,9 +61,15 @@ export interface IntegrationConnection {
   capabilities: IntegrationCapabilities;
   /** Non-secret provider configuration only. */
   settings: Record<string, string | number | boolean>;
-  /** Opaque handle into a future credential vault; never an access token. */
+  /** Opaque handle into the encrypted credential vault; never an access token. */
   credentialRef?: string;
   cursor?: string;
+  attentionReason?: IntegrationAttentionReason;
+  lastFailureCategory?: IntegrationFailureCategory;
+  consecutiveFailureCount?: number;
+  nextRetryAt?: number;
+  syncLeaseId?: string;
+  syncLeaseExpiresAt?: number;
   lastSyncAt?: number;
   lastSuccessfulSyncAt?: number;
   lastError?: string;
@@ -55,8 +78,12 @@ export interface IntegrationConnection {
 }
 
 export interface PublicIntegrationConnection
-  extends Omit<IntegrationConnection, 'credentialRef'> {
+  extends Omit<
+    IntegrationConnection,
+    'credentialRef' | 'syncLeaseId'
+  > {
   hasCredential: boolean;
+  syncInProgress: boolean;
 }
 
 export interface ExternalSourceRef {
@@ -132,6 +159,11 @@ export interface SyncRun {
   cursorAfter?: string;
   startedAt: number;
   completedAt?: number;
+  attemptCount: number;
+  maxAttempts: number;
+  retryable?: boolean;
+  failureCategory?: IntegrationFailureCategory;
+  nextRetryAt?: number;
   processedCount: number;
   importedCount: number;
   skippedCount: number;
