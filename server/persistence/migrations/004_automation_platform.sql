@@ -175,20 +175,27 @@ CREATE UNIQUE INDEX platform_domain_pack_one_active_idx
 CREATE INDEX platform_domain_pack_account_updated_idx
   ON platform_domain_pack_installations(account_id, updated_at DESC);
 
+ALTER TABLE api_keys
+  ADD CONSTRAINT api_keys_account_id_id_unique
+  UNIQUE (account_id, id);
+
 CREATE TABLE platform_tool_invocation_audit (
   id text PRIMARY KEY,
   account_id text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   tool_id text NOT NULL,
   tool_version text NOT NULL,
   request_id text NOT NULL,
-  api_key_id text NOT NULL REFERENCES api_keys(id),
+  api_key_id text NOT NULL,
   status text NOT NULL CHECK (status IN ('STARTED','SUCCEEDED','FAILED')),
   input_hash char(64) NOT NULL,
   started_at timestamptz NOT NULL,
   completed_at timestamptz,
   error_code text,
   error_message text,
-  UNIQUE (account_id, id)
+  UNIQUE (account_id, id),
+  CONSTRAINT platform_tool_invocation_api_key_fk
+    FOREIGN KEY (account_id, api_key_id)
+    REFERENCES api_keys(account_id, id)
 );
 
 CREATE INDEX platform_tool_invocation_account_started_idx
