@@ -6,6 +6,7 @@ export interface GoogleDriveOAuthAttempt {
   accountId: string;
   displayName: string;
   redirectUri: string;
+  connectionId?: string;
   createdAt: number;
   expiresAt: number;
 }
@@ -44,6 +45,7 @@ export class GoogleDriveOAuthStateStore {
     accountId: string;
     displayName: string;
     redirectUri: string;
+    connectionId?: string;
   }): { state: string; attempt: GoogleDriveOAuthAttempt } {
     this.prune();
 
@@ -53,6 +55,7 @@ export class GoogleDriveOAuthStateStore {
       accountId: params.accountId,
       displayName: params.displayName,
       redirectUri: params.redirectUri,
+      connectionId: params.connectionId,
       createdAt: now,
       expiresAt: now + STATE_TTL_MS,
       stateHash: hashState(state),
@@ -65,6 +68,7 @@ export class GoogleDriveOAuthStateStore {
         accountId: attempt.accountId,
         displayName: attempt.displayName,
         redirectUri: attempt.redirectUri,
+        connectionId: attempt.connectionId,
         createdAt: attempt.createdAt,
         expiresAt: attempt.expiresAt,
       },
@@ -96,6 +100,7 @@ export class GoogleDriveOAuthStateStore {
       accountId: attempt.accountId,
       displayName: attempt.displayName,
       redirectUri: attempt.redirectUri,
+      connectionId: attempt.connectionId,
       createdAt: attempt.createdAt,
       expiresAt: attempt.expiresAt,
     };
