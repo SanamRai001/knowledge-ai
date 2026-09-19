@@ -1,6 +1,7 @@
 import type { ActionIntent, ActionProposal } from '../actions/types.js';
 import type { RequestIdentity } from '../requestIdentity.js';
 import { automationPolicyStore } from './automationPolicyStore.js';
+import { resolveAutomationActorRole } from './automationActor.js';
 import {
   AutomationEvaluation,
   AutomationEvaluationInput,
@@ -84,6 +85,7 @@ function result(params: {
     reasonCodes: params.reasonCodes,
     reasons: params.reasons,
     risk: structuredClone(params.risk),
+    actorRole: resolveAutomationActorRole(params.input.identity),
     policyId: params.policy?.id,
     policyVersion: params.policy?.version,
     evaluatedAt: Date.now(),
@@ -150,6 +152,76 @@ export class AutomationPolicyEvaluator {
         ],
         policy,
       });
+    }
+
+    const actorRole = resolveAutomationActorRole(input.identity);
+    if (
+      policy.allowedActorRoles &&
+      policy.allowedActorRoles.length > 0 &&
+      !policy.allowedActorRoles.includes(actorRole)
+    ) {
+      return result({
+        input,
+        risk,
+        decision: 'DENY',
+        reasonCodes: ['ACTOR_ROLE_NOT_ALLOWED'],
+        reasons: [
+          'The current actor role is not allowed by automation policy.',
+        ],
+        policy,
+      });
+    }
+
+    if (
+      policy.allowedTargetEntityIds &&
+      policy.allowedTargetEntityIds.length > 0 &&
+      input.proposal.targetEntityIds.some(
+        (entityId) => !policy.allowedTargetEntityIds!.includes(entityId)
+      )
+    ) {
+      return result({
+        input,
+        risk,
+        decision: 'DENY',
+        reasonCodes: ['TARGET_ENTITY_NOT_ALLOWED'],
+        reasons: [
+          'At least one action target is outside the entity allowlist configured by automation policy.',
+        ],
+        policy,
+      });
+    }
+
+    if (
+      policy.allowedTargetEntityTypes &&
+      policy.allowedTargetEntityTypes.length > 0
+    ) {
+      const targetTypes = Array.from(
+        new Set(
+          input.proposal.mutations
+            .map((mutation) => mutation.entityType)
+            .filter(Boolean)
+        )
+      );
+
+      if (
+        (input.proposal.targetEntityIds.length > 0 &&
+          targetTypes.length === 0) ||
+        targetTypes.some(
+          (entityType) =>
+            !policy.allowedTargetEntityTypes!.includes(entityType)
+        )
+      ) {
+        return result({
+          input,
+          risk,
+          decision: 'DENY',
+          reasonCodes: ['TARGET_ENTITY_TYPE_NOT_ALLOWED'],
+          reasons: [
+            'At least one action target type is outside the entity-type allowlist configured by automation policy.',
+          ],
+          policy,
+        });
+      }
     }
 
     if (!policy.allowedActionIntents.includes(input.proposal.intent)) {
