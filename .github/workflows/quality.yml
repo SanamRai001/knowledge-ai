@@ -230,3 +230,6 @@ jobs:
 
       - name: Production A3 PostgreSQL proof
         run: npm run check:production-a3-postgres
+
+      - name: Production A4 PostgreSQL proof
+        run: npm run check:production-a4-postgres
