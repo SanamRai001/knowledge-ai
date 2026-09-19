@@ -1,6 +1,6 @@
 import { hybridActionInterpreter } from '../../actions/hybridActionInterpreter.js';
 import { companyKnowledgeStore } from '../../companyKnowledge/companyKnowledgeStore.js';
-import { discoveryService } from '../../discovery/discoveryService.js';
+import { discoveryRuntimeService } from '../../discovery/discoveryRuntimeService.js';
 import type { InsightStatus } from '../../discovery/types.js';
 import { unifiedQueryService } from '../../querying/unifiedQueryService.js';
 import { watchStore } from '../../watch/watchStore.js';
@@ -225,8 +225,8 @@ const BUILT_IN_TOOLS: RegisteredTool[] = [
         },
       },
     },
-    handler: (input, context) => ({
-      insights: discoveryService.listInsights({
+    handler: async (input, context) => ({
+      insights: await discoveryRuntimeService.listInsights({
         accountId: context.accountId,
         datasetId: optionalString(input, 'datasetId'),
         knowledgeBaseId: optionalString(
