@@ -994,8 +994,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 6B — Google Drive cloud-file connector.**
+> **Continue with Phase 6C — Microsoft OneDrive connector.**
 
-Phase 6A is complete and green in Quality Gate `35377306001`. The shared connector, cursor/checkpoint, idempotent ingestion, retry, provenance, revocation, secret-safe metadata, and account-isolation foundation is now authoritative.
+Phase 6B is complete and green in Quality Gate `35421434768`. Google Drive now proves the first real provider through the shared connector abstraction with per-file OAuth, encrypted refresh tokens, snapshot-safe initial discovery, Drive changes cursors, CSV/XLSX ingestion, Google Sheets XLSX export, token refresh, tombstones, disconnect, and account isolation.
 
-The next concrete work is the first real provider on that abstraction: Google Drive read-only OAuth → initial supported-file discovery → incremental changes cursor → CSV/XLSX download / Google Sheets XLSX export → existing Dataset ingestion.
+The next concrete work is a second vendor through the same architecture: Microsoft identity delegated OAuth → OneDrive/Graph delta cursor → CSV/XLSX download → existing Dataset ingestion.
