@@ -1007,8 +1007,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 7D — recovery / compensation / emergency kill switch.**
+> **Continue with Phase 7E — automation analytics + UI + final audit.**
 
-Phase 7C is complete and green in Quality Gate `35428055078`. RECEIVE_INVENTORY is now the only policy-authorized automatic write path and it reuses Phase 4 validation, stale-state checks, idempotency, provenance, and audit.
+Phase 7D is complete and green in Quality Gate `35428379304`. Controlled automation now has deterministic policy, approval escalation, one bounded auto-execution path, an independent emergency stop, durable AutomationRun recovery state, bounded technical retry, and explicit safe compensation.
 
-The next work is operational safety: a workspace emergency stop independent of ordinary policy edits, durable automation-run failure state, bounded retry for technical failures only, and explicit inventory compensation that refuses to overwrite later state.
+The remaining Phase 7 work is measurable quality + the real operator/admin product surface, followed by the integrated Phase 7 exit gate and final audit.
