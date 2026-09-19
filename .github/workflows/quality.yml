@@ -161,6 +161,9 @@ jobs:
       - name: Phase 8C custom detector proof
         run: npm run check:phase8c-custom-detectors
 
+      - name: Phase 8D domain pack proof
+        run: npm run check:phase8d-domain-packs
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
