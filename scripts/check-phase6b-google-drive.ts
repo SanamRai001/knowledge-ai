@@ -600,7 +600,7 @@ async function main() {
         secondSync.run.importedCount === 1 &&
         secondSync.run.tombstoneCount === 1 &&
         secondSync.run.processedCount === 2 &&
-        csvDownloads === 2,
+        Number(csvDownloads) === 2,
       'Incremental Drive changes must import changed CSV content and tombstone removed files.'
     );
 
