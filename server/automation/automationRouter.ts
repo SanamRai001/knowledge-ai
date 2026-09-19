@@ -42,6 +42,10 @@ import {
   AutomationQualityError,
   automationQualityService,
 } from './automationQualityService.js';
+import {
+  automationActorLabel,
+  resolveAutomationActorRole,
+} from './automationActor.js';
 
 export const automationRouter = express.Router();
 
@@ -283,6 +287,37 @@ function handleError(
     error: error?.message || 'Automation policy request failed.',
   });
 }
+
+automationRouter.get('/context', (_req, res) => {
+  try {
+    const requestIdentity = identity(res);
+    const role = resolveAutomationActorRole(requestIdentity);
+    res.json({
+      actor: automationActorLabel(requestIdentity),
+      role,
+      source: requestIdentity.source,
+      capabilities: {
+        canControlEmergencyStop:
+          role === 'OWNER' || role === 'ADMIN',
+        canResolveApprovals:
+          role === 'OWNER' ||
+          role === 'ADMIN' ||
+          role === 'APPROVER',
+        canCompensate:
+          role === 'OWNER' ||
+          role === 'ADMIN' ||
+          role === 'APPROVER',
+        canExecuteAutomation:
+          role === 'OWNER' ||
+          role === 'ADMIN' ||
+          role === 'OPERATOR',
+        canRecordFeedback: true,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
 
 automationRouter.get('/quality', (_req, res) => {
   try {
