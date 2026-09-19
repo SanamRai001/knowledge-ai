@@ -128,6 +128,9 @@ jobs:
       - name: Phase 6C OneDrive proof
         run: npm run check:phase6c-onedrive
 
+      - name: Phase 6D integration hardening proof
+        run: npm run check:phase6d-integration-hardening
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
