@@ -19,8 +19,8 @@ This phase does **not** give an LLM unrestricted authority to mutate company sta
 ```text
 7A Automation policy foundation                         COMPLETE
 7B Approval / role / risk / amount enforcement          COMPLETE
-7C First bounded low-risk auto-execution path           IN PROGRESS
-7D Recovery / compensating actions / kill switch        NOT STARTED
+7C First bounded low-risk auto-execution path           COMPLETE
+7D Recovery / compensating actions / kill switch        IN PROGRESS
 7E Automation analytics + UI + final audit              NOT STARTED
 ```
 
@@ -257,3 +257,41 @@ Verified:
 8. prove RECORD_PAYMENT / UPDATE_STATUS / CREATE_ORDER cannot use the auto path
 9. prove cross-account auto execution is denied
 10. add executable 7C CI proof
+
+
+## Phase 7C verification
+
+Quality Gate `35428055078` passed the first bounded automatic write path.
+
+Verified:
+
+- RECEIVE_INVENTORY is the only Phase 7C auto-executable intent
+- policy is re-evaluated immediately before execution
+- disabled policy blocks a proposal that was previously eligible
+- tightened quantity threshold blocks a previously eligible proposal
+- execution delegates to the existing Phase 4 ActionExecutionService
+- Phase 4 stale-precondition protection remains authoritative
+- stale automatic execution returns ACTION_STALE and writes nothing
+- automatic execution records AUTOMATION_POLICY mode
+- actor role, policy ID, and policy version are persisted on ActionExecution
+- audit detail distinguishes policy authorization from manual confirmation
+- policy-authorized state uses explicit provenance
+- repeated automatic execution is idempotent and returns the existing execution
+- RECORD_PAYMENT / UPDATE_STATUS / CREATE_ORDER are hard-blocked from the automatic path
+- cross-account automatic execution is denied
+- TypeScript, production build, all Phase 0–7B gates, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 7D — recovery / compensating action / kill switch**
+
+1. add an account-scoped emergency automation kill switch independent of normal policy editing
+2. make policy evaluation and execution fail closed while the kill switch is active
+3. persist AutomationRun state for automatic execution attempts
+4. classify blocked / stale / validation / technical failures
+5. allow bounded retry only for technical failures
+6. keep deterministic policy/stale failures non-retryable
+7. implement explicit compensation for successful inventory automation only when current effective state still equals the original automatic result
+8. refuse blind compensation if later state changed; mark operator recovery required instead
+9. route compensation through the existing audited action execution machinery
+10. add executable 7D CI proof
