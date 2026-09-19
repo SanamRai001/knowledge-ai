@@ -18,8 +18,8 @@ Phase 8 turns the mature product into an extensible platform without allowing ex
 8A Stable developer API + permission manifest           COMPLETE
 8B Plugin/tool registration + execution contract        COMPLETE
 8C Custom detector framework                            COMPLETE
-8D Domain-pack packaging                                IN PROGRESS
-8E Platform UI/docs + final Phase 8 audit              NOT STARTED
+8D Domain-pack packaging                                COMPLETE
+8E Platform UI/docs + final Phase 8 audit              IN PROGRESS
 ```
 
 ## Non-negotiable platform boundary
@@ -379,3 +379,55 @@ Verified:
 8. expose pack inventory/installations/template-run through stable scoped platform operations
 9. prove pack installation/run is tenant isolated and cannot auto-execute Actions or silently activate Watches
 10. then proceed to Phase 8E platform UI/docs + final Phase 8 audit
+
+
+## Phase 8D verification
+
+Quality Gate `35433062179` passed the declarative domain-pack framework.
+
+Verified:
+
+- versioned declarative DomainPack descriptors
+- data-only `executionMode: DECLARATIVE`
+- entity vocabulary packaging
+- registered detector templates with exact detector/version references
+- detector override allowlists validated against registered detector schemas
+- suggestion-only Watch templates
+- proposal-only Action templates
+- account-scoped installation persistence
+- idempotent same-account pack installation
+- detector templates execute only through DetectorExecutionService
+- domain packs contain no executable handlers/functions/runtime code
+- structural CI guard rejects executable fields/modes without false positives from normal metadata such as `evaluationMode`
+- stable `platform:domain-packs:read` / `platform:domain-packs:write` scopes
+- stable inventory/install/template-run API contracts
+- foreign raw Dataset IDs remain inaccessible
+- caller-supplied account headers do not change tenant identity
+- installing/running a pack does not create Action proposals
+- installing/running a pack does not silently activate Watch rules
+- TypeScript, production build, all Phase 0–8C gates, unseen benchmark, and live Gemini benchmark remain green
+
+### First built-in domain pack
+
+`inventory.operations@1.0.0` packages:
+
+- PRODUCT / SUPPLIER vocabulary
+- registered `inventory.fixed-low-stock@1.0.0` detector template
+- suggestion-only per-product CURRENT_STOCK Watch template
+- proposal-only RECEIVE_INVENTORY action wording template
+- inventory UI metadata
+
+## Current exact next work
+
+**Phase 8E — Platform UI/docs + final Phase 8 audit**
+
+1. replace the legacy Specialized-AI developer screen with the real stable Platform API surface
+2. expose manifest/scopes and clearly distinguish `/api/platform/v1` from legacy `/api/v1`
+3. support explicit scoped API-key creation
+4. expose registered tools, detectors, and domain-pack descriptors without handlers
+5. provide a bounded read-only API explorer rather than a generic arbitrary mutation client
+6. expose existing account API usage/audit
+7. add a Phase 8E UI contract proof
+8. run the full integrated Quality Gate
+9. create `docs/PHASE_8_FINAL_AUDIT.md`
+10. mark Phase 8 complete only after the integrated gate is green
