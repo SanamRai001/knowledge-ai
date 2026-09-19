@@ -17,8 +17,8 @@ This phase does **not** give an LLM unrestricted authority to mutate company sta
 ## Execution slices
 
 ```text
-7A Automation policy foundation                         IN PROGRESS
-7B Approval / role / risk / amount enforcement          NOT STARTED
+7A Automation policy foundation                         COMPLETE
+7B Approval / role / risk / amount enforcement          IN PROGRESS
 7C First bounded low-risk auto-execution path           NOT STARTED
 7D Recovery / compensating actions / kill switch        NOT STARTED
 7E Automation analytics + UI + final audit              NOT STARTED
@@ -180,3 +180,42 @@ Phase 7 is complete only when:
 **Phase 7A — Automation policy foundation**
 
 First audit the existing action contracts, risk classification, execution service, audit trail, and user identity/role model. Then implement the smallest authoritative AutomationPolicy store/evaluator and prove its denial/approval/allow decisions in CI before connecting it to any live auto-execution path.
+
+
+## Phase 7A verification
+
+Quality Gate `35426383338` passed the automation-policy foundation.
+
+Verified:
+
+- versioned account-scoped AutomationPolicy persistence
+- conservative missing-policy default
+- SUGGEST_ONLY / REQUIRE_APPROVAL / AUTO_EXECUTE_LOW_RISK modes
+- deterministic DENY / REQUIRE_APPROVAL / ALLOW_AUTO_EXECUTE decisions
+- action allowlists
+- risk-class thresholds
+- amount and quantity thresholds
+- request-identity-source restrictions
+- disabled policy deny
+- prompt-injection text cannot raise automation permission
+- RECORD_PAYMENT remains approval-routed
+- UPDATE_STATUS remains approval-routed
+- unsupported CREATE_ORDER is hard-denied
+- immutable policy history
+- authenticated actor attribution
+- cross-account policy/evaluation isolation
+- no live auto-execution path exists yet
+
+## Current exact next work
+
+**Phase 7B — Approval / role / target enforcement**
+
+1. add bounded automation actor roles derived from authenticated identity metadata
+2. add optional allowed-role constraints to AutomationPolicy
+3. add target entity/type constraints
+4. persist explicit approval-escalation requests for REQUIRE_APPROVAL decisions
+5. support approve/reject lifecycle without auto-executing the action yet
+6. ensure approval authority itself is role-constrained and account-scoped
+7. keep policy decisions deterministic and independent of prompt wording
+8. add executable 7B proof
+9. only after 7B is green, connect one low-risk action in Phase 7C
