@@ -32,6 +32,7 @@ export type AutomationReasonCode =
   | 'PROPOSAL_NOT_READY'
   | 'ACTOR_SOURCE_NOT_ALLOWED'
   | 'ACTOR_ROLE_NOT_ALLOWED'
+  | 'AUTOMATION_KILL_SWITCH_ACTIVE'
   | 'TARGET_ENTITY_TYPE_NOT_ALLOWED'
   | 'TARGET_ENTITY_NOT_ALLOWED'
   | 'RISK_EXCEEDS_POLICY'
@@ -124,4 +125,61 @@ export interface AutomationApprovalRequest {
   resolvedBy?: string;
   resolvedByRole?: AutomationActorRole;
   resolutionNote?: string;
+}
+
+
+export interface AutomationControlState {
+  accountId: string;
+  version: number;
+  emergencyDisabled: boolean;
+  reason?: string;
+  updatedAt: number;
+  updatedBy: string;
+}
+
+export interface AutomationControlRevision {
+  id: string;
+  accountId: string;
+  version: number;
+  snapshot: AutomationControlState;
+  changedAt: number;
+  changedBy: string;
+}
+
+export type AutomationRunStatus =
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'BLOCKED'
+  | 'FAILED'
+  | 'COMPENSATED'
+  | 'RECOVERY_REQUIRED';
+
+export type AutomationFailureCategory =
+  | 'POLICY'
+  | 'KILL_SWITCH'
+  | 'STALE_STATE'
+  | 'VALIDATION'
+  | 'TECHNICAL'
+  | 'UNSUPPORTED';
+
+export interface AutomationRun {
+  id: string;
+  accountId: string;
+  proposalId: string;
+  status: AutomationRunStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  actor: string;
+  actorRole: AutomationActorRole;
+  policyId?: string;
+  policyVersion?: number;
+  executionId?: string;
+  failureCategory?: AutomationFailureCategory;
+  retryable?: boolean;
+  lastError?: string;
+  startedAt: number;
+  updatedAt: number;
+  completedAt?: number;
+  compensationProposalId?: string;
+  compensationExecutionId?: string;
 }
