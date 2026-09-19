@@ -1041,8 +1041,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A1 — persistence forensic audit.**
+> **Continue with Production Hardening A2 — PostgreSQL foundation + repository contracts.**
 
-Phases 0–8 are complete. The final Phase 8 integrated Quality Gate is `35433633151`.
+Phases 0–8 are complete. Production Hardening A1 is complete in `docs/PRODUCTION_PERSISTENCE_AUDIT.md`.
 
-Open `docs/PRODUCTION_HARDENING_ROADMAP.md`, inventory all mutable persistence stores, classify them by migration priority, and define the smallest PostgreSQL-backed vertical slice before changing runtime behavior. Preserve every Phase 0–8 gate during the migration.
+The first relational slice is deliberately metadata-first: accounts, workspace metadata/per-account active selection, API-key metadata/usage, Dataset metadata/version provenance/import runs. Do not migrate parsed document bodies, chat history, Dataset row payloads, or OAuth secret material in migration 001.
