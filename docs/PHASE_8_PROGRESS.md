@@ -16,8 +16,8 @@ Phase 8 turns the mature product into an extensible platform without allowing ex
 
 ```text
 8A Stable developer API + permission manifest           COMPLETE
-8B Plugin/tool registration + execution contract        IN PROGRESS
-8C Custom detector framework                            NOT STARTED
+8B Plugin/tool registration + execution contract        COMPLETE
+8C Custom detector framework                            IN PROGRESS
 8D Domain-pack packaging                                NOT STARTED
 8E Platform UI/docs + final Phase 8 audit              NOT STARTED
 ```
@@ -294,3 +294,46 @@ It is not the authoritative Phase 8 platform contract and is not silently grante
 8. expose tool inventory + invoke through the stable platform API
 9. add executable tests proving no arbitrary-code / direct-write bypass
 10. only then proceed to custom detector registration
+
+
+## Phase 8B verification
+
+Quality Gate `35432530926` passed the registered-tool framework.
+
+Verified:
+
+- versioned stable registered-tool descriptors
+- closed input schemas with `additionalProperties: false`
+- trusted built-in execution mode only
+- unique dotted tool IDs
+- generic `platform:tools:invoke` permission required
+- tool-specific capability scopes required in addition to generic invoke
+- legacy/read scopes do not imply invocation authority
+- tool inventory never exposes handler functions
+- registry rejects arbitrary/non-built-in execution modes
+- registered handlers delegate existing Phase 0–7 services
+- account identity comes from the API key, not caller-supplied fields/headers
+- foreign raw resource IDs remain inaccessible
+- unknown arbitrary tools fail closed
+- the only mutation tool is proposal-only `actions.propose`
+- proposal tool cannot confirm, execute, auto-execute, or mutate company state
+- input validation rejects caller-supplied `accountId`
+- invocation audit persists a SHA-256 input hash rather than raw tool input
+- stable tool inventory/invoke/audit routes are declared in the platform manifest
+- structural CI guard rejects confirm/execute/automation/shell/eval/arbitrary-code operation IDs/paths/tool IDs without false positives from documentation prose
+- TypeScript, production build, all Phase 0–8A gates, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 8C — custom detector framework**
+
+1. define a registered deterministic detector descriptor with detector ID/version, source type, config schema, output/evidence contract, stability, and execution mode
+2. keep first-slice handlers trusted built-ins only; no uploaded JavaScript, eval, shell, SQL, arbitrary HTTP, or runtime code
+3. validate detector config through a closed schema
+4. execute detectors only against account-authorized DatasetVersions
+5. reuse the existing effective Dataset overlay before measurement
+6. persist results through the existing DiscoveryStore / Insight model
+7. preserve dataset/version/source hash, detector ID/version, calculation, rows, severity, and reproducibility config hash
+8. expose detector inventory + run through the stable platform API with dedicated scopes
+9. add executable tests for deterministic replay, provenance, scope/account isolation, unknown detector denial, and arbitrary-code denial
+10. only after that proceed to Phase 8D domain packs
