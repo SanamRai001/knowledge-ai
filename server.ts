@@ -69,6 +69,7 @@ import { watchRouter } from './server/watch/watchRouter.js';
 import { watchScheduler } from './server/watch/watchScheduler.js';
 import { integrationRouter } from './server/integrations/integrationRouter.js';
 import { automationRouter } from './server/automation/automationRouter.js';
+import { platformApiRouter } from './server/platform/platformApiRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -110,6 +111,7 @@ app.use('/api/actions', actionRouter);
 app.use('/api/watch', watchRouter);
 app.use('/api/integrations', integrationRouter);
 app.use('/api/automation', automationRouter);
+app.use('/api/platform/v1', platformApiRouter);
 
 // --- API ROUTES ---
 
