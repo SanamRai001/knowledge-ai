@@ -186,3 +186,44 @@ jobs:
             exit 0
           fi
           npm run benchmark:unseen:gemini
+
+  postgres-a2:
+    name: Production A2 PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: knowledge_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d knowledge_ai_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/knowledge_ai_test
+      DATABASE_SSL: disable
+      DATABASE_POOL_MAX: 5
+      KNOWLEDGE_AI_PERSISTENCE_MODE: postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Production A2 PostgreSQL proof
+        run: npm run check:production-a2-postgres
