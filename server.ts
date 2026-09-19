@@ -848,7 +848,7 @@ app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
 // List API Keys
 app.get('/api/v1/developer/keys', (req, res) => {
   try {
-    const keys = apiKeyStore.listApiKeys('acc_default');
+    const keys = apiKeyStore.listApiKeyMetadata('acc_default');
     res.json({ keys });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to list API keys' });
@@ -866,7 +866,7 @@ app.post('/api/v1/developer/keys', (req, res) => {
       scopes,
     });
     res.json({
-      apiKey: created.apiKey,
+      apiKey: apiKeyStore.publicApiKey(created.apiKey),
       secret: created.secret,
       message: 'API Key created successfully. Store this key securely; it will not be shown again.',
     });
@@ -885,7 +885,7 @@ app.delete('/api/v1/developer/keys/:id', (req, res) => {
     }
     res.json({
       message: 'API key revoked successfully',
-      keys: apiKeyStore.listApiKeys('acc_default'),
+      keys: apiKeyStore.listApiKeyMetadata('acc_default'),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to revoke API key' });
