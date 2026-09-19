@@ -1007,8 +1007,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 7A — Automation policy foundation.**
+> **Continue with Phase 7B — approval / role / target enforcement.**
 
-Phase 6 is complete and green in Quality Gate `35423633294`. Google Drive and Microsoft OneDrive now synchronize through the same hardened connector architecture and the Integrations workspace exposes real OAuth, sync, recovery, provenance, and lifecycle state.
+Phase 7A is complete and green in Quality Gate `35426383338`. The deterministic policy engine already enforces conservative defaults, action allowlists, risk/amount/quantity limits, identity-source restrictions, unsupported-action denial, and immutable policy history.
 
-The next concrete work is not “make the AI autonomous.” It is the policy layer that decides whether an already-supported Phase 4 action must stay suggestion-only, require explicit approval, or may auto-execute as a bounded low-risk action. Policy must be deterministic, account-scoped, auditable, and impossible to bypass with prompt text.
+The next work is to add bounded actor-role and target constraints plus a persisted approval-escalation lifecycle. Do not connect ALLOW_AUTO_EXECUTE to the Phase 4 write path until Phase 7B is green.
