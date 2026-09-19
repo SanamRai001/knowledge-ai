@@ -64,10 +64,11 @@ function main() {
   );
 
   assert(
-    automation.includes('SUGGEST_ONLY') === false &&
-      automation.includes('Suggested actions still live in Actions') &&
-      automation.includes('approval required') === false,
-    'Automation UI should describe product states in operator language rather than expose an internal-mode menu as the primary experience.'
+    automation.includes('Suggested actions still live in Actions') &&
+      automation.includes('Approval queue') &&
+      automation.includes('Automation run history') &&
+      automation.includes('pretty(policy.mode)'),
+    'Automation UI must distinguish suggested work, approval routing, policy mode, and automatic run outcomes in operator-facing language.'
   );
 
   assert(
