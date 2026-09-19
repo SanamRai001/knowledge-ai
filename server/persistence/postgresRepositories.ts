@@ -570,13 +570,14 @@ export class PostgresDatasetMetadataRepository
 
     await postgresPool().query(
       `INSERT INTO dataset_versions
-        (id, dataset_id, version_number, created_at,
+        (id, account_id, dataset_id, version_number, created_at,
          source_filename, source_mime_type, source_size_bytes,
          source_sha256, source_format, import_run_id,
          payload_backend, payload_ref)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         version.id,
+        accountId,
         version.datasetId,
         version.versionNumber,
         new Date(version.createdAt),
@@ -601,8 +602,9 @@ export class PostgresDatasetMetadataRepository
       `SELECT version.*
        FROM dataset_versions version
        JOIN datasets dataset
-         ON dataset.id = version.dataset_id
-       WHERE dataset.account_id = $1
+         ON dataset.account_id = version.account_id
+        AND dataset.id = version.dataset_id
+       WHERE version.account_id = $1
          AND dataset.id = $2
          AND version.id = $3`,
       [accountId, datasetId, versionId]
@@ -620,8 +622,9 @@ export class PostgresDatasetMetadataRepository
       `SELECT version.*
        FROM dataset_versions version
        JOIN datasets dataset
-         ON dataset.id = version.dataset_id
-       WHERE dataset.account_id = $1
+         ON dataset.account_id = version.account_id
+        AND dataset.id = version.dataset_id
+       WHERE version.account_id = $1
          AND dataset.id = $2
        ORDER BY version.version_number ASC`,
       [accountId, datasetId]
