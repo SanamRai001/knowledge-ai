@@ -472,21 +472,22 @@ export const IntegrationsWorkspace: React.FC = () => {
                   Choose Drive files
                 </button>
 
-                <DrivePicker
-                  clientId={googlePickerClientId}
-                  appId={googlePickerAppId}
-                  visible={pickerVisible}
-                  onPicked={() => {
-                    void afterPicker();
-                  }}
-                  onCanceled={() => setPickerVisible(false)}
-                  onOauthError={() => {
-                    setPickerVisible(false);
-                    setError('Google Picker could not authorize file selection.');
-                  }}
-                >
-                  <DrivePickerDocsView />
-                </DrivePicker>
+                {pickerVisible && (
+                  <DrivePicker
+                    client-id={googlePickerClientId}
+                    app-id={googlePickerAppId}
+                    onPicked={() => {
+                      void afterPicker();
+                    }}
+                    onCanceled={() => setPickerVisible(false)}
+                    onOauthError={() => {
+                      setPickerVisible(false);
+                      setError('Google Picker could not authorize file selection.');
+                    }}
+                  >
+                    <DrivePickerDocsView />
+                  </DrivePicker>
+                )}
               </>
             ) : (
               <div className="text-[10px] leading-4 text-slate-400">
