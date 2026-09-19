@@ -5,6 +5,7 @@ import { importLegacyMetadata } from '../server/persistence/legacyImporter.js';
 import { importLegacyA3 } from '../server/persistence/a3LegacyImporter.js';
 import { importLegacyA4 } from '../server/persistence/a4LegacyImporter.js';
 import { importLegacyA5 } from '../server/persistence/a5LegacyImporter.js';
+import { importLegacyA6 } from '../server/persistence/a6LegacyImporter.js';
 
 function argValue(name: string): string | undefined {
   const direct = process.argv.find((arg) =>
@@ -89,7 +90,24 @@ async function main() {
 
   if (a5.conflicts.length > 0) {
     console.error(
-      'LEGACY_A5_IMPORT_CONFLICTS: no cutover should occur until conflicts are resolved.'
+      'LEGACY_A5_IMPORT_CONFLICTS: A6 import was not attempted.'
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  const a6 = await importLegacyA6({
+    dataDir,
+    dryRun,
+  });
+
+  console.log(
+    JSON.stringify({ phase: 'A6', report: a6 }, null, 2)
+  );
+
+  if (a6.conflicts.length > 0) {
+    console.error(
+      'LEGACY_A6_IMPORT_CONFLICTS: no cutover should occur until conflicts are resolved.'
     );
     process.exitCode = 2;
     return;
