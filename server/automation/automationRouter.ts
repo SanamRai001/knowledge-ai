@@ -5,6 +5,8 @@ import {
   resolveRequestIdentity,
 } from '../requestIdentity.js';
 import { ActionAccessError, actionStore } from '../actions/actionStore.js';
+import { ActionExecutionError } from '../actions/actionExecutionService.js';
+import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
 import { ActionIntent } from '../actions/types.js';
 import {
   AutomationActorRole,
@@ -221,6 +223,8 @@ function handleError(
   if (
     error instanceof RequestIdentityError ||
     error instanceof ActionAccessError ||
+    error instanceof ActionExecutionError ||
+    error instanceof CompanyKnowledgeAccessError ||
     error instanceof AutomationPolicyInputError ||
     error instanceof AutomationApprovalAccessError ||
     error instanceof AutomationApprovalError ||
