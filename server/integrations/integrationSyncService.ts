@@ -8,6 +8,7 @@ import {
   publicConnection,
 } from './integrationStore.js';
 import { testIntegrationConnector } from './connectors/testConnector.js';
+import { googleDriveConnector } from './connectors/googleDriveConnector.js';
 import {
   ExternalImportState,
   ExternalRecord,
@@ -21,6 +22,9 @@ import {
 
 if (!connectorRegistry.get('TEST')) {
   connectorRegistry.register(testIntegrationConnector);
+}
+if (!connectorRegistry.get('GOOGLE_DRIVE')) {
+  connectorRegistry.register(googleDriveConnector);
 }
 
 export class IntegrationSyncError extends Error {
