@@ -3,6 +3,7 @@ import { runPostgresMigrations } from '../server/persistence/migrationRunner.js'
 import { closePostgresPool } from '../server/persistence/postgres.js';
 import { importLegacyMetadata } from '../server/persistence/legacyImporter.js';
 import { importLegacyA3 } from '../server/persistence/a3LegacyImporter.js';
+import { importLegacyA4 } from '../server/persistence/a4LegacyImporter.js';
 
 function argValue(name: string): string | undefined {
   const direct = process.argv.find((arg) =>
@@ -36,7 +37,7 @@ async function main() {
 
   if (a2.conflicts.length > 0) {
     console.error(
-      'LEGACY_A2_IMPORT_CONFLICTS: A3 import was not attempted.'
+      'LEGACY_A2_IMPORT_CONFLICTS: later relational imports were not attempted.'
     );
     process.exitCode = 2;
     return;
@@ -53,7 +54,24 @@ async function main() {
 
   if (a3.conflicts.length > 0) {
     console.error(
-      'LEGACY_A3_IMPORT_CONFLICTS: no cutover should occur until conflicts are resolved.'
+      'LEGACY_A3_IMPORT_CONFLICTS: A4 import was not attempted.'
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  const a4 = await importLegacyA4({
+    dataDir,
+    dryRun,
+  });
+
+  console.log(
+    JSON.stringify({ phase: 'A4', report: a4 }, null, 2)
+  );
+
+  if (a4.conflicts.length > 0) {
+    console.error(
+      'LEGACY_A4_IMPORT_CONFLICTS: no cutover should occur until conflicts are resolved.'
     );
     process.exitCode = 2;
     return;
