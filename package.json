@@ -51,7 +51,8 @@
     "check:phase7d-automation-recovery": "tsx scripts/check-phase7d-automation-recovery.ts",
     "check:phase7e-automation-quality": "tsx scripts/check-phase7e-automation-quality.ts",
     "check:phase7e-automation-ui": "tsx scripts/check-phase7e-automation-ui-contract.ts",
-    "check:phase8a-platform-api": "tsx scripts/check-phase8a-stable-platform-api.ts"
+    "check:phase8a-platform-api": "tsx scripts/check-phase8a-stable-platform-api.ts",
+    "check:phase8b-registered-tools": "tsx scripts/check-phase8b-registered-tools.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
