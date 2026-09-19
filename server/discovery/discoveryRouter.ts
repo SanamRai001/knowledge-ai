@@ -7,7 +7,7 @@ import {
 } from '../requestIdentity.js';
 import { WorkspaceAccessError } from '../workspaceAccessService.js';
 import { DiscoveryAccessError } from './discoveryStore.js';
-import { discoveryService } from './discoveryService.js';
+import { discoveryRuntimeService } from './discoveryRuntimeService.js';
 import { InsightStatus } from './types.js';
 
 export const discoveryRouter = express.Router();
@@ -64,7 +64,7 @@ function parseStatus(value: unknown): InsightStatus | undefined {
   return undefined;
 }
 
-discoveryRouter.post('/analyze', (req, res) => {
+discoveryRouter.post('/analyze', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const datasetId =
@@ -86,7 +86,7 @@ discoveryRouter.post('/analyze', (req, res) => {
     }
 
     const result = datasetId
-      ? discoveryService.analyzeDataset({
+      ? await discoveryRuntimeService.analyzeDataset({
           accountId,
           datasetId,
           versionId:
@@ -94,7 +94,7 @@ discoveryRouter.post('/analyze', (req, res) => {
               ? req.body.versionId.trim()
               : undefined,
         })
-      : discoveryService.analyzeKnowledgeBase({
+      : await discoveryRuntimeService.analyzeKnowledgeBase({
           accountId,
           knowledgeBaseId: knowledgeBaseId!,
         });
@@ -105,7 +105,7 @@ discoveryRouter.post('/analyze', (req, res) => {
   }
 });
 
-discoveryRouter.get('/runs', (req, res) => {
+discoveryRouter.get('/runs', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const datasetId =
@@ -120,7 +120,7 @@ discoveryRouter.get('/runs', (req, res) => {
         : undefined;
 
     res.json({
-      runs: discoveryService.listRuns(
+      runs: await discoveryRuntimeService.listRuns(
         accountId,
         datasetId,
         knowledgeBaseId
@@ -131,7 +131,7 @@ discoveryRouter.get('/runs', (req, res) => {
   }
 });
 
-discoveryRouter.get('/', (req, res) => {
+discoveryRouter.get('/', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const datasetId =
@@ -152,7 +152,7 @@ discoveryRouter.get('/', (req, res) => {
       typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
 
     res.json({
-      insights: discoveryService.listInsights({
+      insights: await discoveryRuntimeService.listInsights({
         accountId,
         datasetId,
         knowledgeBaseId,
@@ -170,7 +170,7 @@ discoveryRouter.get('/', (req, res) => {
   }
 });
 
-discoveryRouter.patch('/:id/status', (req, res) => {
+discoveryRouter.patch('/:id/status', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const status = parseStatus(req.body?.status);
@@ -183,7 +183,7 @@ discoveryRouter.patch('/:id/status', (req, res) => {
     }
 
     res.json({
-      insight: discoveryService.updateInsightStatus(
+      insight: await discoveryRuntimeService.updateInsightStatus(
         accountId,
         req.params.id,
         status
@@ -194,11 +194,14 @@ discoveryRouter.patch('/:id/status', (req, res) => {
   }
 });
 
-discoveryRouter.get('/:id', (req, res) => {
+discoveryRouter.get('/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      insight: discoveryService.getInsight(accountId, req.params.id),
+      insight: await discoveryRuntimeService.getInsight(
+        accountId,
+        req.params.id
+      ),
     });
   } catch (error) {
     handleError(res, error);
