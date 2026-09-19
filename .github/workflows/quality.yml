@@ -146,6 +146,12 @@ jobs:
       - name: Phase 7D automation recovery proof
         run: npm run check:phase7d-automation-recovery
 
+      - name: Phase 7E automation quality proof
+        run: npm run check:phase7e-automation-quality
+
+      - name: Phase 7E Automation UI proof
+        run: npm run check:phase7e-automation-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
