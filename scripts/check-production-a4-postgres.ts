@@ -737,7 +737,8 @@ async function main() {
     repeated.conflicts.length === 0 &&
       Object.values(repeated.imported).every((count) => count === 0) &&
       repeated.skippedExisting === 8,
-    'A4 legacy import must be idempotent.'
+    'A4 legacy import must be idempotent. ' +
+      JSON.stringify(repeated)
   );
 
   assert(
