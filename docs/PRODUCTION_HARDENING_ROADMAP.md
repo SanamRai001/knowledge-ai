@@ -524,7 +524,9 @@ A1 Persistence forensic audit                         ✅ COMPLETE
 A2 Core PostgreSQL metadata                           ✅ COMPLETE
 A3 Living Knowledge + Actions PostgreSQL              ✅ COMPLETE
 A4 Watch + Integrations PostgreSQL                    ✅ COMPLETE
-A5 Automation + Platform state PostgreSQL             🚧 IN PROGRESS
+A5 Automation + Platform state PostgreSQL             ✅ COMPLETE
+A6 Discovery + Insights PostgreSQL                    ✅ COMPLETE
+A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -535,17 +537,20 @@ A4 completion evidence:
 
 ## Current exact task
 
-**Production Hardening A5 — Automation + Platform state relational persistence**
+**Production Hardening A7 — PostgreSQL runtime cutover**
 
-Current implementation scope:
+Repository/schema existence is no longer the blocker. Production runtime selection is.
 
-1. migration 004 for Automation governance/run state + Platform installation/audit state
-2. PostgreSQL repository contracts/adapters
-3. transactional policy + immutable revision commit
-4. transactional emergency kill-switch + immutable revision commit
-5. same-account approval/run → Action relationships
-6. Domain Pack active-installation constraints
-7. ToolInvocationAudit → same-account API-key constraint
-8. A5 legacy dry-run/idempotent importer
-9. real PostgreSQL A5 proof
-10. preserve the complete Phase 0–8 Quality Gate
+1. inventory which normal runtime services still instantiate/import legacy file stores directly
+2. introduce explicit repository/provider selection for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
+3. start with Discovery/Insights as the first bounded async cutover because A6 now has a complete repository
+4. preserve file-mode behavior for local development
+5. add restart persistence proof: write through normal service/API → reconstruct process/service → read the same PostgreSQL state
+6. add file/postgres behavioral parity for account isolation, recurrence, and status transitions
+7. then cut over higher-risk Action/Watch/Integration/Automation paths in bounded slices
+8. keep legacy import and rollback paths until the production cutover gate is complete
+9. do not remove source/object payload files that belong to the separate object-storage track
+
+A6 completion evidence:
+
+`docs/PRODUCTION_A6_POSTGRES_DISCOVERY.md`
