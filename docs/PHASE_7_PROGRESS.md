@@ -18,8 +18,8 @@ This phase does **not** give an LLM unrestricted authority to mutate company sta
 
 ```text
 7A Automation policy foundation                         COMPLETE
-7B Approval / role / risk / amount enforcement          IN PROGRESS
-7C First bounded low-risk auto-execution path           NOT STARTED
+7B Approval / role / risk / amount enforcement          COMPLETE
+7C First bounded low-risk auto-execution path           IN PROGRESS
 7D Recovery / compensating actions / kill switch        NOT STARTED
 7E Automation analytics + UI + final audit              NOT STARTED
 ```
@@ -219,3 +219,41 @@ Verified:
 7. keep policy decisions deterministic and independent of prompt wording
 8. add executable 7B proof
 9. only after 7B is green, connect one low-risk action in Phase 7C
+
+
+## Phase 7B verification
+
+Quality Gate `35427776401` passed approval/role/target enforcement.
+
+Verified:
+
+- bounded automation actor roles derived from authenticated identity metadata
+- legacy API keys without role scopes resolve conservatively as SERVICE
+- optional policy role allowlists
+- optional approval-role allowlists
+- target entity-ID allowlists
+- target entity-type allowlists
+- amount and quantity escalation
+- durable PENDING / APPROVED / REJECTED approval requests
+- approval request captures immutable policy ID/version and decision reasons
+- repeated escalation is idempotent for the same proposal/policy version
+- requester cannot self-approve unless their role is explicitly eligible
+- cross-account approval inspection/resolution is denied
+- later policy edits do not silently rewrite an existing approval request
+- approval does not execute the action
+- TypeScript, production build, all Phase 0–7A proofs, unseen benchmark, and live Gemini benchmark remain green
+
+## Current exact next work
+
+**Phase 7C — first bounded low-risk auto-execution path**
+
+1. choose RECEIVE_INVENTORY only
+2. create an AutomationExecutionService that re-evaluates policy immediately before execution
+3. permit execution only for ALLOW_AUTO_EXECUTE
+4. call the existing Phase 4 ActionExecutionService rather than a new write path
+5. add execution-mode/policy metadata to ActionExecution and audit detail
+6. preserve idempotency and stale-precondition protection
+7. prove disabled/changed policy blocks execution even after an earlier allow decision
+8. prove RECORD_PAYMENT / UPDATE_STATUS / CREATE_ORDER cannot use the auto path
+9. prove cross-account auto execution is denied
+10. add executable 7C CI proof
