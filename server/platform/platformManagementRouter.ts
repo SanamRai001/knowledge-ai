@@ -92,7 +92,7 @@ function normalizePlatformScopes(value: unknown): string[] {
 platformManagementRouter.get('/keys', (_req, res) => {
   const { accountId } = identity(res);
   res.json({
-    keys: apiKeyStore.listApiKeys(accountId),
+    keys: apiKeyStore.listApiKeyMetadata(accountId),
   });
 });
 
@@ -116,7 +116,7 @@ platformManagementRouter.post('/keys', (req, res) => {
     });
 
     res.status(201).json({
-      apiKey: created.apiKey,
+      apiKey: apiKeyStore.publicApiKey(created.apiKey),
       secret: created.secret,
       message:
         'Platform API key created. The secret is returned only once.',
@@ -147,7 +147,7 @@ platformManagementRouter.delete('/keys/:id', (req, res) => {
 
   res.json({
     message: 'API key revoked.',
-    keys: apiKeyStore.listApiKeys(accountId),
+    keys: apiKeyStore.listApiKeyMetadata(accountId),
   });
 });
 
