@@ -54,7 +54,8 @@
     "check:phase8a-platform-api": "tsx scripts/check-phase8a-stable-platform-api.ts",
     "check:phase8b-registered-tools": "tsx scripts/check-phase8b-registered-tools.ts",
     "check:phase8c-custom-detectors": "tsx scripts/check-phase8c-custom-detectors.ts",
-    "check:phase8d-domain-packs": "tsx scripts/check-phase8d-domain-packs.ts"
+    "check:phase8d-domain-packs": "tsx scripts/check-phase8d-domain-packs.ts",
+    "check:phase8e-platform-ui": "tsx scripts/check-phase8e-platform-ui.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
