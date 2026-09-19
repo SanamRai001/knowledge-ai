@@ -15,10 +15,11 @@ import {
   Network,
   Cpu,
   BellRing,
+  PlugZap,
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 
-export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'watch' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
+export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -185,6 +186,19 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <BellRing className="w-3.5 h-3.5 text-emerald-700" />
           <span>Watch</span>
+        </button>
+
+        <button
+          id="nav-tab-integrations"
+          onClick={() => onTabChange('integrations')}
+          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            currentTab === 'integrations'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+          }`}
+        >
+          <PlugZap className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Integrations</span>
         </button>
 
         <button
