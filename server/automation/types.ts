@@ -13,6 +13,14 @@ export type AutomationDecision =
   | 'REQUIRE_APPROVAL'
   | 'ALLOW_AUTO_EXECUTE';
 
+export type AutomationActorRole =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'APPROVER'
+  | 'OPERATOR'
+  | 'SERVICE'
+  | 'MEMBER';
+
 export type AutomationReasonCode =
   | 'POLICY_MISSING'
   | 'POLICY_DISABLED'
@@ -23,6 +31,9 @@ export type AutomationReasonCode =
   | 'ACTION_NOT_AUTOMATABLE'
   | 'PROPOSAL_NOT_READY'
   | 'ACTOR_SOURCE_NOT_ALLOWED'
+  | 'ACTOR_ROLE_NOT_ALLOWED'
+  | 'TARGET_ENTITY_TYPE_NOT_ALLOWED'
+  | 'TARGET_ENTITY_NOT_ALLOWED'
   | 'RISK_EXCEEDS_POLICY'
   | 'AMOUNT_EXCEEDS_POLICY'
   | 'QUANTITY_EXCEEDS_POLICY'
@@ -39,6 +50,10 @@ export interface AutomationPolicy {
   maxAmount?: number;
   maxQuantity?: number;
   allowedIdentitySources: RequestIdentity['source'][];
+  allowedActorRoles?: AutomationActorRole[];
+  approvalRoles?: AutomationActorRole[];
+  allowedTargetEntityTypes?: string[];
+  allowedTargetEntityIds?: string[];
   createdAt: number;
   updatedAt: number;
   createdBy: string;
@@ -71,6 +86,7 @@ export interface AutomationEvaluation {
   reasonCodes: AutomationReasonCode[];
   reasons: string[];
   risk: AutomationRiskProfile;
+  actorRole: AutomationActorRole;
   policyId?: string;
   policyVersion?: number;
   evaluatedAt: number;
@@ -80,4 +96,32 @@ export interface AutomationEvaluationInput {
   accountId: string;
   proposal: ActionProposal;
   identity: RequestIdentity;
+}
+
+
+export type AutomationApprovalStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'EXPIRED';
+
+export interface AutomationApprovalRequest {
+  id: string;
+  accountId: string;
+  proposalId: string;
+  policyId: string;
+  policyVersion: number;
+  status: AutomationApprovalStatus;
+  requestedBy: string;
+  requestedByRole: AutomationActorRole;
+  eligibleRoles: AutomationActorRole[];
+  decisionReasonCodes: AutomationReasonCode[];
+  decisionReasons: string[];
+  requestedAt: number;
+  expiresAt: number;
+  resolvedAt?: number;
+  resolvedBy?: string;
+  resolvedByRole?: AutomationActorRole;
+  resolutionNote?: string;
 }
