@@ -8,7 +8,6 @@ import {
   Clock3,
   History,
   Loader2,
-  PauseCircle,
   PlayCircle,
   RefreshCw,
   RotateCcw,
@@ -19,7 +18,6 @@ import {
   Undo2,
   UserCheck,
   XCircle,
-  Zap,
 } from 'lucide-react';
 
 type AutomationActorRole =
