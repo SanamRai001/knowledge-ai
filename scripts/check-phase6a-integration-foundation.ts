@@ -203,8 +203,10 @@ async function main() {
       failed.importedCount === 1 &&
       failed.failedCount === 1 &&
       afterFailure.cursor === '2' &&
+      afterFailure.status === 'ERROR' &&
+      afterFailure.attentionReason === 'SYNC_FAILED' &&
       productImport?.status === 'READY',
-    'A partial sync failure must preserve successful idempotent imports but must not advance the checkpoint.'
+    'A partial sync failure must preserve successful idempotent imports, freeze the checkpoint, and expose explicit connection error state.'
   );
 
   const productDatasetVersionCount =
@@ -219,6 +221,16 @@ async function main() {
     externalVersion: 'v1',
     failFetch: false,
   });
+
+  const resumed = integrationSyncService.resume(
+    accountA,
+    connection.id
+  );
+  assert(
+    resumed.status === 'ACTIVE' &&
+      resumed.attentionReason === undefined,
+    'A generic failed sync must require explicit resume before retry.'
+  );
 
   const retry = await integrationSyncService.sync({
     accountId: accountA,
