@@ -45,6 +45,28 @@ function limitFrom(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function wantsHtml(req: express.Request): boolean {
+  return String(req.headers.accept || '')
+    .toLowerCase()
+    .includes('text/html');
+}
+
+function integrationReturnUrl(params: {
+  provider: 'google-drive' | 'onedrive';
+  status: 'connected' | 'error';
+  message?: string;
+}): string {
+  const query = new URLSearchParams({
+    tab: 'integrations',
+    integration: params.status,
+    provider: params.provider,
+  });
+  if (params.message) {
+    query.set('message', params.message.slice(0, 240));
+  }
+  return '/?' + query.toString();
+}
+
 function handleError(res: express.Response, error: any): void {
   if (
     error instanceof RequestIdentityError ||
@@ -107,11 +129,23 @@ integrationRouter.get(
         typeof req.query.error === 'string' &&
         req.query.error
       ) {
+        const message =
+          typeof req.query.error_description === 'string'
+            ? req.query.error_description
+            : 'Microsoft OneDrive authorization was not completed.';
+        if (wantsHtml(req)) {
+          res.redirect(
+            303,
+            integrationReturnUrl({
+              provider: 'onedrive',
+              status: 'error',
+              message,
+            })
+          );
+          return;
+        }
         res.status(400).json({
-          error:
-            typeof req.query.error_description === 'string'
-              ? req.query.error_description
-              : 'Microsoft OneDrive authorization was not completed.',
+          error: message,
           code: 'ONEDRIVE_OAUTH_DENIED',
         });
         return;
@@ -128,6 +162,16 @@ integrationRouter.get(
               ? req.query.code
               : '',
         });
+      if (wantsHtml(req)) {
+        res.redirect(
+          303,
+          integrationReturnUrl({
+            provider: 'onedrive',
+            status: 'connected',
+          })
+        );
+        return;
+      }
       res.status(201).json(result);
     } catch (error) {
       handleError(res, error);
@@ -200,11 +244,23 @@ integrationRouter.get(
         typeof req.query.error === 'string' &&
         req.query.error
       ) {
+        const message =
+          typeof req.query.error_description === 'string'
+            ? req.query.error_description
+            : 'Google Drive authorization was not completed.';
+        if (wantsHtml(req)) {
+          res.redirect(
+            303,
+            integrationReturnUrl({
+              provider: 'google-drive',
+              status: 'error',
+              message,
+            })
+          );
+          return;
+        }
         res.status(400).json({
-          error:
-            typeof req.query.error_description === 'string'
-              ? req.query.error_description
-              : 'Google Drive authorization was not completed.',
+          error: message,
           code: 'GOOGLE_OAUTH_DENIED',
         });
         return;
@@ -223,6 +279,16 @@ integrationRouter.get(
         state,
         code,
       });
+      if (wantsHtml(req)) {
+        res.redirect(
+          303,
+          integrationReturnUrl({
+            provider: 'google-drive',
+            status: 'connected',
+          })
+        );
+        return;
+      }
       res.status(201).json(result);
     } catch (error) {
       handleError(res, error);
