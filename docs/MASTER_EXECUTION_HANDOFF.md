@@ -850,11 +850,21 @@ Complete when extensions can add domain value without bypassing:
 
 ## Current status
 
-**IN PROGRESS**
+**COMPLETE**
+
+### Completion evidence
+
+- Final Phase 8 audit: `docs/PHASE_8_FINAL_AUDIT.md`
+- Final integrated Quality Gate: `35433633151`
+- Stable Platform API guide: `docs/PLATFORM_API_V1.md`
+
+The original Phase 0–8 product capability roadmap is complete.
 
 ### Exact next implementation task
 
-Start **Phase 8A — stable developer API foundation**.
+Continue with **Production Hardening A1 — persistence forensic audit**.
+
+Read `docs/PRODUCTION_HARDENING_ROADMAP.md` and inventory every mutable runtime store before introducing PostgreSQL.
 
 1. audit existing public/developer endpoints, API-key auth, scopes, and DeveloperPlatform UI
 2. define versioned external contracts for Sources, Ask, Insights, Actions, Watch, and Audit
@@ -1031,8 +1041,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 8E — Platform UI/docs + final Phase 8 audit.**
+> **Continue with Production Hardening A1 — persistence forensic audit.**
 
-Phase 8D is complete and green in Quality Gate `35433062179`. Declarative domain packs now package registered detector templates, suggestion-only Watches, proposal-only Actions, entity vocabulary, and UI metadata with account-scoped installation and no executable pack code.
+Phases 0–8 are complete. The final Phase 8 integrated Quality Gate is `35433633151`.
 
-The remaining Phase 8 work is the real developer/platform product surface, UI contract proof, full integrated gate, and final Phase 8 audit.
+Open `docs/PRODUCTION_HARDENING_ROADMAP.md`, inventory all mutable persistence stores, classify them by migration priority, and define the smallest PostgreSQL-backed vertical slice before changing runtime behavior. Preserve every Phase 0–8 gate during the migration.
