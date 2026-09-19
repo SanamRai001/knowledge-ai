@@ -1031,8 +1031,8 @@ Do this:
 
 As of this document version:
 
-> **Continue with Phase 8B — registered tool framework.**
+> **Continue with Phase 8C — custom detector framework.**
 
-Phase 8A is complete and green in Quality Gate `35429943049`. The authoritative stable external API is now `/api/platform/v1`, driven by a machine-readable permission manifest and explicit `platform:*` scopes. Legacy `/api/v1` remains compatibility-only.
+Phase 8B is complete and green in Quality Gate `35432530926`. Registered tools now use closed schemas, trusted built-in handlers, generic + capability scopes, privacy-safe invocation audit, tenant isolation, and proposal-only mutation.
 
-The next concrete work is a schema-validated registered-tool layer using trusted built-in handlers only. Tool invocation must require generic invoke permission plus each tool's capability scopes, delegate existing Phase 0–7 services, and provide no arbitrary runtime-code or direct-write escape hatch.
+The next concrete work is a registered deterministic detector layer over the existing Discovery/Insight system: versioned detector descriptors → closed config schema → authorized DatasetVersion + effective overlay → deterministic handler → existing Insight evidence/persistence → stable detector inventory/run API. No arbitrary runtime code.
