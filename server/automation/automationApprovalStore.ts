@@ -139,6 +139,13 @@ export class AutomationApprovalStore {
     return approval;
   }
 
+  public listAll(accountId: string): AutomationApprovalRequest[] {
+    return Array.from(this.approvals.values())
+      .filter((item) => item.accountId === accountId)
+      .sort((a, b) => b.requestedAt - a.requestedAt)
+      .map(clone);
+  }
+
   public list(params: {
     accountId: string;
     proposalId?: string;
