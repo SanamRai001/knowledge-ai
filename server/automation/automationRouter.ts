@@ -25,6 +25,15 @@ import {
   automationExecutionService,
 } from './automationExecutionService.js';
 import {
+  AutomationControlError,
+  automationControlService,
+} from './automationControlService.js';
+import { automationControlStore } from './automationControlStore.js';
+import {
+  AutomationRunAccessError,
+  automationRunStore,
+} from './automationRunStore.js';
+import {
   AutomationApprovalAccessError,
   automationApprovalStore,
 } from './automationApprovalStore.js';
@@ -206,6 +215,31 @@ function approvalStatus(
     : undefined;
 }
 
+function automationRunStatus(
+  value: unknown
+):
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'BLOCKED'
+  | 'FAILED'
+  | 'COMPENSATED'
+  | 'RECOVERY_REQUIRED'
+  | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toUpperCase();
+  const allowed = [
+    'RUNNING',
+    'SUCCEEDED',
+    'BLOCKED',
+    'FAILED',
+    'COMPENSATED',
+    'RECOVERY_REQUIRED',
+  ] as const;
+  return allowed.includes(normalized as any)
+    ? (normalized as (typeof allowed)[number])
+    : undefined;
+}
+
 export class AutomationPolicyInputError extends Error {
   public readonly statusCode = 400;
   public readonly code = 'AUTOMATION_POLICY_INVALID';
@@ -228,7 +262,9 @@ function handleError(
     error instanceof AutomationPolicyInputError ||
     error instanceof AutomationApprovalAccessError ||
     error instanceof AutomationApprovalError ||
-    error instanceof AutomationExecutionError
+    error instanceof AutomationExecutionError ||
+    error instanceof AutomationControlError ||
+    error instanceof AutomationRunAccessError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -374,6 +410,124 @@ automationRouter.get('/policy/history', (req, res) => {
   }
 });
 
+automationRouter.get('/control', (_req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      control: automationControlService.get(accountId),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.get('/control/history', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      history: automationControlStore.listHistory({
+        accountId,
+        limit: limitFrom(req.query.limit, 100),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.post('/control/disable', (req, res) => {
+  try {
+    const requestIdentity = identity(res);
+    const control = automationControlService.disable({
+      accountId: requestIdentity.accountId,
+      identity: requestIdentity,
+      reason:
+        typeof req.body?.reason === 'string'
+          ? req.body.reason
+          : undefined,
+    });
+    res.json({ control });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.post('/control/enable', (req, res) => {
+  try {
+    const requestIdentity = identity(res);
+    const control = automationControlService.enable({
+      accountId: requestIdentity.accountId,
+      identity: requestIdentity,
+      reason:
+        typeof req.body?.reason === 'string'
+          ? req.body.reason
+          : undefined,
+    });
+    res.json({ control });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.get('/runs', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      runs: automationRunStore.list({
+        accountId,
+        proposalId:
+          typeof req.query.proposalId === 'string'
+            ? req.query.proposalId
+            : undefined,
+        status: automationRunStatus(req.query.status),
+        limit: limitFrom(req.query.limit, 100),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.get('/runs/:runId', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      run: automationRunStore.require(
+        accountId,
+        req.params.runId
+      ),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.post(
+  '/runs/:runId/compensate',
+  (req, res) => {
+    try {
+      const requestIdentity = identity(res);
+      const result = automationExecutionService.compensate({
+        accountId: requestIdentity.accountId,
+        runId: req.params.runId,
+        identity: requestIdentity,
+      });
+      res.json(result);
+    } catch (error: any) {
+      if (error instanceof AutomationExecutionError) {
+        res.status(error.statusCode).json({
+          error: error.message,
+          code: error.code,
+          evaluation: error.evaluation,
+          runId: error.runId,
+        });
+        return;
+      }
+      handleError(res, error);
+    }
+  }
+);
+
 automationRouter.get('/approvals', (req, res) => {
   try {
     const { accountId } = identity(res);
@@ -464,14 +618,12 @@ automationRouter.post(
       });
       res.json(result);
     } catch (error: any) {
-      if (
-        error instanceof AutomationExecutionError &&
-        error.evaluation
-      ) {
+      if (error instanceof AutomationExecutionError) {
         res.status(error.statusCode).json({
           error: error.message,
           code: error.code,
           evaluation: error.evaluation,
+          runId: error.runId,
         });
         return;
       }
