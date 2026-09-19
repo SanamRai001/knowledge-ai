@@ -1269,8 +1269,8 @@ Use this section as the high-level progress board.
 | 3 | Living Company Knowledge | **Complete** |
 | 4 | Safe Natural-Language Actions | **Complete** |
 | 5 | Watch & Proactive Intelligence | **Complete** |
-| 6 | Integrations | **In Progress** |
-| 7 | Controlled Automation | Planned |
+| 6 | Integrations | **Complete** |
+| 7 | Controlled Automation | **In Progress** |
 | 8 | Extensible Platform | Future |
 
 Update statuses only when phase exit gates are genuinely met.
@@ -1285,25 +1285,25 @@ Suggested status values:
 
 ---
 
-# 8. Immediate next work — Phase 6
+# 8. Immediate next work — Phase 7
 
-Phases 0–5 have passed their exit gates.
+Phases 0–6 have passed their exit gates.
 
 Continue with:
 
 ```text
-6A. Shared IntegrationConnector + connection/sync models ✅
+7A. Automation policy model + deterministic evaluator ← CURRENT
         ↓
-6B. First live cloud-file connector ✅
+7B. Approval / role / risk / amount enforcement
         ↓
-6C. Second connector through the same abstraction ✅
+7C. First bounded low-risk auto-execution path
         ↓
-6D. Incremental sync / retry / revocation / permission hardening ✅
+7D. Recovery / compensating actions / kill switch
         ↓
-6E. Integrations UI + final Phase 6 exit-gate audit ← CURRENT
+7E. Automation quality analytics + UI + final Phase 7 audit
 ```
 
-Phase 6A must establish the shared internal contract before provider-specific code spreads through the repository.
+Phase 7 must remain governed automation, not unrestricted autonomy.
 
 The continuity source of truth is:
 
@@ -1311,7 +1311,7 @@ The continuity source of truth is:
 
 Detailed current execution notes:
 
-`docs/PHASE_6_PROGRESS.md`
+`docs/PHASE_7_PROGRESS.md`
 
 ---
 
