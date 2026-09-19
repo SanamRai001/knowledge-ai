@@ -522,21 +522,56 @@ async function main() {
       'Account-scoped invocation audit must be available through the declared stable API.'
     );
 
-    const manifestSerialized = JSON.stringify(manifest);
-    for (const forbidden of [
+    const forbiddenOperationIdPatterns = [
+      /(^|\.)confirm($|\.)/i,
+      /(^|\.)execute($|\.)/i,
+      /(^|\.)automation($|\.)/i,
+      /(^|\.)shell($|\.)/i,
+      /(^|\.)eval($|\.)/i,
+      /(^|\.)arbitrary($|\.)/i,
+      /(^|\.)code($|\.)/i,
+    ];
+    const forbiddenPathSegments = [
       '/confirm',
       '/execute',
-      'automation.execute',
-      'shell',
-      'eval',
-      'arbitrary',
-    ]) {
+      '/automation',
+      '/shell',
+      '/eval',
+      '/arbitrary',
+      '/code',
+    ];
+
+    for (const operation of manifest.operations) {
       assert(
-        !manifestSerialized.toLowerCase().includes(
-          forbidden.toLowerCase()
+        forbiddenOperationIdPatterns.every(
+          (pattern) => !pattern.test(operation.operationId)
         ),
-        'Stable tool manifest must not expose forbidden execution surface: ' +
-          forbidden
+        'Stable platform operation ID exposes a forbidden execution surface: ' +
+          operation.operationId
+      );
+
+      const normalizedPath = String(operation.path).toLowerCase();
+      assert(
+        forbiddenPathSegments.every(
+          (segment) => !normalizedPath.includes(segment)
+        ),
+        'Stable platform path exposes a forbidden execution surface: ' +
+          operation.path
+      );
+    }
+
+    for (const tool of descriptors) {
+      assert(
+        forbiddenOperationIdPatterns.every(
+          (pattern) => !pattern.test(tool.id)
+        ),
+        'Registered tool ID exposes a forbidden execution surface: ' +
+          tool.id
+      );
+      assert(
+        tool.executionMode === 'TRUSTED_BUILT_IN',
+        'Registered tool must not expose an arbitrary execution mode: ' +
+          tool.id
       );
     }
   } finally {
