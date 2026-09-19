@@ -1270,8 +1270,8 @@ Use this section as the high-level progress board.
 | 4 | Safe Natural-Language Actions | **Complete** |
 | 5 | Watch & Proactive Intelligence | **Complete** |
 | 6 | Integrations | **Complete** |
-| 7 | Controlled Automation | **In Progress** |
-| 8 | Extensible Platform | Future |
+| 7 | Controlled Automation | **Complete** |
+| 8 | Extensible Platform | **In Progress** |
 
 Update statuses only when phase exit gates are genuinely met.
 
@@ -1285,25 +1285,25 @@ Suggested status values:
 
 ---
 
-# 8. Immediate next work — Phase 7
+# 8. Immediate next work — Phase 8
 
-Phases 0–6 have passed their exit gates.
+Phases 0–7 have passed their exit gates.
 
 Continue with:
 
 ```text
-7A. Automation policy model + deterministic evaluator ← CURRENT
+8A. Stable developer API + permission manifest ← CURRENT
         ↓
-7B. Approval / role / risk / amount enforcement
+8B. Plugin/tool registration + sandboxed execution contract
         ↓
-7C. First bounded low-risk auto-execution path
+8C. Custom detector framework
         ↓
-7D. Recovery / compensating actions / kill switch ✅
+8D. Domain-pack packaging
         ↓
-7E. Automation quality analytics + UI + final Phase 7 audit ← CURRENT
+8E. Platform UI / developer docs / final Phase 8 audit
 ```
 
-Phase 7 must remain governed automation, not unrestricted autonomy.
+Phase 8 must let extensions add value without bypassing provenance, authorization, audit, safety, or the controlled-automation boundary.
 
 The continuity source of truth is:
 
@@ -1311,7 +1311,7 @@ The continuity source of truth is:
 
 Detailed current execution notes:
 
-`docs/PHASE_7_PROGRESS.md`
+`docs/PHASE_8_PROGRESS.md`
 
 ---
 
