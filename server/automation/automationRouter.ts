@@ -19,6 +19,10 @@ import {
   automationApprovalService,
 } from './automationApprovalService.js';
 import {
+  AutomationExecutionError,
+  automationExecutionService,
+} from './automationExecutionService.js';
+import {
   AutomationApprovalAccessError,
   automationApprovalStore,
 } from './automationApprovalStore.js';
@@ -219,7 +223,8 @@ function handleError(
     error instanceof ActionAccessError ||
     error instanceof AutomationPolicyInputError ||
     error instanceof AutomationApprovalAccessError ||
-    error instanceof AutomationApprovalError
+    error instanceof AutomationApprovalError ||
+    error instanceof AutomationExecutionError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -438,6 +443,34 @@ automationRouter.post(
       });
       res.json({ approval });
     } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.post(
+  '/execute/:proposalId',
+  (req, res) => {
+    try {
+      const requestIdentity = identity(res);
+      const result = automationExecutionService.executeEligible({
+        accountId: requestIdentity.accountId,
+        proposalId: req.params.proposalId,
+        identity: requestIdentity,
+      });
+      res.json(result);
+    } catch (error: any) {
+      if (
+        error instanceof AutomationExecutionError &&
+        error.evaluation
+      ) {
+        res.status(error.statusCode).json({
+          error: error.message,
+          code: error.code,
+          evaluation: error.evaluation,
+        });
+        return;
+      }
       handleError(res, error);
     }
   }
