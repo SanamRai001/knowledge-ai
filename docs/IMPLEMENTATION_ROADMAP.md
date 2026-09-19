@@ -1294,9 +1294,9 @@ Continue with:
 ```text
 6A. Shared IntegrationConnector + connection/sync models ✅
         ↓
-6B. First live cloud-file connector ← CURRENT
+6B. First live cloud-file connector ✅
         ↓
-6C. Second connector through the same abstraction
+6C. Second connector through the same abstraction ← CURRENT
         ↓
 6D. Incremental sync / retry / revocation / permission hardening
         ↓
