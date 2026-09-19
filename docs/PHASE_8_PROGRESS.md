@@ -176,3 +176,74 @@ Phase 8 is complete only when:
 **Phase 8A — audit and stable API manifest**
 
 Audit current API-key/scopes + DeveloperPlatform + public routes. Then introduce the smallest authoritative stable API manifest and one read-only stable endpoint family before exposing mutation capabilities.
+
+
+## Phase 8A audit findings
+
+The pre-existing developer API is retained as a legacy compatibility surface, not promoted to the new stable platform contract.
+
+Findings:
+
+- `ApiKey` already stores scopes and API keys are SHA-256 hashed at rest.
+- legacy starter keys default to `chat:read`, `ai:read`, and `knowledge:read`.
+- the older inline `/api/v1` authentication helper validates Bearer keys and applies a flat 100 requests/minute rate limit.
+- the legacy helper does not make per-operation scopes authoritative.
+- the existing DeveloperPlatform UI is specialized-AI-centric and still describes the older Phase 3 API.
+- authoritative product capabilities now live behind account-scoped Phase 0–7 service/router boundaries.
+
+### Stable namespace decision
+
+Phase 8 uses a separate stable namespace:
+
+`/api/platform/v1`
+
+This avoids silently changing the meaning of existing `/api/v1` clients.
+
+New stable scopes use a separate `platform:*` namespace. Legacy scopes do not grant stable platform access automatically.
+
+### Initial stable manifest
+
+The first stable contract contains:
+
+- Sources metadata
+- Knowledge summary/entities
+- Ask
+- Insights read
+- Actions read
+- Actions **proposal creation only**
+- Watch rules/alerts read
+- Audit/activity read
+
+Action confirmation and Phase 7 automation execution are intentionally absent.
+
+### Stable authorization boundary
+
+Every protected platform operation is declared in one machine-readable permission manifest with:
+
+- operation ID
+- API version
+- HTTP method/path
+- capability family
+- required scopes
+- mutation flag
+- risk classification
+- audit behavior
+- rate-limit class
+- stability state
+
+The manifest drives scoped authorization and rate limiting.
+
+## Current verification target
+
+Quality Gate must prove:
+
+- unique operation IDs and method/path pairs
+- all stable mutations require explicit proposal/write scopes
+- legacy scopes receive 403
+- correct platform scopes succeed
+- API-key account identity overrides caller-supplied account/query/header values
+- foreign raw resource IDs remain inaccessible
+- stable action proposal creation does not write company state
+- no stable confirm/execute route exists
+- authorized platform requests are included in API usage audit
+- experimental/admin/automation/internal routes remain absent from the stable manifest
