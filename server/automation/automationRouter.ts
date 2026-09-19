@@ -7,11 +7,21 @@ import {
 import { ActionAccessError, actionStore } from '../actions/actionStore.js';
 import { ActionIntent } from '../actions/types.js';
 import {
+  AutomationActorRole,
+  AutomationApprovalStatus,
   AutomationPolicyMode,
   AutomationRiskClass,
 } from './types.js';
 import { automationPolicyStore } from './automationPolicyStore.js';
 import { automationPolicyEvaluator } from './automationPolicyEvaluator.js';
+import {
+  AutomationApprovalError,
+  automationApprovalService,
+} from './automationApprovalService.js';
+import {
+  AutomationApprovalAccessError,
+  automationApprovalStore,
+} from './automationApprovalStore.js';
 
 export const automationRouter = express.Router();
 
@@ -75,6 +85,23 @@ const IDENTITY_SOURCES: RequestIdentity['source'][] = [
   'DEFAULT_WEB',
 ];
 
+const ACTOR_ROLES: AutomationActorRole[] = [
+  'OWNER',
+  'ADMIN',
+  'APPROVER',
+  'OPERATOR',
+  'SERVICE',
+  'MEMBER',
+];
+
+const APPROVAL_STATUSES: AutomationApprovalStatus[] = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+  'EXPIRED',
+];
+
 function finiteNonNegative(
   value: unknown,
   name: string
@@ -123,6 +150,56 @@ function stringArray<T extends string>(params: {
   return unique;
 }
 
+function optionalStringArray<T extends string>(params: {
+  value: unknown;
+  allowed: readonly T[];
+  name: string;
+}): T[] | undefined {
+  if (params.value === undefined || params.value === null) {
+    return undefined;
+  }
+  return stringArray(params);
+}
+
+function optionalFreeStringArray(
+  value: unknown,
+  name: string
+): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new AutomationPolicyInputError(name + ' must be an array.');
+  }
+
+  const output: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      throw new AutomationPolicyInputError(
+        name + ' must contain only strings.'
+      );
+    }
+    const normalized = item.trim();
+    if (!normalized || normalized.length > 160) {
+      throw new AutomationPolicyInputError(
+        name + ' contains an empty or overly long value.'
+      );
+    }
+    if (!output.includes(normalized)) output.push(normalized);
+  }
+  return output;
+}
+
+function approvalStatus(
+  value: unknown
+): AutomationApprovalStatus | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toUpperCase();
+  return APPROVAL_STATUSES.includes(
+    normalized as AutomationApprovalStatus
+  )
+    ? (normalized as AutomationApprovalStatus)
+    : undefined;
+}
+
 export class AutomationPolicyInputError extends Error {
   public readonly statusCode = 400;
   public readonly code = 'AUTOMATION_POLICY_INVALID';
@@ -140,7 +217,9 @@ function handleError(
   if (
     error instanceof RequestIdentityError ||
     error instanceof ActionAccessError ||
-    error instanceof AutomationPolicyInputError
+    error instanceof AutomationPolicyInputError ||
+    error instanceof AutomationApprovalAccessError ||
+    error instanceof AutomationApprovalError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -240,6 +319,26 @@ automationRouter.put('/policy', (req, res) => {
           'maxQuantity'
         ),
         allowedIdentitySources,
+        allowedActorRoles:
+          optionalStringArray<AutomationActorRole>({
+            value: req.body?.allowedActorRoles,
+            allowed: ACTOR_ROLES,
+            name: 'allowedActorRoles',
+          }),
+        approvalRoles:
+          optionalStringArray<AutomationActorRole>({
+            value: req.body?.approvalRoles,
+            allowed: ACTOR_ROLES,
+            name: 'approvalRoles',
+          }),
+        allowedTargetEntityTypes: optionalFreeStringArray(
+          req.body?.allowedTargetEntityTypes,
+          'allowedTargetEntityTypes'
+        ),
+        allowedTargetEntityIds: optionalFreeStringArray(
+          req.body?.allowedTargetEntityIds,
+          'allowedTargetEntityIds'
+        ),
       },
     });
 
@@ -265,6 +364,84 @@ automationRouter.get('/policy/history', (req, res) => {
     handleError(res, error);
   }
 });
+
+automationRouter.get('/approvals', (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      approvals: automationApprovalStore.list({
+        accountId,
+        proposalId:
+          typeof req.query.proposalId === 'string'
+            ? req.query.proposalId
+            : undefined,
+        status: approvalStatus(req.query.status),
+        limit: limitFrom(req.query.limit, 100),
+      }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.post(
+  '/approvals/:proposalId/request',
+  (req, res) => {
+    try {
+      const requestIdentity = identity(res);
+      const approval = automationApprovalService.request({
+        accountId: requestIdentity.accountId,
+        proposalId: req.params.proposalId,
+        identity: requestIdentity,
+      });
+      res.status(201).json({ approval });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.post(
+  '/approvals/:approvalId/approve',
+  (req, res) => {
+    try {
+      const requestIdentity = identity(res);
+      const approval = automationApprovalService.approve({
+        accountId: requestIdentity.accountId,
+        approvalId: req.params.approvalId,
+        identity: requestIdentity,
+        note:
+          typeof req.body?.note === 'string'
+            ? req.body.note
+            : undefined,
+      });
+      res.json({ approval });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.post(
+  '/approvals/:approvalId/reject',
+  (req, res) => {
+    try {
+      const requestIdentity = identity(res);
+      const approval = automationApprovalService.reject({
+        accountId: requestIdentity.accountId,
+        approvalId: req.params.approvalId,
+        identity: requestIdentity,
+        note:
+          typeof req.body?.note === 'string'
+            ? req.body.note
+            : undefined,
+      });
+      res.json({ approval });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
 
 automationRouter.post(
   '/evaluate/:proposalId',
