@@ -9,6 +9,7 @@ import {
 } from './integrationStore.js';
 import { testIntegrationConnector } from './connectors/testConnector.js';
 import { googleDriveConnector } from './connectors/googleDriveConnector.js';
+import { microsoftOneDriveConnector } from './connectors/microsoftOneDriveConnector.js';
 import {
   ExternalImportState,
   ExternalRecord,
@@ -25,6 +26,9 @@ if (!connectorRegistry.get('TEST')) {
 }
 if (!connectorRegistry.get('GOOGLE_DRIVE')) {
   connectorRegistry.register(googleDriveConnector);
+}
+if (!connectorRegistry.get('MICROSOFT_ONEDRIVE')) {
+  connectorRegistry.register(microsoftOneDriveConnector);
 }
 
 export class IntegrationSyncError extends Error {
