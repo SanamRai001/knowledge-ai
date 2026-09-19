@@ -90,11 +90,69 @@ async function main() {
     'Inventory domain pack must package declarative detector/watch/action/vocabulary metadata.'
   );
 
+  const forbiddenPackFieldNames = new Set([
+    'handler',
+    'code',
+    'script',
+    'command',
+    'shell',
+    'sql',
+    'webhook',
+    'url',
+    'endpoint',
+    'function',
+  ]);
+
+  const assertDeclarativeValue = (
+    value: unknown,
+    path = 'pack'
+  ): void => {
+    if (
+      value === null ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return;
+    }
+
+    assert(
+      typeof value !== 'function',
+      'Domain pack descriptor must not contain executable functions at ' +
+        path
+    );
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) =>
+        assertDeclarativeValue(item, path + '[' + index + ']')
+      );
+      return;
+    }
+
+    assert(
+      typeof value === 'object',
+      'Domain pack descriptor contains an unsupported runtime value at ' +
+        path
+    );
+
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>
+    )) {
+      assert(
+        !forbiddenPackFieldNames.has(key.toLowerCase()),
+        'Domain pack descriptor exposes forbidden executable field: ' +
+          path +
+          '.' +
+          key
+      );
+      assertDeclarativeValue(child, path + '.' + key);
+    }
+  };
+
+  assertDeclarativeValue(pack);
   assert(
-    !JSON.stringify(pack).match(
-      /handler|javascript|shell|eval|sql|webhook/i
-    ),
-    'Domain pack descriptor must not contain executable/runtime-code surfaces.'
+    pack.executionMode === 'DECLARATIVE',
+    'Domain pack descriptor must remain declarative-only.'
   );
 
   const isolatedRegistry = new DomainPackRegistry();
