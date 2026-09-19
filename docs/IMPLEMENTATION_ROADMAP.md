@@ -1292,9 +1292,9 @@ Phases 0–7 have passed their exit gates.
 Continue with:
 
 ```text
-8A. Stable developer API + permission manifest ← CURRENT
+8A. Stable developer API + permission manifest ✅
         ↓
-8B. Plugin/tool registration + sandboxed execution contract
+8B. Plugin/tool registration + sandboxed execution contract ← CURRENT
         ↓
 8C. Custom detector framework
         ↓
