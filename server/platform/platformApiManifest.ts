@@ -6,7 +6,8 @@ export type PlatformApiFamily =
   | 'INSIGHTS'
   | 'ACTIONS'
   | 'WATCH'
-  | 'AUDIT';
+  | 'AUDIT'
+  | 'TOOLS';
 
 export type PlatformRiskClass =
   | 'READ_ONLY'
@@ -48,6 +49,8 @@ export const PLATFORM_SCOPES = {
   actionsPropose: 'platform:actions:propose',
   watchRead: 'platform:watch:read',
   auditRead: 'platform:audit:read',
+  toolsRead: 'platform:tools:read',
+  toolsInvoke: 'platform:tools:invoke',
 } as const;
 
 export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
@@ -204,6 +207,36 @@ export const PLATFORM_API_OPERATIONS: PlatformApiOperation[] = [
     rateLimitClass: 'READ',
     stability: 'STABLE',
     description: 'List persisted Watch alert episodes.',
+  },
+  {
+    operationId: 'tools.list',
+    version: 'v1',
+    method: 'GET',
+    path: '/tools',
+    family: 'TOOLS',
+    requiredScopes: [PLATFORM_SCOPES.toolsRead],
+    mutation: false,
+    riskClass: 'READ_ONLY',
+    auditBehavior: 'REQUEST_USAGE',
+    rateLimitClass: 'READ',
+    stability: 'STABLE',
+    description:
+      'List governed registered tools and their permission/schema metadata.',
+  },
+  {
+    operationId: 'tools.invoke',
+    version: 'v1',
+    method: 'POST',
+    path: '/tools/:id/invoke',
+    family: 'TOOLS',
+    requiredScopes: [PLATFORM_SCOPES.toolsInvoke],
+    mutation: true,
+    riskClass: 'PROPOSAL_WRITE',
+    auditBehavior: 'REQUEST_USAGE_AND_DOMAIN_AUDIT',
+    rateLimitClass: 'WRITE',
+    stability: 'STABLE',
+    description:
+      'Invoke a trusted registered tool. Tool-specific capability scopes are enforced in addition to the generic invoke scope.',
   },
   {
     operationId: 'audit.activity.list',
