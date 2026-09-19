@@ -13,6 +13,7 @@ import {
   AutomationApprovalStatus,
   AutomationPolicyMode,
   AutomationRiskClass,
+  AutomationRunFeedback,
 } from './types.js';
 import { automationPolicyStore } from './automationPolicyStore.js';
 import { automationPolicyEvaluator } from './automationPolicyEvaluator.js';
@@ -37,6 +38,10 @@ import {
   AutomationApprovalAccessError,
   automationApprovalStore,
 } from './automationApprovalStore.js';
+import {
+  AutomationQualityError,
+  automationQualityService,
+} from './automationQualityService.js';
 
 export const automationRouter = express.Router();
 
@@ -264,7 +269,8 @@ function handleError(
     error instanceof AutomationApprovalError ||
     error instanceof AutomationExecutionError ||
     error instanceof AutomationControlError ||
-    error instanceof AutomationRunAccessError
+    error instanceof AutomationRunAccessError ||
+    error instanceof AutomationQualityError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -277,6 +283,26 @@ function handleError(
     error: error?.message || 'Automation policy request failed.',
   });
 }
+
+automationRouter.get('/quality', (_req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      quality: automationQualityService.summary(accountId),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.get('/dashboard', (_req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json(automationQualityService.dashboard(accountId));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
 
 automationRouter.get('/policy', (_req, res) => {
   try {
@@ -482,6 +508,49 @@ automationRouter.get('/runs', (req, res) => {
         status: automationRunStatus(req.query.status),
         limit: limitFrom(req.query.limit, 100),
       }),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+automationRouter.post('/runs/:runId/feedback', (req, res) => {
+  try {
+    const requestIdentity = identity(res);
+    const raw =
+      typeof req.body?.feedback === 'string'
+        ? req.body.feedback.trim().toUpperCase()
+        : '';
+    const allowed: AutomationRunFeedback[] = [
+      'CORRECT',
+      'FALSE_TRIGGER',
+      'NEEDS_CORRECTION',
+    ];
+
+    if (!allowed.includes(raw as AutomationRunFeedback)) {
+      throw new AutomationQualityError(
+        'AUTOMATION_FEEDBACK_INVALID',
+        400,
+        'feedback must be CORRECT, FALSE_TRIGGER, or NEEDS_CORRECTION.'
+      );
+    }
+
+    const run = automationQualityService.setFeedback({
+      accountId: requestIdentity.accountId,
+      runId: req.params.runId,
+      feedback: raw as AutomationRunFeedback,
+      identity: requestIdentity,
+      note:
+        typeof req.body?.note === 'string'
+          ? req.body.note
+          : undefined,
+    });
+
+    res.json({
+      run,
+      quality: automationQualityService.summary(
+        requestIdentity.accountId
+      ),
     });
   } catch (error) {
     handleError(res, error);
