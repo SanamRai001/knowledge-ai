@@ -65,7 +65,8 @@
     "check:production-a6-postgres": "tsx scripts/check-production-a6-postgres.ts",
     "check:production-a7-discovery-runtime": "tsx scripts/check-production-a7-discovery-runtime.ts",
     "check:production-a7b-integration-runtime": "tsx scripts/check-production-a7b-integration-runtime.ts",
-    "check:production-a7c-watch-runtime": "tsx scripts/check-production-a7c-watch-runtime.ts"
+    "check:production-a7c-watch-runtime": "tsx scripts/check-production-a7c-watch-runtime.ts",
+    "check:production:a7d-knowledge-actions-runtime": "tsx scripts/check-production-a7d-knowledge-actions-runtime.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
