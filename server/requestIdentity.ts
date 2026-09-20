@@ -1,5 +1,6 @@
 import type express from 'express';
 import { apiKeyStore } from './apiKeyStore.js';
+import { apiKeyRuntimeService } from './apiKeyRuntimeService.js';
 
 export interface RequestIdentity {
   accountId: string;
@@ -62,6 +63,8 @@ export function resolveRequestIdentity(req: express.Request): RequestIdentity {
       validation.error || 'Invalid API key.'
     );
   }
+
+  apiKeyRuntimeService.noteValidatedKey(validation.apiKey);
 
   return {
     accountId: validation.apiKey.accountId,
