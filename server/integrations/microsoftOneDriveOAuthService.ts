@@ -372,7 +372,7 @@ export class MicrosoftOneDriveOAuthService {
     connection: PublicIntegrationConnection;
     localCredentialDeleted: boolean;
   }> {
-    const connection = integrationStore.requireConnection(
+    const connection = await integrationRuntimeService.getInternalConnection(
       params.accountId,
       params.connectionId
     );
