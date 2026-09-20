@@ -395,7 +395,7 @@ export class GoogleDriveOAuthService {
     accountId: string;
     connectionId: string;
   }): Promise<{ ok: boolean; message?: string }> {
-    const connection = integrationStore.requireConnection(
+    const connection = await integrationRuntimeService.getInternalConnection(
       params.accountId,
       params.connectionId
     );
