@@ -142,6 +142,17 @@ export class PostgresAccountRepository
     };
   }
 
+  async listAll(): Promise<AccountRecord[]> {
+    const result = await postgresPool().query(
+      'SELECT id, created_at, updated_at FROM accounts ORDER BY id ASC'
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      createdAt: epoch(row.created_at)!,
+      updatedAt: epoch(row.updated_at)!,
+    }));
+  }
+
   async getAccount(
     accountId: string
   ): Promise<AccountRecord | null> {
@@ -647,7 +658,14 @@ export class PostgresDatasetMetadataRepository
       `INSERT INTO dataset_import_runs
         (id, account_id, status, created_at, completed_at,
          filename, format, warnings, error)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)
+       ON CONFLICT (id)
+       DO UPDATE SET
+         status = EXCLUDED.status,
+         completed_at = EXCLUDED.completed_at,
+         warnings = EXCLUDED.warnings,
+         error = EXCLUDED.error
+       WHERE dataset_import_runs.account_id = EXCLUDED.account_id`,
       [
         run.id,
         run.accountId,
