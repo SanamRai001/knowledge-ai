@@ -17,7 +17,7 @@ import {
   publicPlatformManifest,
 } from './platformApiManifest.js';
 import { toolInvocationService } from './tools/toolInvocationService.js';
-import { toolInvocationAuditStore } from './tools/toolInvocationAuditStore.js';
+import { platformPersistence } from './platformPersistence.js';
 import { detectorExecutionService } from './detectors/detectorExecutionService.js';
 import { detectorExecutionRuntimeService } from './detectors/detectorExecutionRuntimeService.js';
 import { domainPackService } from './domainPacks/domainPackService.js';
@@ -496,19 +496,20 @@ platformApiRouter.post(
 platformApiRouter.get(
   '/tools/invocations',
   requirePlatformOperation('tools.invocations.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        invocations: toolInvocationAuditStore.list({
-          accountId,
-          toolId:
-            typeof req.query.toolId === 'string' &&
-            req.query.toolId.trim()
-              ? req.query.toolId.trim()
-              : undefined,
-          limit: limitFrom(req.query.limit, 100, 500),
-        }),
+        invocations:
+          await platformPersistence.listToolInvocations({
+            accountId,
+            toolId:
+              typeof req.query.toolId === 'string' &&
+              req.query.toolId.trim()
+                ? req.query.toolId.trim()
+                : undefined,
+            limit: limitFrom(req.query.limit, 100, 500),
+          }),
       });
     } catch (error) {
       handleError(res, error);
@@ -583,12 +584,18 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/domain-packs/installations',
   requirePlatformOperation('domain-packs.installations.list'),
-  (_req, res) => {
+  async (_req, res) => {
     try {
       const { accountId } = platformContext(res);
+      const installations =
+        await platformPersistence.listDomainPackInstallations(
+          accountId
+        );
       res.json({
-        installations:
-          domainPackService.listInstallations(accountId),
+        installations: installations.map((installation) => ({
+          installation,
+          pack: domainPackService.get(installation.packId),
+        })),
       });
     } catch (error) {
       handleError(res, error);
@@ -599,17 +606,20 @@ platformApiRouter.get(
 platformApiRouter.post(
   '/domain-packs/:id/install',
   requirePlatformOperation('domain-packs.install'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId, requestId } = platformContext(res);
-      const installation = domainPackService.install({
-        accountId,
-        packId: req.params.id,
-      });
+      const pack = domainPackService.get(req.params.id);
+      const installation =
+        await platformPersistence.installDomainPack({
+          accountId,
+          packId: pack.id,
+          packVersion: pack.version,
+        });
       res.status(201).json({
         request_id: requestId,
         installation,
-        pack: domainPackService.get(req.params.id),
+        pack,
       });
     } catch (error) {
       handleError(res, error);
