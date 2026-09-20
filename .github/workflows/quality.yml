@@ -254,3 +254,6 @@ jobs:
 
       - name: Production A7E Automation runtime proof
         run: npm run check:production:a7e-automation-runtime
+
+      - name: Production A7F Platform runtime proof
+        run: npm run check:production:a7f-platform-runtime
