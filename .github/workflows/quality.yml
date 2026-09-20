@@ -245,3 +245,6 @@ jobs:
 
       - name: Production A7B Integration runtime proof
         run: npm run check:production-a7b-integration-runtime
+
+      - name: Production A7C Watch runtime proof
+        run: npm run check:production-a7c-watch-runtime
