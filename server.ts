@@ -73,6 +73,7 @@ import { integrationRouter } from './server/integrations/integrationRouter.js';
 import { automationRouter } from './server/automation/automationRouter.js';
 import { platformApiRouter } from './server/platform/platformApiRouter.js';
 import { platformManagementRouter } from './server/platform/platformManagementRouter.js';
+import { authRouter } from './server/identity/authRouter.js';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -101,6 +102,10 @@ const upload = multer({
     }
   },
 });
+
+// B2B1 human authentication surface. Product routers are intentionally not
+// cut over to HUMAN_SESSION until B2B2/B2C.
+app.use('/api/auth', authRouter);
 
 // Authoritative account-scoped workspace API. This router is mounted before
 // the legacy handlers below so normal /api/kb/* traffic cannot bypass
