@@ -1041,11 +1041,11 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7G — Core metadata runtime PostgreSQL cutover.**
+> **Continue with Production Hardening B1 — identity and authorization forensic audit.**
 
 Phases 0–8 are complete.
 
-Persistence/runtime milestones:
+Track A relational milestones:
 
 - A1 forensic audit — COMPLETE
 - A2 core PostgreSQL metadata — COMPLETE
@@ -1059,16 +1059,10 @@ Persistence/runtime milestones:
 - A7D Living Knowledge + Actions runtime cutover — COMPLETE, workflow `35520216547`
 - A7E Automation runtime cutover — COMPLETE, workflow `35520860881`
 - A7F Platform runtime cutover — COMPLETE, workflow `35522567852`
-- A7G Core metadata runtime cutover — IN PROGRESS
+- A7G Core metadata runtime cutover — COMPLETE, workflow `35523721395`
 
-A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
+A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
-A7B evidence: `docs/PRODUCTION_A7B_INTEGRATION_RUNTIME.md`.
+The core relational metadata/state backbone is now complete. Workspace document/chat/evaluation payloads and Dataset analytical row payloads remain explicit Track C durability boundaries.
 
-A7C evidence: `docs/PRODUCTION_A7C_WATCH_RUNTIME.md`.
-
-A7D evidence: `docs/PRODUCTION_A7D_LIVING_KNOWLEDGE_ACTIONS_RUNTIME.md`.
-
-A7E evidence: `docs/PRODUCTION_A7E_AUTOMATION_RUNTIME.md`.
-
-A7F is complete. Next, make the original A2 core repositories authoritative at runtime in PostgreSQL mode: API keys/usage, workspace metadata + per-account active workspace, and Dataset/DatasetVersion/import-run metadata. Preserve document/chat and analytical-row payloads behind explicit non-relational payload boundaries until Track C.
+Next, do **B1 only**: audit current browser identity/session/account fallback and privileged authorization boundaries. Do not begin authentication implementation until that audit defines the smallest safe vertical slice.
