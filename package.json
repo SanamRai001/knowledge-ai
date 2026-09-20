@@ -68,7 +68,8 @@
     "check:production-a7c-watch-runtime": "tsx scripts/check-production-a7c-watch-runtime.ts",
     "check:production:a7d-knowledge-actions-runtime": "tsx scripts/check-production-a7d-knowledge-actions-runtime.ts",
     "check:production:a7e-automation-runtime": "tsx scripts/check-production-a7e-automation-runtime.ts",
-    "check:production:a7f-platform-runtime": "tsx scripts/check-production-a7f-platform-runtime.ts"
+    "check:production:a7f-platform-runtime": "tsx scripts/check-production-a7f-platform-runtime.ts",
+    "check:production:a7g-core-metadata-runtime": "tsx scripts/check-production-a7g-core-metadata-runtime.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
