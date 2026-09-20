@@ -4,7 +4,7 @@ import {
   RequestIdentityError,
   resolveRequestIdentity,
 } from '../requestIdentity.js';
-import { ActionAccessError, actionStore } from '../actions/actionStore.js';
+import { ActionAccessError } from '../actions/actionStore.js';
 import { ActionExecutionError } from '../actions/actionExecutionService.js';
 import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
 import { ActionIntent } from '../actions/types.js';
@@ -15,33 +15,13 @@ import {
   AutomationRiskClass,
   AutomationRunFeedback,
 } from './types.js';
-import { automationPolicyStore } from './automationPolicyStore.js';
-import { automationPolicyEvaluator } from './automationPolicyEvaluator.js';
-import {
-  AutomationApprovalError,
-  automationApprovalService,
-} from './automationApprovalService.js';
-import {
-  AutomationExecutionError,
-  automationExecutionService,
-} from './automationExecutionService.js';
-import {
-  AutomationControlError,
-  automationControlService,
-} from './automationControlService.js';
-import { automationControlStore } from './automationControlStore.js';
-import {
-  AutomationRunAccessError,
-  automationRunStore,
-} from './automationRunStore.js';
-import {
-  AutomationApprovalAccessError,
-  automationApprovalStore,
-} from './automationApprovalStore.js';
-import {
-  AutomationQualityError,
-  automationQualityService,
-} from './automationQualityService.js';
+import { automationRuntimeService } from './automationRuntimeService.js';
+import { AutomationApprovalError } from './automationApprovalService.js';
+import { AutomationExecutionError } from './automationExecutionService.js';
+import { AutomationControlError } from './automationControlService.js';
+import { AutomationRunAccessError } from './automationRunStore.js';
+import { AutomationApprovalAccessError } from './automationApprovalStore.js';
+import { AutomationQualityError } from './automationQualityService.js';
 import {
   automationActorLabel,
   resolveAutomationActorRole,
@@ -319,30 +299,30 @@ automationRouter.get('/context', (_req, res) => {
   }
 });
 
-automationRouter.get('/quality', (_req, res) => {
+automationRouter.get('/quality', async (_req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      quality: automationQualityService.summary(accountId),
+      quality: await automationRuntimeService.quality(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-automationRouter.get('/dashboard', (_req, res) => {
+automationRouter.get('/dashboard', async (_req, res) => {
   try {
     const { accountId } = identity(res);
-    res.json(automationQualityService.dashboard(accountId));
+    res.json(await automationRuntimeService.dashboard(accountId));
   } catch (error) {
     handleError(res, error);
   }
 });
 
-automationRouter.get('/policy', (_req, res) => {
+automationRouter.get('/policy', async (_req, res) => {
   try {
     const { accountId } = identity(res);
-    const policy = automationPolicyStore.getPolicy(accountId);
+    const policy = await automationRuntimeService.getPolicy(accountId);
 
     res.json({
       policy,
@@ -361,7 +341,7 @@ automationRouter.get('/policy', (_req, res) => {
   }
 });
 
-automationRouter.put('/policy', (req, res) => {
+automationRouter.put('/policy', async (req, res) => {
   try {
     const requestIdentity = identity(res);
     const mode =
@@ -408,7 +388,7 @@ automationRouter.put('/policy', (req, res) => {
         name: 'allowedIdentitySources',
       });
 
-    const policy = automationPolicyStore.upsertPolicy({
+    const policy = await automationRuntimeService.upsertPolicy({
       accountId: requestIdentity.accountId,
       actor: actorLabel(requestIdentity),
       policy: {
@@ -456,12 +436,12 @@ automationRouter.put('/policy', (req, res) => {
   }
 });
 
-automationRouter.get('/policy/history', (req, res) => {
+automationRouter.get('/policy/history', async (req, res) => {
   try {
     const { accountId } = identity(res);
 
     res.json({
-      history: automationPolicyStore.listHistory({
+      history: await automationRuntimeService.listPolicyHistory({
         accountId,
         limit: limitFrom(req.query.limit, 100),
       }),
@@ -471,22 +451,22 @@ automationRouter.get('/policy/history', (req, res) => {
   }
 });
 
-automationRouter.get('/control', (_req, res) => {
+automationRouter.get('/control', async (_req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      control: automationControlService.get(accountId),
+      control: await automationRuntimeService.getControl(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-automationRouter.get('/control/history', (req, res) => {
+automationRouter.get('/control/history', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      history: automationControlStore.listHistory({
+      history: await automationRuntimeService.listControlHistory({
         accountId,
         limit: limitFrom(req.query.limit, 100),
       }),
@@ -496,10 +476,10 @@ automationRouter.get('/control/history', (req, res) => {
   }
 });
 
-automationRouter.post('/control/disable', (req, res) => {
+automationRouter.post('/control/disable', async (req, res) => {
   try {
     const requestIdentity = identity(res);
-    const control = automationControlService.disable({
+    const control = await automationRuntimeService.disableControl({
       accountId: requestIdentity.accountId,
       identity: requestIdentity,
       reason:
@@ -513,10 +493,10 @@ automationRouter.post('/control/disable', (req, res) => {
   }
 });
 
-automationRouter.post('/control/enable', (req, res) => {
+automationRouter.post('/control/enable', async (req, res) => {
   try {
     const requestIdentity = identity(res);
-    const control = automationControlService.enable({
+    const control = await automationRuntimeService.enableControl({
       accountId: requestIdentity.accountId,
       identity: requestIdentity,
       reason:
@@ -530,11 +510,11 @@ automationRouter.post('/control/enable', (req, res) => {
   }
 });
 
-automationRouter.get('/runs', (req, res) => {
+automationRouter.get('/runs', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      runs: automationRunStore.list({
+      runs: await automationRuntimeService.listRuns({
         accountId,
         proposalId:
           typeof req.query.proposalId === 'string'
@@ -549,7 +529,7 @@ automationRouter.get('/runs', (req, res) => {
   }
 });
 
-automationRouter.post('/runs/:runId/feedback', (req, res) => {
+automationRouter.post('/runs/:runId/feedback', async (req, res) => {
   try {
     const requestIdentity = identity(res);
     const raw =
@@ -570,7 +550,7 @@ automationRouter.post('/runs/:runId/feedback', (req, res) => {
       );
     }
 
-    const run = automationQualityService.setFeedback({
+    const run = await automationRuntimeService.setFeedback({
       accountId: requestIdentity.accountId,
       runId: req.params.runId,
       feedback: raw as AutomationRunFeedback,
@@ -583,7 +563,7 @@ automationRouter.post('/runs/:runId/feedback', (req, res) => {
 
     res.json({
       run,
-      quality: automationQualityService.summary(
+      quality: await automationRuntimeService.quality(
         requestIdentity.accountId
       ),
     });
@@ -592,11 +572,11 @@ automationRouter.post('/runs/:runId/feedback', (req, res) => {
   }
 });
 
-automationRouter.get('/runs/:runId', (req, res) => {
+automationRouter.get('/runs/:runId', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      run: automationRunStore.require(
+      run: await automationRuntimeService.requireRun(
         accountId,
         req.params.runId
       ),
@@ -608,10 +588,10 @@ automationRouter.get('/runs/:runId', (req, res) => {
 
 automationRouter.post(
   '/runs/:runId/compensate',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const result = automationExecutionService.compensate({
+      const result = await automationRuntimeService.compensate({
         accountId: requestIdentity.accountId,
         runId: req.params.runId,
         identity: requestIdentity,
@@ -632,11 +612,11 @@ automationRouter.post(
   }
 );
 
-automationRouter.get('/approvals', (req, res) => {
+automationRouter.get('/approvals', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      approvals: automationApprovalStore.list({
+      approvals: await automationRuntimeService.listApprovals({
         accountId,
         proposalId:
           typeof req.query.proposalId === 'string'
@@ -653,10 +633,10 @@ automationRouter.get('/approvals', (req, res) => {
 
 automationRouter.post(
   '/approvals/:proposalId/request',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const approval = automationApprovalService.request({
+      const approval = await automationRuntimeService.requestApproval({
         accountId: requestIdentity.accountId,
         proposalId: req.params.proposalId,
         identity: requestIdentity,
@@ -670,10 +650,10 @@ automationRouter.post(
 
 automationRouter.post(
   '/approvals/:approvalId/approve',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const approval = automationApprovalService.approve({
+      const approval = await automationRuntimeService.approve({
         accountId: requestIdentity.accountId,
         approvalId: req.params.approvalId,
         identity: requestIdentity,
@@ -691,10 +671,10 @@ automationRouter.post(
 
 automationRouter.post(
   '/approvals/:approvalId/reject',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const approval = automationApprovalService.reject({
+      const approval = await automationRuntimeService.reject({
         accountId: requestIdentity.accountId,
         approvalId: req.params.approvalId,
         identity: requestIdentity,
@@ -712,10 +692,10 @@ automationRouter.post(
 
 automationRouter.post(
   '/execute/:proposalId',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const result = automationExecutionService.executeEligible({
+      const result = await automationRuntimeService.execute({
         accountId: requestIdentity.accountId,
         proposalId: req.params.proposalId,
         identity: requestIdentity,
@@ -738,17 +718,12 @@ automationRouter.post(
 
 automationRouter.post(
   '/evaluate/:proposalId',
-  (req, res) => {
+  async (req, res) => {
     try {
       const requestIdentity = identity(res);
-      const proposal = actionStore.requireProposal(
-        requestIdentity.accountId,
-        req.params.proposalId
-      );
-
-      const evaluation = automationPolicyEvaluator.evaluate({
+      const evaluation = await automationRuntimeService.evaluate({
         accountId: requestIdentity.accountId,
-        proposal,
+        proposalId: req.params.proposalId,
         identity: requestIdentity,
       });
 
