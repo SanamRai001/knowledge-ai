@@ -10,6 +10,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      KNOWLEDGE_AI_ALLOW_DEFAULT_WEB: 'true'
 
     steps:
       - name: Checkout
@@ -212,6 +214,7 @@ jobs:
       DATABASE_SSL: disable
       DATABASE_POOL_MAX: 5
       KNOWLEDGE_AI_PERSISTENCE_MODE: postgres
+      KNOWLEDGE_AI_ALLOW_DEFAULT_WEB: 'true'
 
     steps:
       - name: Checkout
