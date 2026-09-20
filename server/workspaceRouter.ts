@@ -540,7 +540,7 @@ workspaceRouter.post('/chat', async (req, res) => {
       aiId: activeKb.specializedAi.id,
       message: question,
       accountId,
-      chatHistory: await workspaceRuntimeService.getActiveKB(accountId).chatHistory,
+      chatHistory: (await workspaceRuntimeService.getActiveKB(accountId)).chatHistory,
       source: 'WEB',
     });
 
