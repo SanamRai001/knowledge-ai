@@ -526,14 +526,14 @@ A3 Living Knowledge + Actions PostgreSQL              ✅ COMPLETE
 A4 Watch + Integrations PostgreSQL                    ✅ COMPLETE
 A5 Automation + Platform state PostgreSQL             ✅ COMPLETE
 A6 Discovery + Insights PostgreSQL                    ✅ COMPLETE
-A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
+A7 Production runtime PostgreSQL cutover              ✅ COMPLETE
   A7A Discovery / Insights runtime                     ✅ COMPLETE
   A7B Integrations runtime                             ✅ COMPLETE
   A7C Watch runtime                                    ✅ COMPLETE
-  A7D Living Knowledge + Actions runtime                ✅ COMPLETE
-  A7E Automation runtime                                ✅ COMPLETE
-  A7F Platform runtime                                  ✅ COMPLETE
-  A7G Core metadata runtime                             🚧 IN PROGRESS
+  A7D Living Knowledge + Actions runtime               ✅ COMPLETE
+  A7E Automation runtime                               ✅ COMPLETE
+  A7F Platform runtime                                 ✅ COMPLETE
+  A7G Core metadata runtime                            ✅ COMPLETE
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -542,19 +542,43 @@ A4 completion evidence:
 
 `docs/PRODUCTION_A4_POSTGRES_WATCH_INTEGRATIONS.md`
 
+## A7G completion evidence
+
+Core metadata runtime cutover:
+
+`docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`
+
+Authoritative integrated workflow:
+
+`35523721395`
+
+A7G verifies PostgreSQL-authoritative API-key/usage metadata, workspace metadata + per-account active selection, and Dataset/DatasetVersion/import-run metadata with restart reconstruction and account isolation.
+
+### Track A verdict
+
+**Core relational backbone: COMPLETE.**
+
+Remaining local workspace/document and analytical row payloads are explicit **Track C** durability work rather than hidden relational metadata debt.
+
 ## Current exact task
 
-**Production Hardening A7G — Core Metadata runtime PostgreSQL cutover**
+**Production Hardening B1 — identity and authorization forensic audit**
 
-A7F Platform runtime is complete — workflow `35522567852`.
+Keep this slice audit-only.
 
-1. make API-key metadata and API usage PostgreSQL-authoritative in production mode
-2. keep synchronous request authentication backed by a PostgreSQL-hydrated validation cache loaded before traffic is accepted
-3. make workspace identity/metadata and per-account active-workspace selection PostgreSQL-authoritative
-4. keep document/chat/evaluation payload storage explicitly separate until Track C/object-storage work
-5. make Dataset/DatasetVersion/import-run metadata PostgreSQL-authoritative
-6. keep analytical table-row payload behind an explicit payload backend instead of duplicating it into metadata rows
-7. preserve account isolation and restart durability
-8. prove PostgreSQL mode does not mutate the old metadata JSON files for the cut-over paths
-9. preserve file-mode behavior
-10. reassess whether Track A can close before beginning identity/object-storage/worker hardening
+1. inventory all browser-authenticated routes
+2. locate every production path that can still fall back to `acc_default`
+3. map current user/session/auth concepts
+4. separate human-session authority from API-key authority
+5. map organization/workspace membership assumptions
+6. enumerate privileged admin operations and their current enforcement
+7. identify the smallest real identity + membership vertical slice
+8. define B1 exit criteria before implementing authentication
+
+Do not start object storage, workers, or a new auth library in the same slice.
+
+---
+
+# Track A closure note
+
+Track A's relational metadata/state objective is complete. Full production durability still depends on Track C for user payload bytes and on later tracks for identity, workers, secrets, observability, deployment, and abuse testing.
