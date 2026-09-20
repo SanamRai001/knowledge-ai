@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { datasetStore } from '../datasets/datasetStore.js';
-import { effectiveDatasetOverlayService } from '../companyKnowledge/effectiveDatasetOverlayService.js';
+import { effectiveDatasetOverlayRuntimeService } from '../companyKnowledge/effectiveDatasetOverlayRuntimeService.js';
 import { workspaceAccessService } from '../workspaceAccessService.js';
 import { detectOutstandingBalances } from './balanceDetector.js';
 import { detectCustomerConcentration } from './concentrationDetector.js';
@@ -67,7 +67,7 @@ export class DiscoveryRuntimeService {
 
     try {
       const effectiveView =
-        effectiveDatasetOverlayService.apply({
+        await effectiveDatasetOverlayRuntimeService.apply({
           accountId: params.accountId,
           datasetId: params.datasetId,
           version,
