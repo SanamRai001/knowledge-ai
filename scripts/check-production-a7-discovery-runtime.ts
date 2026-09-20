@@ -18,6 +18,7 @@ import {
 import { runPostgresMigrations } from '../server/persistence/migrationRunner.js';
 import {
   postgresAccountRepository,
+  postgresApiKeyRepository,
 } from '../server/persistence/postgresRepositories.js';
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -201,6 +202,12 @@ async function main() {
       PLATFORM_SCOPES.toolsInvoke,
     ],
   });
+
+  // Platform tool invocation audit is relational in production mode.
+  // Mirror authenticated API-key metadata so the same-account audit FK
+  // remains authoritative instead of weakening the production constraint.
+  await postgresApiKeyRepository.create(keyA.apiKey);
+  await postgresApiKeyRepository.create(keyB.apiKey);
 
   const app = express();
   app.use(express.json());
