@@ -260,3 +260,6 @@ jobs:
 
       - name: Production A7G Core metadata runtime proof
         run: npm run check:production:a7g-core-metadata-runtime
+
+      - name: Production B2A identity foundation proof
+        run: npm run check:production:b2a-identity-foundation
