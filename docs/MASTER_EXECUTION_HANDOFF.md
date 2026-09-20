@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7E — Automation runtime PostgreSQL cutover.**
+> **Continue with Production Hardening A7F — Platform runtime PostgreSQL cutover.**
 
 Phases 0–8 are complete.
 
@@ -1057,7 +1057,8 @@ Persistence/runtime milestones:
 - A7B Integrations runtime cutover — COMPLETE, workflow `35517514449`
 - A7C Watch runtime cutover — COMPLETE, workflow `35518107862`
 - A7D Living Knowledge + Actions runtime cutover — COMPLETE, workflow `35520216547`
-- A7E Automation runtime cutover — IN PROGRESS
+- A7E Automation runtime cutover — COMPLETE, workflow `35520860881`
+- A7F Platform runtime cutover — IN PROGRESS
 
 A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
 
@@ -1067,4 +1068,6 @@ A7C evidence: `docs/PRODUCTION_A7C_WATCH_RUNTIME.md`.
 
 A7D evidence: `docs/PRODUCTION_A7D_LIVING_KNOWLEDGE_ACTIONS_RUNTIME.md`.
 
-Next, route Controlled Automation policies/revisions, approvals, emergency controls/revisions, runs, recovery/compensation metadata, and quality feedback through the existing A5 PostgreSQL repositories when production persistence mode is enabled. Preserve file mode and all Phase 7 policy, kill-switch, approval, recovery, and audit behavior.
+A7E evidence: `docs/PRODUCTION_A7E_AUTOMATION_RUNTIME.md`.
+
+Next, route Phase 8 mutable Platform state through the existing A5 PostgreSQL platform repository when production persistence mode is enabled. Start with domain-pack installations and registered-tool invocation audit, while preserving all Phase 8 API/tool/domain-pack behavior and file mode.
