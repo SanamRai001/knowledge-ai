@@ -8,20 +8,20 @@ import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledg
 import {
   WatchAccessError,
   WatchStateError,
-  watchStore,
-} from './watchStore.js';
+} from './watchPersistence.js';
+import { watchPersistence } from './watchPersistence.js';
 import {
   WatchEvaluationError,
-  watchEvaluator,
-} from './watchEvaluator.js';
+} from './watchRuntimeEvaluator.js';
+import { watchRuntimeEvaluator } from './watchRuntimeEvaluator.js';
 import {
   WatchValidationError,
-  watchService,
-} from './watchService.js';
+} from './watchRuntimeService.js';
+import { watchRuntimeService } from './watchRuntimeService.js';
 import {
   WatchDraftError,
-  watchDraftService,
-} from './watchDraftService.js';
+} from './watchDraftRuntimeService.js';
+import { watchDraftRuntimeService } from './watchDraftRuntimeService.js';
 import {
   WatchAlertStatus,
   WatchCondition,
@@ -65,6 +65,18 @@ function handleError(res: express.Response, error: any): void {
   ) {
     res.status(error.statusCode).json({
       error: error.message,
+      code: error.code,
+    });
+    return;
+  }
+
+  if (
+    error &&
+    typeof error.statusCode === 'number' &&
+    typeof error.code === 'string'
+  ) {
+    res.status(error.statusCode).json({
+      error: error.message || 'Watch request failed.',
       code: error.code,
     });
     return;
@@ -117,7 +129,7 @@ watchRouter.post('/drafts/propose', async (req, res) => {
         ? req.body.instruction
         : '';
 
-    const draft = await watchDraftService.propose({
+    const draft = await watchDraftRuntimeService.propose({
       accountId,
       instruction,
       allowLlmParsing: req.body?.allowLlmParsing !== false,
@@ -129,11 +141,11 @@ watchRouter.post('/drafts/propose', async (req, res) => {
   }
 });
 
-watchRouter.get('/drafts', (req, res) => {
+watchRouter.get('/drafts', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      drafts: watchStore.listDrafts({
+      drafts: await watchPersistence.listDrafts({
         accountId,
         limit: limitFrom(req.query.limit, 100),
       }),
@@ -143,18 +155,18 @@ watchRouter.get('/drafts', (req, res) => {
   }
 });
 
-watchRouter.get('/drafts/:id', (req, res) => {
+watchRouter.get('/drafts/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      draft: watchStore.requireDraft(accountId, req.params.id),
+      draft: await watchPersistence.requireDraft(accountId, req.params.id),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-watchRouter.post('/drafts/:id/select-target', (req, res) => {
+watchRouter.post('/drafts/:id/select-target', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const candidateKey =
@@ -170,7 +182,7 @@ watchRouter.post('/drafts/:id/select-target', (req, res) => {
       return;
     }
 
-    const draft = watchDraftService.selectTarget({
+    const draft = await watchDraftRuntimeService.selectTarget({
       accountId,
       draftId: req.params.id,
       candidateKey,
@@ -182,14 +194,14 @@ watchRouter.post('/drafts/:id/select-target', (req, res) => {
   }
 });
 
-watchRouter.post('/drafts/:id/save', (req, res) => {
+watchRouter.post('/drafts/:id/save', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const saved = watchDraftService.save({
+    const saved = await watchDraftRuntimeService.save({
       accountId,
       draftId: req.params.id,
     });
-    const rule = watchStore.requireRule(accountId, saved.ruleId);
+    const rule = await watchPersistence.requireRule(accountId, saved.ruleId);
 
     res.status(201).json({
       draft: saved.draft,
@@ -200,10 +212,10 @@ watchRouter.post('/drafts/:id/save', (req, res) => {
   }
 });
 
-watchRouter.post('/drafts/:id/cancel', (req, res) => {
+watchRouter.post('/drafts/:id/cancel', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const draft = watchDraftService.cancel({
+    const draft = await watchDraftRuntimeService.cancel({
       accountId,
       draftId: req.params.id,
     });
@@ -213,7 +225,7 @@ watchRouter.post('/drafts/:id/cancel', (req, res) => {
   }
 });
 
-watchRouter.post('/rules', (req, res) => {
+watchRouter.post('/rules', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const name =
@@ -228,7 +240,7 @@ watchRouter.post('/rules', (req, res) => {
       return;
     }
 
-    const rule = watchService.createRule({
+    const rule = await watchRuntimeService.createRule({
       accountId,
       name,
       description:
@@ -254,11 +266,11 @@ watchRouter.post('/rules', (req, res) => {
   }
 });
 
-watchRouter.get('/rules', (req, res) => {
+watchRouter.get('/rules', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      rules: watchStore.listRules({
+      rules: await watchPersistence.listRules({
         accountId,
         status: ruleStatus(req.query.status),
         limit: limitFrom(req.query.limit, 100),
@@ -269,19 +281,19 @@ watchRouter.get('/rules', (req, res) => {
   }
 });
 
-watchRouter.get('/rules/:id', (req, res) => {
+watchRouter.get('/rules/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const rule = watchStore.requireRule(accountId, req.params.id);
+    const rule = await watchPersistence.requireRule(accountId, req.params.id);
 
     res.json({
       rule,
-      evaluations: watchStore.listEvaluations({
+      evaluations: await watchPersistence.listEvaluations({
         accountId,
         watchRuleId: rule.id,
         limit: 100,
       }),
-      alerts: watchStore.listAlerts({
+      alerts: await watchPersistence.listAlerts({
         accountId,
         watchRuleId: rule.id,
         limit: 100,
@@ -292,10 +304,10 @@ watchRouter.get('/rules/:id', (req, res) => {
   }
 });
 
-watchRouter.post('/rules/:id/evaluate', (req, res) => {
+watchRouter.post('/rules/:id/evaluate', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const result = watchEvaluator.evaluate({
+    const result = await watchRuntimeEvaluator.evaluate({
       accountId,
       watchRuleId: req.params.id,
     });
@@ -305,10 +317,10 @@ watchRouter.post('/rules/:id/evaluate', (req, res) => {
   }
 });
 
-watchRouter.post('/rules/:id/pause', (req, res) => {
+watchRouter.post('/rules/:id/pause', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const rule = watchService.setStatus({
+    const rule = await watchRuntimeService.setStatus({
       accountId,
       watchRuleId: req.params.id,
       status: 'PAUSED',
@@ -319,10 +331,10 @@ watchRouter.post('/rules/:id/pause', (req, res) => {
   }
 });
 
-watchRouter.post('/rules/:id/resume', (req, res) => {
+watchRouter.post('/rules/:id/resume', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const rule = watchService.setStatus({
+    const rule = await watchRuntimeService.setStatus({
       accountId,
       watchRuleId: req.params.id,
       status: 'ACTIVE',
@@ -333,10 +345,10 @@ watchRouter.post('/rules/:id/resume', (req, res) => {
   }
 });
 
-watchRouter.post('/rules/:id/archive', (req, res) => {
+watchRouter.post('/rules/:id/archive', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const rule = watchService.setStatus({
+    const rule = await watchRuntimeService.setStatus({
       accountId,
       watchRuleId: req.params.id,
       status: 'ARCHIVED',
@@ -347,11 +359,11 @@ watchRouter.post('/rules/:id/archive', (req, res) => {
   }
 });
 
-watchRouter.get('/jobs', (req, res) => {
+watchRouter.get('/jobs', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      jobs: watchStore.listJobs({
+      jobs: await watchPersistence.listJobs({
         accountId,
         watchRuleId:
           typeof req.query.watchRuleId === 'string'
@@ -365,11 +377,11 @@ watchRouter.get('/jobs', (req, res) => {
   }
 });
 
-watchRouter.get('/alerts', (req, res) => {
+watchRouter.get('/alerts', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      alerts: watchStore.listAlerts({
+      alerts: watchPersistence.listAlerts({
         accountId,
         watchRuleId:
           typeof req.query.watchRuleId === 'string'
@@ -384,10 +396,10 @@ watchRouter.get('/alerts', (req, res) => {
   }
 });
 
-watchRouter.post('/alerts/:id/acknowledge', (req, res) => {
+watchRouter.post('/alerts/:id/acknowledge', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const alert = watchStore.updateAlertStatus({
+    const alert = await watchPersistence.updateAlertStatus({
       accountId,
       alertId: req.params.id,
       status: 'ACKNOWLEDGED',
@@ -398,10 +410,10 @@ watchRouter.post('/alerts/:id/acknowledge', (req, res) => {
   }
 });
 
-watchRouter.post('/alerts/:id/resolve', (req, res) => {
+watchRouter.post('/alerts/:id/resolve', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const alert = watchStore.updateAlertStatus({
+    const alert = await watchPersistence.updateAlertStatus({
       accountId,
       alertId: req.params.id,
       status: 'RESOLVED',
@@ -413,7 +425,7 @@ watchRouter.post('/alerts/:id/resolve', (req, res) => {
   }
 });
 
-watchRouter.post('/alerts/:id/snooze', (req, res) => {
+watchRouter.post('/alerts/:id/snooze', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const until =
@@ -429,7 +441,7 @@ watchRouter.post('/alerts/:id/snooze', (req, res) => {
       return;
     }
 
-    const alert = watchStore.updateAlertStatus({
+    const alert = await watchPersistence.updateAlertStatus({
       accountId,
       alertId: req.params.id,
       status: 'SNOOZED',
