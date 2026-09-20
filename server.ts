@@ -11,6 +11,7 @@ import { answerQuestionWithGroundedDocs } from './server/geminiService.js';
 import { runFullTestSuite } from './server/testRunner.js';
 import { runEvaluationSuite } from './server/evaluationService.js';
 import { apiKeyStore } from './server/apiKeyStore.js';
+import { apiKeyRuntimeService } from './server/apiKeyRuntimeService.js';
 import { specializedAIService, SpecializedAIError } from './server/specializedAIService.js';
 import { runApiAcceptanceTests } from './server/apiTestRunner.js';
 import { memoryStore } from './server/memoryStore.js';
@@ -603,6 +604,7 @@ function authenticateApiRequest(req: express.Request, res: express.Response, req
     return null;
   }
 
+  apiKeyRuntimeService.noteValidatedKey(validation.apiKey);
   return validation.apiKey;
 }
 
@@ -629,7 +631,7 @@ app.post('/api/v1/chat', async (req, res) => {
   const { ai_id, message, conversation_id } = req.body || {};
 
   if (!ai_id || typeof ai_id !== 'string' || !ai_id.trim()) {
-    apiKeyStore.recordUsage({
+    await apiKeyRuntimeService.recordUsage({
       requestId,
       apiKeyId: apiKey.id,
       accountId: apiKey.accountId,
@@ -652,7 +654,7 @@ app.post('/api/v1/chat', async (req, res) => {
   }
 
   if (!message || typeof message !== 'string' || !message.trim()) {
-    apiKeyStore.recordUsage({
+    await apiKeyRuntimeService.recordUsage({
       requestId,
       apiKeyId: apiKey.id,
       accountId: apiKey.accountId,
@@ -687,7 +689,7 @@ app.post('/api/v1/chat', async (req, res) => {
     const latencyMs = Date.now() - startTime;
 
     // Record usage
-    apiKeyStore.recordUsage({
+    await apiKeyRuntimeService.recordUsage({
       requestId,
       apiKeyId: apiKey.id,
       accountId: apiKey.accountId,
@@ -722,7 +724,7 @@ app.post('/api/v1/chat', async (req, res) => {
     const statusCode = err instanceof SpecializedAIError ? err.statusCode : 500;
     const errorCode = err instanceof SpecializedAIError ? err.code : 'INTERNAL_ERROR';
 
-    apiKeyStore.recordUsage({
+    await apiKeyRuntimeService.recordUsage({
       requestId,
       apiKeyId: apiKey.id,
       accountId: apiKey.accountId,
@@ -846,9 +848,9 @@ app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
 // --- DEVELOPER PLATFORM MANAGEMENT ROUTES (FOR WEB APP DASHBOARD) ---
 
 // List API Keys
-app.get('/api/v1/developer/keys', (req, res) => {
+app.get('/api/v1/developer/keys', async (req, res) => {
   try {
-    const keys = apiKeyStore.listApiKeyMetadata('acc_default');
+    const keys = await apiKeyRuntimeService.listApiKeyMetadata('acc_default');
     res.json({ keys });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to list API keys' });
@@ -856,10 +858,10 @@ app.get('/api/v1/developer/keys', (req, res) => {
 });
 
 // Create API Key
-app.post('/api/v1/developer/keys', (req, res) => {
+app.post('/api/v1/developer/keys', async (req, res) => {
   try {
     const { name, environment, scopes } = req.body || {};
-    const created = apiKeyStore.createApiKey({
+    const created = await apiKeyRuntimeService.createApiKey({
       name: name || 'New API Key',
       accountId: 'acc_default',
       environment: environment === 'test' ? 'test' : 'live',
@@ -876,16 +878,16 @@ app.post('/api/v1/developer/keys', (req, res) => {
 });
 
 // Revoke API Key
-app.delete('/api/v1/developer/keys/:id', (req, res) => {
+app.delete('/api/v1/developer/keys/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const revoked = apiKeyStore.revokeApiKey(id, 'acc_default');
+    const revoked = await apiKeyRuntimeService.revokeApiKey(id, 'acc_default');
     if (!revoked) {
       return res.status(404).json({ error: 'API key not found or already revoked' });
     }
     res.json({
       message: 'API key revoked successfully',
-      keys: apiKeyStore.listApiKeyMetadata('acc_default'),
+      keys: await apiKeyRuntimeService.listApiKeyMetadata('acc_default'),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to revoke API key' });
@@ -893,9 +895,9 @@ app.delete('/api/v1/developer/keys/:id', (req, res) => {
 });
 
 // Get Developer Usage Statistics
-app.get('/api/v1/developer/usage', (req, res) => {
+app.get('/api/v1/developer/usage', async (req, res) => {
   try {
-    const stats = apiKeyStore.getUsageStats('acc_default');
+    const stats = await apiKeyRuntimeService.getUsageStats('acc_default');
     res.json(stats);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch usage metrics' });
@@ -2935,6 +2937,8 @@ app.get('/api/v1/cognitive/outline', async (req, res) => {
 
 // --- VITE / STATIC SERVING ---
 async function startServer() {
+  await apiKeyRuntimeService.bootstrap();
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
