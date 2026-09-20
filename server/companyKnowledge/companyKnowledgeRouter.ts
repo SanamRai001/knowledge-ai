@@ -8,12 +8,13 @@ import {
 } from '../requestIdentity.js';
 import {
   CompanyKnowledgeAccessError,
-  companyKnowledgeStore,
 } from './companyKnowledgeStore.js';
-import { structuredKnowledgeProjectionService } from './structuredKnowledgeProjectionService.js';
-import { documentKnowledgeProjectionService } from './documentKnowledgeProjectionService.js';
-import { knowledgeConflictService } from './knowledgeConflictService.js';
-import { companyKnowledgeChangeService, KnowledgeChangeError } from './companyKnowledgeChangeService.js';
+import { companyKnowledgePersistence } from './companyKnowledgePersistence.js';
+import { structuredKnowledgeRuntimeProjectionService } from './structuredKnowledgeRuntimeProjectionService.js';
+import { documentKnowledgeRuntimeProjectionService } from './documentKnowledgeRuntimeProjectionService.js';
+import { knowledgeConflictRuntimeService } from './knowledgeConflictRuntimeService.js';
+import { KnowledgeChangeError } from './companyKnowledgeChangeService.js';
+import { companyKnowledgeChangeRuntimeService } from './companyKnowledgeChangeRuntimeService.js';
 import { CompanyEntityType } from './types.js';
 
 export const companyKnowledgeRouter = express.Router();
@@ -88,7 +89,7 @@ function entityTypeFrom(value: unknown): CompanyEntityType | undefined {
     : undefined;
 }
 
-companyKnowledgeRouter.post('/project/dataset', (req, res) => {
+companyKnowledgeRouter.post('/project/dataset', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const datasetId =
@@ -104,7 +105,8 @@ companyKnowledgeRouter.post('/project/dataset', (req, res) => {
       return;
     }
 
-    const run = structuredKnowledgeProjectionService.projectDataset({
+    const run =
+      await structuredKnowledgeRuntimeProjectionService.projectDataset({
       accountId,
       datasetId,
       versionId:
@@ -115,14 +117,14 @@ companyKnowledgeRouter.post('/project/dataset', (req, res) => {
 
     res.status(201).json({
       run,
-      summary: companyKnowledgeStore.snapshotCounts(accountId),
+      summary: await companyKnowledgePersistence.snapshotCounts(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-companyKnowledgeRouter.post('/project/documents', (req, res) => {
+companyKnowledgeRouter.post('/project/documents', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const knowledgeBaseId =
@@ -138,21 +140,22 @@ companyKnowledgeRouter.post('/project/documents', (req, res) => {
       return;
     }
 
-    const run = documentKnowledgeProjectionService.projectKnowledgeBase({
+    const run =
+      await documentKnowledgeRuntimeProjectionService.projectKnowledgeBase({
       accountId,
       knowledgeBaseId,
     });
 
     res.status(201).json({
       run,
-      summary: companyKnowledgeStore.snapshotCounts(accountId),
+      summary: await companyKnowledgePersistence.snapshotCounts(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-companyKnowledgeRouter.get('/changes/compare', (req, res) => {
+companyKnowledgeRouter.get('/changes/compare', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const fromRunId =
@@ -173,7 +176,8 @@ companyKnowledgeRouter.get('/changes/compare', (req, res) => {
     }
 
     res.json({
-      changes: companyKnowledgeChangeService.compareProjectionRuns({
+      changes:
+        await companyKnowledgeChangeRuntimeService.compareProjectionRuns({
         accountId,
         fromRunId,
         toRunId,
@@ -184,7 +188,7 @@ companyKnowledgeRouter.get('/changes/compare', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/changes/since', (req, res) => {
+companyKnowledgeRouter.get('/changes/since', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const since =
@@ -201,7 +205,8 @@ companyKnowledgeRouter.get('/changes/since', (req, res) => {
     }
 
     res.json({
-      changes: companyKnowledgeChangeService.changesSince({
+      changes:
+        await companyKnowledgeChangeRuntimeService.changesSince({
         accountId,
         since,
       }),
@@ -211,22 +216,22 @@ companyKnowledgeRouter.get('/changes/since', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/summary', (_req, res) => {
+companyKnowledgeRouter.get('/summary', async (_req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      summary: companyKnowledgeStore.snapshotCounts(accountId),
+      summary: await companyKnowledgePersistence.snapshotCounts(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-companyKnowledgeRouter.get('/entities', (req, res) => {
+companyKnowledgeRouter.get('/entities', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      entities: companyKnowledgeStore.listEntities({
+      entities: await companyKnowledgePersistence.listEntities({
         accountId,
         type: entityTypeFrom(req.query.type),
         search:
@@ -241,28 +246,30 @@ companyKnowledgeRouter.get('/entities', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/entities/:id', (req, res) => {
+companyKnowledgeRouter.get('/entities/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const entity = companyKnowledgeStore.requireEntity(
+    const entity =
+      await companyKnowledgePersistence.requireEntity(
       accountId,
       req.params.id
     );
 
     res.json({
       entity,
-      relationships: companyKnowledgeStore.listRelationships({
+      relationships:
+        await companyKnowledgePersistence.listRelationships({
         accountId,
         entityId: entity.id,
         limit: 100,
       }),
-      claims: companyKnowledgeStore.listClaims({
+      claims: await companyKnowledgePersistence.listClaims({
         accountId,
         entityId: entity.id,
         currentOnly: false,
         limit: 300,
       }),
-      events: companyKnowledgeStore.listEvents({
+      events: await companyKnowledgePersistence.listEvents({
         accountId,
         entityId: entity.id,
         limit: 200,
@@ -273,11 +280,11 @@ companyKnowledgeRouter.get('/entities/:id', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/relationships', (req, res) => {
+companyKnowledgeRouter.get('/relationships', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      relationships: companyKnowledgeStore.listRelationships({
+      relationships: await companyKnowledgePersistence.listRelationships({
         accountId,
         entityId:
           typeof req.query.entityId === 'string'
@@ -295,11 +302,11 @@ companyKnowledgeRouter.get('/relationships', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/claims', (req, res) => {
+companyKnowledgeRouter.get('/claims', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      claims: companyKnowledgeStore.listClaims({
+      claims: await companyKnowledgePersistence.listClaims({
         accountId,
         entityId:
           typeof req.query.entityId === 'string'
@@ -318,11 +325,11 @@ companyKnowledgeRouter.get('/claims', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/conflicts', (req, res) => {
+companyKnowledgeRouter.get('/conflicts', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      conflicts: knowledgeConflictService.listConflicts({
+      conflicts: await knowledgeConflictRuntimeService.listConflicts({
         accountId,
         entityId:
           typeof req.query.entityId === 'string'
@@ -336,7 +343,7 @@ companyKnowledgeRouter.get('/conflicts', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/events', (req, res) => {
+companyKnowledgeRouter.get('/events', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const since =
@@ -345,7 +352,7 @@ companyKnowledgeRouter.get('/events', (req, res) => {
         : undefined;
 
     res.json({
-      events: companyKnowledgeStore.listEvents({
+      events: await companyKnowledgePersistence.listEvents({
         accountId,
         entityId:
           typeof req.query.entityId === 'string'
@@ -367,7 +374,7 @@ companyKnowledgeRouter.get('/events', (req, res) => {
   }
 });
 
-companyKnowledgeRouter.get('/projection-runs', (req, res) => {
+companyKnowledgeRouter.get('/projection-runs', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const sourceType =
@@ -377,7 +384,8 @@ companyKnowledgeRouter.get('/projection-runs', (req, res) => {
         : undefined;
 
     res.json({
-      runs: companyKnowledgeStore.listProjectionRuns({
+      runs:
+        await companyKnowledgePersistence.listProjectionRuns({
         accountId,
         sourceType,
         sourceId:
