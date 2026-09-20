@@ -531,7 +531,8 @@ A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
   A7B Integrations runtime                             ✅ COMPLETE
   A7C Watch runtime                                    ✅ COMPLETE
   A7D Living Knowledge + Actions runtime                ✅ COMPLETE
-  A7E Automation runtime                                🚧 IN PROGRESS
+  A7E Automation runtime                                ✅ COMPLETE
+  A7F Platform runtime                                  🚧 IN PROGRESS
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -542,19 +543,17 @@ A4 completion evidence:
 
 ## Current exact task
 
-**Production Hardening A7E — Automation runtime PostgreSQL cutover**
+**Production Hardening A7F — Platform runtime PostgreSQL cutover**
 
-A7D Living Knowledge + Actions runtime is complete — workflow `35520216547`.
+A7E Automation runtime is complete — workflow `35520860881`.
 
-1. add selected Automation persistence for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
-2. route policy create/update/read/revisions through the A5 PostgreSQL repository
-3. route approval requests and approval resolution through PostgreSQL
-4. route emergency automation control state + revisions through PostgreSQL
-5. route AutomationRun create/update/list/detail through PostgreSQL
-6. update policy evaluation and automatic execution to use the selected runtime persistence
-7. update compensation/recovery and quality-feedback paths to use PostgreSQL
-8. preserve existing Action transaction semantics from A7D
-9. prove restart persistence, account isolation, kill-switch enforcement, approval behavior, auto-execution, compensation, and quality feedback
-10. prove production mode does not mutate legacy Automation JSON state
-11. preserve file-mode Phase 7 behavior
-12. after A7E, continue with Platform runtime cutover or the next highest-risk mutable runtime family
+1. audit Phase 8 mutable file-backed stores
+2. add selected Platform persistence for production mode
+3. route domain-pack install/remove/list state through A5 PostgreSQL repository
+4. route registered-tool invocation audit through A5 PostgreSQL repository
+5. preserve registered tool execution behavior and authorization
+6. preserve domain-pack one-active-installation invariant
+7. prove restart persistence and account isolation
+8. prove PostgreSQL mode does not mutate legacy Platform JSON files
+9. preserve complete file-mode Phase 8 behavior
+10. then reassess remaining mutable runtime families before beginning object-storage/worker/identity hardening
