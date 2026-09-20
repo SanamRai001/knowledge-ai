@@ -1,26 +1,11 @@
 import { companyKnowledgePersistence } from './companyKnowledgePersistence.js';
+import { KnowledgeChangeError } from './companyKnowledgeChangeService.js';
 import {
   KnowledgeChangeReport,
   KnowledgeChangesSince,
   KnowledgeClaim,
   KnowledgeClaimValue,
 } from './types.js';
-
-export class KnowledgeChangeError extends Error {
-  public readonly statusCode = 400;
-  public readonly code:
-    | 'INCOMPATIBLE_PROJECTION_RUNS'
-    | 'INVALID_CHANGE_WINDOW';
-
-  constructor(
-    code: 'INCOMPATIBLE_PROJECTION_RUNS' | 'INVALID_CHANGE_WINDOW',
-    message: string
-  ) {
-    super(message);
-    this.name = 'KnowledgeChangeError';
-    this.code = code;
-  }
-}
 
 function setDifference(left: string[], right: string[]): string[] {
   const rightSet = new Set(right);
