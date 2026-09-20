@@ -173,7 +173,7 @@ export class ActionRuntimeProposalService {
     eventType: string;
     eventData: Record<string, KnowledgeClaimValue>;
     calculationSummary: string;
-  }): ActionProposal {
+  }): Promise<ActionProposal> {
     return actionPersistence.createProposal({
       accountId: params.accountId,
       instruction: params.instruction,
