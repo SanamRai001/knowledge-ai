@@ -73,7 +73,8 @@ function handleAuthError(error: unknown, res: any) {
           ? 403
           : error.code === 'AUTH_BOOTSTRAP_ALREADY_USED'
             ? 409
-            : error.code === 'AUTH_PASSWORD_INVALID'
+            : error.code === 'AUTH_PASSWORD_INVALID' ||
+                error.code === 'AUTH_EMAIL_INVALID'
               ? 400
               : error.code ===
                   'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
