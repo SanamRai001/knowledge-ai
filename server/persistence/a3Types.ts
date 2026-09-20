@@ -31,6 +31,12 @@ export interface CompanyKnowledgeRepository {
   saveRelationship(
     relationship: CompanyRelationship
   ): Promise<void>;
+  listRelationships(params: {
+    accountId: string;
+    entityId?: string;
+    predicate?: string;
+    limit?: number;
+  }): Promise<CompanyRelationship[]>;
 
   getClaim(
     accountId: string,
@@ -70,6 +76,18 @@ export interface CompanyKnowledgeRepository {
   saveProjectionRun(
     run: KnowledgeProjectionRun
   ): Promise<void>;
+  listProjectionRuns(params: {
+    accountId: string;
+    sourceType?: KnowledgeProjectionRun['sourceType'];
+    sourceId?: string;
+    limit?: number;
+  }): Promise<KnowledgeProjectionRun[]>;
+  snapshotCounts(accountId: string): Promise<{
+    entities: number;
+    relationships: number;
+    currentClaims: number;
+    events: number;
+  }>;
 }
 
 export interface ActionRepository {
@@ -78,6 +96,11 @@ export interface ActionRepository {
     proposalId: string
   ): Promise<ActionProposal | null>;
   saveProposal(proposal: ActionProposal): Promise<void>;
+  listProposals(params: {
+    accountId: string;
+    status?: ActionProposalStatus;
+    limit?: number;
+  }): Promise<ActionProposal[]>;
   transitionProposal(params: {
     accountId: string;
     proposalId: string;
