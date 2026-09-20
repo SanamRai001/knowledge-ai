@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7F — Platform runtime PostgreSQL cutover.**
+> **Continue with Production Hardening A7G — Core metadata runtime PostgreSQL cutover.**
 
 Phases 0–8 are complete.
 
@@ -1058,7 +1058,8 @@ Persistence/runtime milestones:
 - A7C Watch runtime cutover — COMPLETE, workflow `35518107862`
 - A7D Living Knowledge + Actions runtime cutover — COMPLETE, workflow `35520216547`
 - A7E Automation runtime cutover — COMPLETE, workflow `35520860881`
-- A7F Platform runtime cutover — IN PROGRESS
+- A7F Platform runtime cutover — COMPLETE, workflow `35522567852`
+- A7G Core metadata runtime cutover — IN PROGRESS
 
 A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
 
@@ -1070,4 +1071,4 @@ A7D evidence: `docs/PRODUCTION_A7D_LIVING_KNOWLEDGE_ACTIONS_RUNTIME.md`.
 
 A7E evidence: `docs/PRODUCTION_A7E_AUTOMATION_RUNTIME.md`.
 
-Next, route Phase 8 mutable Platform state through the existing A5 PostgreSQL platform repository when production persistence mode is enabled. Start with domain-pack installations and registered-tool invocation audit, while preserving all Phase 8 API/tool/domain-pack behavior and file mode.
+A7F is complete. Next, make the original A2 core repositories authoritative at runtime in PostgreSQL mode: API keys/usage, workspace metadata + per-account active workspace, and Dataset/DatasetVersion/import-run metadata. Preserve document/chat and analytical-row payloads behind explicit non-relational payload boundaries until Track C.
