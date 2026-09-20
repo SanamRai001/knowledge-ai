@@ -3,7 +3,7 @@ import { apiKeyStore } from '../../apiKeyStore.js';
 import { PLATFORM_SCOPES } from '../platformApiManifest.js';
 import './builtInTools.js';
 import { validateToolInput } from './toolInputValidator.js';
-import { toolInvocationAuditStore } from './toolInvocationAuditStore.js';
+import { platformPersistence } from '../platformPersistence.js';
 import { toolRegistry } from './toolRegistry.js';
 import type {
   RegisteredToolContext,
@@ -150,7 +150,7 @@ export class ToolInvocationService {
       );
     }
 
-    const audit = toolInvocationAuditStore.start({
+    const audit = await platformPersistence.startToolInvocation({
       accountId: params.context.accountId,
       toolId: tool.descriptor.id,
       toolVersion: tool.descriptor.version,
@@ -165,7 +165,7 @@ export class ToolInvocationService {
         params.context
       );
 
-      toolInvocationAuditStore.finish({
+      await platformPersistence.finishToolInvocation({
         accountId: params.context.accountId,
         invocationId: audit.id,
         status: 'SUCCEEDED',
@@ -177,7 +177,7 @@ export class ToolInvocationService {
         result,
       };
     } catch (error: any) {
-      toolInvocationAuditStore.finish({
+      await platformPersistence.finishToolInvocation({
         accountId: params.context.accountId,
         invocationId: audit.id,
         status: 'FAILED',
