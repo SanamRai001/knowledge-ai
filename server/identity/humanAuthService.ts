@@ -17,7 +17,7 @@ import type {
 
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 1024;
-const SCRYPT_N = 16384;
+const SCRYPT_N = 32768;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const SCRYPT_KEY_LENGTH = 64;
@@ -29,6 +29,7 @@ export type HumanAuthErrorCode =
   | 'AUTH_BOOTSTRAP_ALREADY_USED'
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
+  | 'AUTH_EMAIL_INVALID'
   | 'AUTH_PASSWORD_INVALID';
 
 export class HumanAuthError extends Error {
@@ -75,6 +76,28 @@ function validatePassword(password: string): void {
   }
 }
 
+function normalizeBootstrapEmail(email: string): string {
+  try {
+    return normalizeHumanEmail(email);
+  } catch {
+    throw new HumanAuthError(
+      'AUTH_EMAIL_INVALID',
+      'A valid email address is required.'
+    );
+  }
+}
+
+function normalizeLoginEmail(email: string): string {
+  try {
+    return normalizeHumanEmail(email);
+  } catch {
+    throw new HumanAuthError(
+      'AUTH_INVALID_CREDENTIALS',
+      'Email or password is incorrect.'
+    );
+  }
+}
+
 function scrypt(
   password: string,
   salt: Buffer,
@@ -105,6 +128,25 @@ function scrypt(
       }
     );
   });
+}
+
+async function burnMissingCredentialCheck(
+  password: string
+): Promise<void> {
+  const bounded =
+    typeof password === 'string'
+      ? password.slice(0, PASSWORD_MAX_LENGTH)
+      : '';
+  await scrypt(
+    bounded,
+    Buffer.alloc(16, 0x5a),
+    SCRYPT_KEY_LENGTH,
+    {
+      N: SCRYPT_N,
+      r: SCRYPT_R,
+      p: SCRYPT_P,
+    }
+  );
 }
 
 export async function createPasswordCredential(
@@ -223,7 +265,7 @@ export class HumanAuthService {
       );
     }
 
-    const normalizedEmail = normalizeHumanEmail(params.email);
+    const normalizedEmail = normalizeBootstrapEmail(params.email);
     const now = Date.now();
     const user: HumanUser = {
       id: randomId('usr'),
@@ -273,19 +315,29 @@ export class HumanAuthService {
     password: string;
     previousSessionSecret?: string;
   }) {
-    const normalizedEmail = normalizeHumanEmail(params.email);
+    const normalizedEmail = normalizeLoginEmail(params.email);
     const login =
       await this.authRepository.findLoginIdentity(
         normalizedEmail
       );
 
-    if (
-      !login ||
-      login.user.status !== 'ACTIVE' ||
-      !(await verifyPasswordCredential(
+    if (!login) {
+      await burnMissingCredentialCheck(params.password);
+      throw new HumanAuthError(
+        'AUTH_INVALID_CREDENTIALS',
+        'Email or password is incorrect.'
+      );
+    }
+
+    const passwordValid =
+      await verifyPasswordCredential(
         login.credential,
         params.password
-      ))
+      );
+
+    if (
+      login.user.status !== 'ACTIVE' ||
+      !passwordValid
     ) {
       throw new HumanAuthError(
         'AUTH_INVALID_CREDENTIALS',
