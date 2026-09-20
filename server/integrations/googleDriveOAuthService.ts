@@ -9,8 +9,8 @@ import {
   IntegrationCredentialStore,
   integrationCredentialStore,
 } from './integrationCredentialStore.js';
-import { integrationStore, publicConnection } from './integrationStore.js';
-import { integrationSyncService } from './integrationSyncService.js';
+import { publicConnection } from './integrationStore.js';
+import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
   GoogleDriveOAuthStateStore,
   googleDriveOAuthStateStore,
@@ -66,16 +66,16 @@ export class GoogleDriveOAuthService {
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
-  public begin(params: {
+  public async begin(params: {
     accountId: string;
     displayName?: string;
     connectionId?: string;
-  }): {
+  }): Promise<{
     authorizationUrl: string;
     expiresAt: number;
     scope: string;
     accessModel: 'PER_FILE';
-  } {
+  }> {
     const config = googleDriveServerConfig({
       requireRedirectUri: true,
     });
@@ -83,7 +83,7 @@ export class GoogleDriveOAuthService {
       params.displayName?.trim() || 'Google Drive';
 
     if (params.connectionId) {
-      const existing = integrationStore.requireConnection(
+      const existing = await integrationRuntimeService.getInternalConnection(
         params.accountId,
         params.connectionId
       );
@@ -242,7 +242,7 @@ export class GoogleDriveOAuthService {
     try {
       let connection;
       if (attempt.connectionId) {
-        const current = integrationStore.requireConnection(
+        const current = await integrationRuntimeService.getInternalConnection(
           attempt.accountId,
           attempt.connectionId
         );
@@ -258,7 +258,7 @@ export class GoogleDriveOAuthService {
         }
 
         const oldCredentialRef = current.credentialRef;
-        connection = integrationStore.updateConnection(
+        connection = await integrationRuntimeService.updateConnection(
           attempt.accountId,
           current.id,
           {
@@ -290,7 +290,7 @@ export class GoogleDriveOAuthService {
           });
         }
       } else {
-        connection = integrationSyncService.createConnection({
+        connection = await integrationRuntimeService.createConnection({
           accountId: attempt.accountId,
           provider: 'GOOGLE_DRIVE',
           displayName: attempt.displayName,
@@ -326,7 +326,7 @@ export class GoogleDriveOAuthService {
     connection: PublicIntegrationConnection;
     remoteRevoked: boolean;
   }> {
-    const connection = integrationStore.requireConnection(
+    const connection = await integrationRuntimeService.getInternalConnection(
       params.accountId,
       params.connectionId
     );
@@ -377,10 +377,12 @@ export class GoogleDriveOAuthService {
       });
     }
 
-    const revoked = integrationStore.setConnectionStatus(
+    const revoked = await integrationRuntimeService.updateConnection(
       params.accountId,
       connection.id,
-      'REVOKED'
+      {
+        status: 'REVOKED',
+      }
     );
 
     return {
