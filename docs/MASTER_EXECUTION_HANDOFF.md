@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2B1 — Human Credential + Auth Session API.**
+> **Continue with Production Hardening B2B2 — HUMAN_SESSION Request Identity + Production Fallback Removal.**
 
 Phases 0–8 are complete.
 
@@ -1062,6 +1062,7 @@ Track A relational milestones:
 - A7G Core metadata runtime cutover — COMPLETE, workflow `35523721395`
 - B1 Identity & Authorization Forensic Audit — COMPLETE, evidence commit `7d001b38`
 - B2A Human Identity Persistence Foundation — COMPLETE, workflow `35526535634`
+- B2B1 Human Credential + Auth Session API — COMPLETE, workflow `35527482968`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1069,20 +1070,23 @@ B1 evidence: `docs/PRODUCTION_B1_IDENTITY_AUTHORIZATION_AUDIT.md`.
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
-B2A now provides durable human users, OWNER/ADMIN/MEMBER account memberships, and revocable/expiring browser sessions whose raw bearer secrets are never persisted. Selected account is membership-bound and selected workspace is session-scoped and constrained to the selected account. Existing browser routes are intentionally not cut over yet.
+B2B1 evidence: `docs/PRODUCTION_B2B1_AUTH_SESSION_API.md`.
 
-Next, do **B2B1 only — Human Credential + Auth Session API**:
+B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
-1. define one password credential format using a production-safe password KDF
-2. add a one-time initial OWNER bootstrap path
-3. add login
-4. issue the B2A opaque session secret in a secure HttpOnly cookie
-5. add logout/session revocation
-6. add `GET /api/auth/me`
-7. add same-origin/CSRF protection appropriate to cookie-authenticated mutations
-8. add focused auth HTTP tests
-9. do not change all existing product routers yet
+B2B1 now provides salted scrypt human credentials, a durable one-time initial OWNER bootstrap, same-origin login, Secure/HttpOnly session cookies in production, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation. Existing product routers intentionally remain on their pre-B2B2 identity path.
 
-B2B2 will add `HUMAN_SESSION` request identity and remove the production `DEFAULT_WEB / acc_default` fallback. B2C will then cut browser product routers over to human sessions.
+Next, do **B2B2 only — HUMAN_SESSION Request Identity + Production Fallback Removal**:
 
-Do not start B2B2, B2C, B2D, Track C object storage, or workers in the same slice.
+1. extend `RequestIdentity` with a distinct `HUMAN_SESSION` source
+2. resolve `ka_session` through the durable human-session foundation
+3. carry authenticated `userId`, account membership role, selected account, and selected workspace context
+4. preserve API keys as a separate machine credential class
+5. make missing browser identity fail closed in production rather than becoming `DEFAULT_WEB / acc_default`
+6. retain `DEFAULT_WEB` only behind an explicit development/test compatibility switch
+7. add focused human-session vs API-key vs no-credential resolution tests
+8. do not cut every existing product router over yet
+
+B2C will perform the route-by-route browser product cutover after B2B2 is green.
+
+Do not start B2C, B2D, Track C object storage, or workers in the same slice.
