@@ -55,6 +55,19 @@ export interface IntegrationRepository {
   ): Promise<IntegrationConnection | null>;
   listConnections(accountId: string): Promise<IntegrationConnection[]>;
   saveConnection(connection: IntegrationConnection): Promise<void>;
+  tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }): Promise<IntegrationConnection | null>;
+  releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }): Promise<IntegrationConnection | null>;
 
   getSyncRun(accountId: string, runId: string): Promise<SyncRun | null>;
   listSyncRuns(params: {
