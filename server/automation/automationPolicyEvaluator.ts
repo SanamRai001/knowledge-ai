@@ -99,8 +99,19 @@ export class AutomationPolicyEvaluator {
   }
 
   public evaluate(input: AutomationEvaluationInput): AutomationEvaluation {
+    return this.evaluateWithState(
+      input,
+      automationPolicyStore.getPolicy(input.accountId),
+      automationControlStore.get(input.accountId)
+    );
+  }
+
+  public evaluateWithState(
+    input: AutomationEvaluationInput,
+    policy: AutomationPolicy | null,
+    control: import('./types.js').AutomationControlState
+  ): AutomationEvaluation {
     const risk = this.riskFor(input.proposal.intent);
-    const policy = automationPolicyStore.getPolicy(input.accountId);
 
     if (
       input.proposal.accountId !== input.accountId ||
@@ -118,7 +129,6 @@ export class AutomationPolicyEvaluator {
       });
     }
 
-    const control = automationControlStore.get(input.accountId);
     if (control.emergencyDisabled) {
       return result({
         input,
