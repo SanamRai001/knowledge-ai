@@ -385,6 +385,14 @@ export class PostgresApiKeyRepository
       : null;
   }
 
+  async listAll(): Promise<ApiKey[]> {
+    const result = await postgresPool().query(
+      `SELECT * FROM api_keys
+       ORDER BY created_at DESC, id ASC`
+    );
+    return result.rows.map(apiKeyFromRow);
+  }
+
   async list(accountId: string): Promise<ApiKey[]> {
     const result = await postgresPool().query(
       `SELECT * FROM api_keys
