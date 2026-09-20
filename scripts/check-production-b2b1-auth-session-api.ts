@@ -143,6 +143,26 @@ async function main() {
       'Initial owner bootstrap must reject the wrong bootstrap secret.'
     );
 
+    const invalidBootstrapEmail = await fetch(
+      baseUrl + '/api/auth/bootstrap',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-bootstrap-token':
+            process.env.KNOWLEDGE_AI_BOOTSTRAP_TOKEN!,
+        },
+        body: JSON.stringify({
+          email: 'not-an-email',
+          password: 'A-strong-bootstrap-password-123!',
+        }),
+      }
+    );
+    assert(
+      invalidBootstrapEmail.status === 400,
+      'Bootstrap must reject malformed email input without consuming the one-time bootstrap.'
+    );
+
     const bootstrap = await fetch(
       baseUrl + '/api/auth/bootstrap',
       {
@@ -195,7 +215,7 @@ async function main() {
           'A-strong-bootstrap-password-123!' &&
         credential.rows[0].salt_base64 !==
           'A-strong-bootstrap-password-123!' &&
-        credential.rows[0].scrypt_n >= 16384 &&
+        credential.rows[0].scrypt_n >= 32768 &&
         credential.rows[0].key_length >= 32,
       'Passwords must be stored only as salted scrypt credentials.'
     );
@@ -218,6 +238,25 @@ async function main() {
     assert(
       bootstrapAgain.status === 409,
       'Initial owner bootstrap must be durably one-time.'
+    );
+
+    const malformedLogin = await fetch(
+      baseUrl + '/api/auth/login',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: baseUrl,
+        },
+        body: JSON.stringify({
+          email: 'not-an-email',
+          password: 'anything-at-all',
+        }),
+      }
+    );
+    assert(
+      malformedLogin.status === 401,
+      'Malformed login identity must fail as invalid credentials rather than an internal error.'
     );
 
     const wrongOrigin = await fetch(
