@@ -242,3 +242,6 @@ jobs:
 
       - name: Production A7 Discovery runtime proof
         run: npm run check:production-a7-discovery-runtime
+
+      - name: Production A7B Integration runtime proof
+        run: npm run check:production-a7b-integration-runtime
