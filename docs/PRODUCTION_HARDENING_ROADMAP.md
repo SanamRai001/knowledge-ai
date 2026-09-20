@@ -532,7 +532,8 @@ A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
   A7C Watch runtime                                    ✅ COMPLETE
   A7D Living Knowledge + Actions runtime                ✅ COMPLETE
   A7E Automation runtime                                ✅ COMPLETE
-  A7F Platform runtime                                  🚧 IN PROGRESS
+  A7F Platform runtime                                  ✅ COMPLETE
+  A7G Core metadata runtime                             🚧 IN PROGRESS
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -543,17 +544,17 @@ A4 completion evidence:
 
 ## Current exact task
 
-**Production Hardening A7F — Platform runtime PostgreSQL cutover**
+**Production Hardening A7G — Core Metadata runtime PostgreSQL cutover**
 
-A7E Automation runtime is complete — workflow `35520860881`.
+A7F Platform runtime is complete — workflow `35522567852`.
 
-1. audit Phase 8 mutable file-backed stores
-2. add selected Platform persistence for production mode
-3. route domain-pack install/remove/list state through A5 PostgreSQL repository
-4. route registered-tool invocation audit through A5 PostgreSQL repository
-5. preserve registered tool execution behavior and authorization
-6. preserve domain-pack one-active-installation invariant
-7. prove restart persistence and account isolation
-8. prove PostgreSQL mode does not mutate legacy Platform JSON files
-9. preserve complete file-mode Phase 8 behavior
-10. then reassess remaining mutable runtime families before beginning object-storage/worker/identity hardening
+1. make API-key metadata and API usage PostgreSQL-authoritative in production mode
+2. keep synchronous request authentication backed by a PostgreSQL-hydrated validation cache loaded before traffic is accepted
+3. make workspace identity/metadata and per-account active-workspace selection PostgreSQL-authoritative
+4. keep document/chat/evaluation payload storage explicitly separate until Track C/object-storage work
+5. make Dataset/DatasetVersion/import-run metadata PostgreSQL-authoritative
+6. keep analytical table-row payload behind an explicit payload backend instead of duplicating it into metadata rows
+7. preserve account isolation and restart durability
+8. prove PostgreSQL mode does not mutate the old metadata JSON files for the cut-over paths
+9. preserve file-mode behavior
+10. reassess whether Track A can close before beginning identity/object-storage/worker hardening
