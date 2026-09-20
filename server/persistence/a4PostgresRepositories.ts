@@ -856,6 +856,72 @@ export class PostgresIntegrationRepository
     await saveConnectionWith(postgresPool(), connection);
   }
 
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
   public async getSyncRun(accountId: string, runId: string) {
     const result = await postgresPool().query(
       `SELECT * FROM integration_sync_runs
