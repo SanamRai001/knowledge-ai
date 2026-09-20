@@ -11,10 +11,11 @@ import {
   RequestIdentityError,
   resolveRequestIdentity,
 } from './requestIdentity.js';
+import { WorkspaceAccessError } from './workspaceAccessService.js';
 import {
-  WorkspaceAccessError,
-  workspaceAccessService,
-} from './workspaceAccessService.js';
+  WorkspaceRuntimeError,
+  workspaceRuntimeService,
+} from './workspaceRuntimeService.js';
 
 export const workspaceRouter = express.Router();
 
@@ -67,7 +68,11 @@ function handleError(
   fallback: string,
   defaultStatus = 500
 ) {
-  if (error instanceof WorkspaceAccessError || error instanceof RequestIdentityError) {
+  if (
+    error instanceof WorkspaceAccessError ||
+    error instanceof WorkspaceRuntimeError ||
+    error instanceof RequestIdentityError
+  ) {
     res.status(error.statusCode).json({
       error: error.message,
       code: error.code,
@@ -84,19 +89,19 @@ function handleError(
   res.status(defaultStatus).json({ error: error?.message || fallback });
 }
 
-workspaceRouter.get('/', (_req, res) => {
+workspaceRouter.get('/', async (_req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      kb: workspaceAccessService.getActiveKB(accountId),
-      allKbs: workspaceAccessService.listKBs(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
+      allKbs: await workspaceRuntimeService.listKBs(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to retrieve knowledge base');
   }
 });
 
-workspaceRouter.post('/new', (req, res) => {
+workspaceRouter.post('/new', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const name =
@@ -107,21 +112,21 @@ workspaceRouter.post('/new', (req, res) => {
       typeof req.body?.description === 'string'
         ? req.body.description.trim()
         : undefined;
-    const kb = workspaceAccessService.createKB(accountId, name, description);
+    const kb = await workspaceRuntimeService.createKB(accountId, name, description);
     res.json({
       message: 'Created new knowledge base',
       kb,
-      allKbs: workspaceAccessService.listKBs(accountId),
+      allKbs: await workspaceRuntimeService.listKBs(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to create knowledge base');
   }
 });
 
-workspaceRouter.patch('/:id', (req, res) => {
+workspaceRouter.patch('/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const kb = workspaceAccessService.updateKB(accountId, req.params.id, {
+    const kb = await workspaceRuntimeService.updateKB(accountId, req.params.id, {
       name:
         typeof req.body?.name === 'string' ? req.body.name.trim() : undefined,
       description:
@@ -132,28 +137,28 @@ workspaceRouter.patch('/:id', (req, res) => {
     res.json({
       message: 'Knowledge base updated',
       kb,
-      allKbs: workspaceAccessService.listKBs(accountId),
+      allKbs: await workspaceRuntimeService.listKBs(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to update knowledge base');
   }
 });
 
-workspaceRouter.delete('/:id', (req, res) => {
+workspaceRouter.delete('/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    workspaceAccessService.deleteKB(accountId, req.params.id);
+    await workspaceRuntimeService.deleteKB(accountId, req.params.id);
     res.json({
       message: 'Knowledge base deleted',
-      activeKb: workspaceAccessService.getActiveKB(accountId),
-      allKbs: workspaceAccessService.listKBs(accountId),
+      activeKb: await workspaceRuntimeService.getActiveKB(accountId),
+      allKbs: await workspaceRuntimeService.listKBs(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to delete knowledge base', 400);
   }
 });
 
-workspaceRouter.post('/switch', (req, res) => {
+workspaceRouter.post('/switch', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const id = typeof req.body?.id === 'string' ? req.body.id : '';
@@ -161,22 +166,22 @@ workspaceRouter.post('/switch', (req, res) => {
       res.status(400).json({ error: 'Missing knowledge base id' });
       return;
     }
-    const kb = workspaceAccessService.setActiveKB(accountId, id);
+    const kb = await workspaceRuntimeService.setActiveKB(accountId, id);
     res.json({
       message: 'Active knowledge base switched',
       kb,
-      allKbs: workspaceAccessService.listKBs(accountId),
+      allKbs: await workspaceRuntimeService.listKBs(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to switch knowledge base');
   }
 });
 
-workspaceRouter.get('/:id/ai', (req, res) => {
+workspaceRouter.get('/:id/ai', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      specializedAi: workspaceAccessService.getSpecializedAI(
+      specializedAi: await workspaceRuntimeService.getSpecializedAI(
         accountId,
         req.params.id
       ),
@@ -186,10 +191,10 @@ workspaceRouter.get('/:id/ai', (req, res) => {
   }
 });
 
-workspaceRouter.put('/:id/ai', (req, res) => {
+workspaceRouter.put('/:id/ai', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const specializedAi = workspaceAccessService.updateSpecializedAI(
+    const specializedAi = await workspaceRuntimeService.updateSpecializedAI(
       accountId,
       req.params.id,
       req.body || {}
@@ -197,17 +202,17 @@ workspaceRouter.put('/:id/ai', (req, res) => {
     res.json({
       message: 'Specialized AI configuration updated',
       specializedAi,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to update Specialized AI configuration');
   }
 });
 
-workspaceRouter.get('/:id/versions', (req, res) => {
+workspaceRouter.get('/:id/versions', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const kb = workspaceAccessService.requireKB(accountId, req.params.id);
+    const kb = await workspaceRuntimeService.requireKB(accountId, req.params.id);
     res.json({
       currentVersion: kb.currentVersion,
       versions: kb.versions || [],
@@ -217,14 +222,14 @@ workspaceRouter.get('/:id/versions', (req, res) => {
   }
 });
 
-workspaceRouter.post('/:id/versions/create', (req, res) => {
+workspaceRouter.post('/:id/versions/create', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const label =
       typeof req.body?.label === 'string' && req.body.label.trim()
         ? req.body.label.trim()
         : 'New Version Snapshot';
-    const version = workspaceAccessService.createVersionSnapshot(
+    const version = await workspaceRuntimeService.createVersionSnapshot(
       accountId,
       req.params.id,
       label
@@ -232,17 +237,17 @@ workspaceRouter.post('/:id/versions/create', (req, res) => {
     res.json({
       message: `Created snapshot version ${version.versionTag}`,
       version,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to create version snapshot');
   }
 });
 
-workspaceRouter.post('/:id/versions/:versionId/rollback', (req, res) => {
+workspaceRouter.post('/:id/versions/:versionId/rollback', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const kb = workspaceAccessService.rollbackToVersion(
+    const kb = await workspaceRuntimeService.rollbackToVersion(
       accountId,
       req.params.id,
       req.params.versionId
@@ -259,29 +264,29 @@ workspaceRouter.post('/:id/versions/:versionId/rollback', (req, res) => {
 workspaceRouter.post('/:id/evaluations/run', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    workspaceAccessService.requireKB(accountId, req.params.id);
+    await workspaceRuntimeService.requireKB(accountId, req.params.id);
     const run = await runEvaluationSuite(req.params.id, accountId);
     res.json({
       message: 'Evaluation suite completed',
       run,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to execute evaluation suite');
   }
 });
 
-workspaceRouter.get('/:id/evaluations/history', (req, res) => {
+workspaceRouter.get('/:id/evaluations/history', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const kb = workspaceAccessService.requireKB(accountId, req.params.id);
+    const kb = await workspaceRuntimeService.requireKB(accountId, req.params.id);
     res.json({ evaluationRuns: kb.evaluationRuns || [] });
   } catch (error) {
     handleError(res, error, 'Failed to get evaluation history');
   }
 });
 
-workspaceRouter.post('/:id/evaluations/test-cases', (req, res) => {
+workspaceRouter.post('/:id/evaluations/test-cases', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const {
@@ -297,7 +302,7 @@ workspaceRouter.post('/:id/evaluations/test-cases', (req, res) => {
       return;
     }
 
-    const testCase = workspaceAccessService.addTestCase(
+    const testCase = await workspaceRuntimeService.addTestCase(
       accountId,
       req.params.id,
       {
@@ -317,7 +322,7 @@ workspaceRouter.post('/:id/evaluations/test-cases', (req, res) => {
     res.json({
       message: 'Evaluation test case added',
       testCase,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to add test case');
@@ -326,17 +331,17 @@ workspaceRouter.post('/:id/evaluations/test-cases', (req, res) => {
 
 workspaceRouter.delete(
   '/:id/evaluations/test-cases/:tcId',
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = identity(res);
-      const deleted = workspaceAccessService.removeTestCase(
+      const deleted = await workspaceRuntimeService.removeTestCase(
         accountId,
         req.params.id,
         req.params.tcId
       );
       res.json({
         message: deleted ? 'Test case removed' : 'Test case not found',
-        kb: workspaceAccessService.getActiveKB(accountId),
+        kb: await workspaceRuntimeService.getActiveKB(accountId),
       });
     } catch (error) {
       handleError(res, error, 'Failed to delete test case');
@@ -350,7 +355,7 @@ workspaceRouter.post(
   async (req, res) => {
     try {
       const { accountId } = identity(res);
-      const activeKb = workspaceAccessService.getActiveKB(accountId);
+      const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
       const files = (req.files as Express.Multer.File[]) || [];
 
       if (files.length === 0) {
@@ -376,7 +381,7 @@ workspaceRouter.post(
             pages,
             summary
           );
-          workspaceAccessService.addDocument(accountId, activeKb.id, doc);
+          await workspaceRuntimeService.addDocument(accountId, activeKb.id, doc);
           processed.push(doc);
         } catch (error: any) {
           errors.push({
@@ -390,7 +395,7 @@ workspaceRouter.post(
         message: `Processed ${processed.length} document(s).`,
         processed,
         errors: errors.length > 0 ? errors : undefined,
-        kb: workspaceAccessService.getActiveKB(accountId),
+        kb: await workspaceRuntimeService.getActiveKB(accountId),
       });
     } catch (error) {
       handleError(res, error, 'Failed to process document upload');
@@ -401,7 +406,7 @@ workspaceRouter.post(
 workspaceRouter.post('/documents/sample', async (_req, res) => {
   try {
     const { accountId } = identity(res);
-    const activeKb = workspaceAccessService.getActiveKB(accountId);
+    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
     const samples = await generateSampleDocs();
     const added = [];
 
@@ -417,25 +422,25 @@ workspaceRouter.post('/documents/sample', async (_req, res) => {
         pages,
         summary
       );
-      workspaceAccessService.addDocument(accountId, activeKb.id, doc);
+      await workspaceRuntimeService.addDocument(accountId, activeKb.id, doc);
       added.push(doc);
     }
 
     res.json({
       message: 'Sample documents loaded successfully',
       addedCount: added.length,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to load sample documents');
   }
 });
 
-workspaceRouter.delete('/documents/:id', (req, res) => {
+workspaceRouter.delete('/documents/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const activeKb = workspaceAccessService.getActiveKB(accountId);
-    const removed = workspaceAccessService.removeDocument(
+    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
+    const removed = await workspaceRuntimeService.removeDocument(
       accountId,
       activeKb.id,
       req.params.id
@@ -450,17 +455,17 @@ workspaceRouter.delete('/documents/:id', (req, res) => {
 
     res.json({
       message: 'Document removed successfully',
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to remove document');
   }
 });
 
-workspaceRouter.post('/documents/:id/retry', (req, res) => {
+workspaceRouter.post('/documents/:id/retry', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const activeKb = workspaceAccessService.getActiveKB(accountId);
+    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
     const doc = activeKb.documents.find((item) => item.id === req.params.id);
 
     if (!doc) {
@@ -468,7 +473,7 @@ workspaceRouter.post('/documents/:id/retry', (req, res) => {
       return;
     }
 
-    workspaceAccessService.updateDocumentStatus(
+    await workspaceRuntimeService.updateDocumentStatus(
       accountId,
       activeKb.id,
       req.params.id,
@@ -477,7 +482,7 @@ workspaceRouter.post('/documents/:id/retry', (req, res) => {
 
     res.json({
       message: 'Document status reset',
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to retry document');
@@ -495,7 +500,7 @@ workspaceRouter.post('/chat', async (req, res) => {
       return;
     }
 
-    const activeKb = workspaceAccessService.getActiveKB(accountId);
+    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
 
     if (activeKb.documents.length === 0) {
       res.status(400).json({
@@ -525,7 +530,7 @@ workspaceRouter.post('/chat', async (req, res) => {
       content: question,
       timestamp: Date.now(),
     };
-    workspaceAccessService.addChatMessage(
+    await workspaceRuntimeService.addChatMessage(
       accountId,
       activeKb.id,
       userMessage
@@ -535,7 +540,7 @@ workspaceRouter.post('/chat', async (req, res) => {
       aiId: activeKb.specializedAi.id,
       message: question,
       accountId,
-      chatHistory: workspaceAccessService.getActiveKB(accountId).chatHistory,
+      chatHistory: await workspaceRuntimeService.getActiveKB(accountId).chatHistory,
       source: 'WEB',
     });
 
@@ -552,7 +557,7 @@ workspaceRouter.post('/chat', async (req, res) => {
       experienceId: result.experienceId,
     };
 
-    workspaceAccessService.addChatMessage(
+    await workspaceRuntimeService.addChatMessage(
       accountId,
       activeKb.id,
       assistantMessage
@@ -560,21 +565,21 @@ workspaceRouter.post('/chat', async (req, res) => {
 
     res.json({
       message: assistantMessage,
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to generate grounded answer');
   }
 });
 
-workspaceRouter.delete('/chat', (_req, res) => {
+workspaceRouter.delete('/chat', async (_req, res) => {
   try {
     const { accountId } = identity(res);
-    const activeKb = workspaceAccessService.getActiveKB(accountId);
-    workspaceAccessService.clearChat(accountId, activeKb.id);
+    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
+    await workspaceRuntimeService.clearChat(accountId, activeKb.id);
     res.json({
       message: 'Conversation cleared',
-      kb: workspaceAccessService.getActiveKB(accountId),
+      kb: await workspaceRuntimeService.getActiveKB(accountId),
     });
   } catch (error) {
     handleError(res, error, 'Failed to clear conversation');
