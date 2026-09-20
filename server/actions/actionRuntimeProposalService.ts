@@ -8,6 +8,7 @@ import {
   KnowledgeClaimValue,
 } from '../companyKnowledge/types.js';
 import { actionPersistence } from './actionPersistence.js';
+import { ActionProposalError } from './actionProposalService.js';
 import {
   type EffectiveKnowledgeResolution,
 } from '../companyKnowledge/effectiveCompanyStateService.js';
@@ -106,30 +107,6 @@ function preconditionFromResolution(
     predicate: resolution.predicate,
     effectiveValue: null,
   };
-}
-
-export class ActionProposalError extends Error {
-  public readonly statusCode: number;
-  public readonly code:
-    | 'ACTION_NOT_SUPPORTED'
-    | 'INVALID_ACTION_VALUE'
-    | 'OVERPAYMENT_NOT_SUPPORTED'
-    | 'INVALID_STATUS';
-
-  constructor(
-    code:
-      | 'ACTION_NOT_SUPPORTED'
-      | 'INVALID_ACTION_VALUE'
-      | 'OVERPAYMENT_NOT_SUPPORTED'
-      | 'INVALID_STATUS',
-    statusCode: number,
-    message: string
-  ) {
-    super(message);
-    this.name = 'ActionProposalError';
-    this.code = code;
-    this.statusCode = statusCode;
-  }
 }
 
 export class ActionRuntimeProposalService {
