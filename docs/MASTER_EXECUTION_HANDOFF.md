@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B1 — identity and authorization forensic audit.**
+> **Continue with Production Hardening B2A — Human Identity Persistence Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1060,9 +1060,23 @@ Track A relational milestones:
 - A7E Automation runtime cutover — COMPLETE, workflow `35520860881`
 - A7F Platform runtime cutover — COMPLETE, workflow `35522567852`
 - A7G Core metadata runtime cutover — COMPLETE, workflow `35523721395`
+- B1 Identity & Authorization Forensic Audit — COMPLETE, evidence commit `7d001b38`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
-The core relational metadata/state backbone is now complete. Workspace document/chat/evaluation payloads and Dataset analytical row payloads remain explicit Track C durability boundaries.
+B1 evidence: `docs/PRODUCTION_B1_IDENTITY_AUTHORIZATION_AUDIT.md`.
 
-Next, do **B1 only**: audit current browser identity/session/account fallback and privileged authorization boundaries. Do not begin authentication implementation until that audit defines the smallest safe vertical slice.
+The core relational metadata/state backbone is complete. B1 confirmed that the remaining production identity problem is real rather than theoretical: browser requests still fall back to unauthenticated `DEFAULT_WEB / acc_default`, there is no durable human user/session/membership model, privileged browser surfaces are inconsistently protected, and machine API-key scopes currently blur into automation actor authority.
+
+Next, do **B2A only — Human Identity Persistence Foundation**:
+
+1. add the durable `users`, `account_memberships`, and `browser_sessions` schema
+2. use existing `accounts` as the organization/tenant boundary
+3. define OWNER / ADMIN / MEMBER membership roles
+4. store only hashed opaque session tokens
+5. make selected account membership-bound
+6. make selected workspace session/user scoped and validate it belongs to the selected account
+7. add focused repository/service tests and migration verification
+8. do **not** cut every product router to sessions yet
+
+Do not start B2B browser auth endpoints, B2C route cutover, B2D authorization cleanup, Track C object storage, or workers in the same slice.
