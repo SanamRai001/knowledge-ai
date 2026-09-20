@@ -529,7 +529,8 @@ A6 Discovery + Insights PostgreSQL                    ✅ COMPLETE
 A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
   A7A Discovery / Insights runtime                     ✅ COMPLETE
   A7B Integrations runtime                             ✅ COMPLETE
-  A7C Watch runtime                                    🚧 IN PROGRESS
+  A7C Watch runtime                                    ✅ COMPLETE
+  A7D Living Knowledge + Actions runtime                🚧 IN PROGRESS
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -540,26 +541,28 @@ A4 completion evidence:
 
 ## Current exact task
 
-**Production Hardening A7C — Watch runtime PostgreSQL cutover**
-
-Repository/schema existence is no longer the blocker. Production runtime selection is.
+**Production Hardening A7D — Living Knowledge + Actions runtime PostgreSQL cutover**
 
 A7A Discovery / Insights runtime is complete — workflow `35460199628`.
 
 A7B Integrations runtime is complete — workflow `35517514449`.
 
-Continue with Watch:
+A7C Watch runtime is complete — workflow `35518107862`.
 
-1. introduce selected Watch persistence for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
-2. route normal Watch HTTP rules/drafts/evaluations/alerts/jobs through PostgreSQL
-3. route Watch scheduler job creation/claim/update through the PostgreSQL repository
-4. use database-enforced schedule fingerprint uniqueness and atomic ready-job claim semantics
-5. preserve deterministic evaluation behavior and alert episode lifecycle
-6. prove restart persistence through PostgreSQL pool/service reconstruction
-7. prove cross-account Watch isolation in production mode
-8. prove the production scheduler does not mutate `data/watch.json`
-9. preserve the current file-mode Watch service/scheduler for local development and the historical Phase 5 regression suite
-10. after A7C, choose the next bounded Action/Living-Knowledge or Automation runtime cutover based on transaction risk
+Continue with the highest-risk remaining write path:
+
+1. add selected Living Knowledge persistence for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
+2. route structured Dataset projection into PostgreSQL Living Knowledge
+3. route normal Company Knowledge HTTP reads through PostgreSQL
+4. add async effective-company-state resolution over PostgreSQL claims
+5. route normal Action proposal/refinement/list/detail/audit through PostgreSQL
+6. execute production Action confirmation through the existing A3 relational transaction
+7. preserve stale-state checks, source authority, idempotent replay, and audit semantics
+8. prove integration-synchronized Dataset projection feeds PostgreSQL Living Knowledge
+9. prove restart persistence and cross-account isolation
+10. prove production mode does not mutate `data/company-knowledge.json` or `data/company-actions.json`
+11. preserve file-mode Phase 3/4 behavior
+12. after A7D, continue with Automation runtime cutover
 
 A6 completion evidence:
 
