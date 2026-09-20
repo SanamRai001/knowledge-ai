@@ -372,7 +372,7 @@ integrationRouter.get('/connections/:id/runs', async (req, res) => {
 integrationRouter.get('/connections/:id/imports', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    integrationSyncService.getConnection(accountId, req.params.id);
+    await integrationRuntimeService.getConnection(accountId, req.params.id);
     res.json({
       imports: await integrationRuntimeService.listImports({
         accountId,
