@@ -10,8 +10,8 @@ import {
 } from './integrationStore.js';
 import {
   IntegrationSyncError,
-  integrationSyncService,
 } from './integrationSyncService.js';
+import { integrationRuntimeService } from './integrationRuntimeService.js';
 import { googleDriveOAuthService } from './googleDriveOAuthService.js';
 import { microsoftOneDriveOAuthService } from './microsoftOneDriveOAuthService.js';
 
@@ -100,10 +100,10 @@ function handleError(res: express.Response, error: any): void {
 
 integrationRouter.post(
   '/onedrive/oauth/start',
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = identity(res);
-      const result = microsoftOneDriveOAuthService.begin({
+      const result = await microsoftOneDriveOAuthService.begin({
         accountId,
         displayName:
           typeof req.body?.displayName === 'string'
@@ -198,11 +198,11 @@ integrationRouter.get(
 
 integrationRouter.post(
   '/onedrive/connections/:id/disconnect',
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = identity(res);
       res.json(
-        microsoftOneDriveOAuthService.disconnect({
+        await microsoftOneDriveOAuthService.disconnect({
           accountId,
           connectionId: req.params.id,
         })
@@ -215,10 +215,10 @@ integrationRouter.post(
 
 integrationRouter.post(
   '/google-drive/oauth/start',
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = identity(res);
-      const result = googleDriveOAuthService.begin({
+      const result = await googleDriveOAuthService.begin({
         accountId,
         displayName:
           typeof req.body?.displayName === 'string'
@@ -328,22 +328,22 @@ integrationRouter.post(
   }
 );
 
-integrationRouter.get('/connections', (_req, res) => {
+integrationRouter.get('/connections', async (_req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      connections: integrationSyncService.listConnections(accountId),
+      connections: await integrationRuntimeService.listConnections(accountId),
     });
   } catch (error) {
     handleError(res, error);
   }
 });
 
-integrationRouter.get('/connections/:id', (req, res) => {
+integrationRouter.get('/connections/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      connection: integrationSyncService.getConnection(
+      connection: await integrationRuntimeService.getConnection(
         accountId,
         req.params.id
       ),
@@ -353,12 +353,12 @@ integrationRouter.get('/connections/:id', (req, res) => {
   }
 });
 
-integrationRouter.get('/connections/:id/runs', (req, res) => {
+integrationRouter.get('/connections/:id/runs', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    integrationSyncService.getConnection(accountId, req.params.id);
+    await integrationRuntimeService.getConnection(accountId, req.params.id);
     res.json({
-      runs: integrationSyncService.listRuns({
+      runs: await integrationRuntimeService.listRuns({
         accountId,
         connectionId: req.params.id,
         limit: limitFrom(req.query.limit, 100),
@@ -369,12 +369,12 @@ integrationRouter.get('/connections/:id/runs', (req, res) => {
   }
 });
 
-integrationRouter.get('/connections/:id/imports', (req, res) => {
+integrationRouter.get('/connections/:id/imports', async (req, res) => {
   try {
     const { accountId } = identity(res);
     integrationSyncService.getConnection(accountId, req.params.id);
     res.json({
-      imports: integrationSyncService.listImports({
+      imports: await integrationRuntimeService.listImports({
         accountId,
         connectionId: req.params.id,
         externalId:
@@ -392,14 +392,14 @@ integrationRouter.get('/connections/:id/imports', (req, res) => {
 integrationRouter.post('/connections/:id/sync', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const run = await integrationSyncService.sync({
+    const run = await integrationRuntimeService.sync({
       accountId,
       connectionId: req.params.id,
     });
 
     res.status(run.status === 'COMPLETED' ? 200 : 422).json({
       run,
-      connection: integrationSyncService.getConnection(
+      connection: await integrationRuntimeService.getConnection(
         accountId,
         req.params.id
       ),
@@ -411,11 +411,11 @@ integrationRouter.post('/connections/:id/sync', async (req, res) => {
 
 integrationRouter.post(
   '/connections/:id/reset-cursor',
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = identity(res);
       res.json({
-        connection: integrationSyncService.resetCursor(
+        connection: await integrationRuntimeService.resetCursor(
           accountId,
           req.params.id
         ),
@@ -426,11 +426,11 @@ integrationRouter.post(
   }
 );
 
-integrationRouter.post('/connections/:id/pause', (req, res) => {
+integrationRouter.post('/connections/:id/pause', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      connection: integrationSyncService.pause(
+      connection: await integrationRuntimeService.pause(
         accountId,
         req.params.id
       ),
@@ -440,11 +440,11 @@ integrationRouter.post('/connections/:id/pause', (req, res) => {
   }
 });
 
-integrationRouter.post('/connections/:id/resume', (req, res) => {
+integrationRouter.post('/connections/:id/resume', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      connection: integrationSyncService.resume(
+      connection: await integrationRuntimeService.resume(
         accountId,
         req.params.id
       ),
@@ -454,11 +454,11 @@ integrationRouter.post('/connections/:id/resume', (req, res) => {
   }
 });
 
-integrationRouter.post('/connections/:id/revoke', (req, res) => {
+integrationRouter.post('/connections/:id/revoke', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      connection: integrationSyncService.revoke(
+      connection: await integrationRuntimeService.revoke(
         accountId,
         req.params.id
       ),
