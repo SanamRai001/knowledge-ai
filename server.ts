@@ -62,6 +62,7 @@ import { hierarchicalIndex } from './server/cognitiveEngine/hierarchicalIndex.js
 import { ChatMessage, ApiChatRequest, ApiChatResponse, ApiErrorResponse, MemoryStatus, MemoryType, ExperienceSource } from './src/types.js';
 import { workspaceRouter } from './server/workspaceRouter.js';
 import { datasetRouter } from './server/datasets/datasetRouter.js';
+import { datasetRuntimePersistence } from './server/datasets/datasetRuntimePersistence.js';
 import { queryRouter } from './server/querying/queryRouter.js';
 import { discoveryRouter } from './server/discovery/discoveryRouter.js';
 import { companyKnowledgeRouter } from './server/companyKnowledge/companyKnowledgeRouter.js';
@@ -2938,6 +2939,7 @@ app.get('/api/v1/cognitive/outline', async (req, res) => {
 // --- VITE / STATIC SERVING ---
 async function startServer() {
   await apiKeyRuntimeService.bootstrap();
+  await datasetRuntimePersistence.bootstrap();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
