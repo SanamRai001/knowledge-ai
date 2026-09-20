@@ -651,6 +651,146 @@ export class PostgresDatasetMetadataRepository
     return result.rows.map(versionFromRow);
   }
 
+  async commitImportedVersion(params: {
+    accountId: string;
+    dataset: DatasetMetadata;
+    version: DatasetVersionMetadata;
+    importRun: DatasetImportRunMetadata;
+    createDataset: boolean;
+  }): Promise<void> {
+    await withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO accounts (id, created_at, updated_at)
+         VALUES ($1, now(), now())
+         ON CONFLICT (id) DO NOTHING`,
+        [params.accountId]
+      );
+
+      await client.query(
+        `INSERT INTO dataset_import_runs
+          (id, account_id, status, created_at, completed_at,
+           filename, format, warnings, error)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)
+         ON CONFLICT (id)
+         DO UPDATE SET
+           status = EXCLUDED.status,
+           completed_at = EXCLUDED.completed_at,
+           warnings = EXCLUDED.warnings,
+           error = EXCLUDED.error
+         WHERE dataset_import_runs.account_id = EXCLUDED.account_id`,
+        [
+          params.importRun.id,
+          params.importRun.accountId,
+          params.importRun.status,
+          new Date(params.importRun.createdAt),
+          date(params.importRun.completedAt),
+          params.importRun.filename,
+          params.importRun.format,
+          JSON.stringify(params.importRun.warnings),
+          params.importRun.error ?? null,
+        ]
+      );
+
+      if (params.createDataset) {
+        await client.query(
+          `INSERT INTO datasets
+            (id, account_id, name, description, current_version_id,
+             created_at, updated_at)
+           VALUES ($1,$2,$3,$4,NULL,$5,$6)`,
+          [
+            params.dataset.id,
+            params.dataset.accountId,
+            params.dataset.name,
+            params.dataset.description ?? null,
+            new Date(params.dataset.createdAt),
+            new Date(params.dataset.updatedAt),
+          ]
+        );
+      } else {
+        const owned = await client.query(
+          `SELECT 1
+           FROM datasets
+           WHERE account_id = $1 AND id = $2
+           FOR UPDATE`,
+          [params.accountId, params.dataset.id]
+        );
+        if (!owned.rowCount) {
+          throw new Error(
+            'Dataset not found in the current account scope.'
+          );
+        }
+      }
+
+      await client.query(
+        `INSERT INTO dataset_versions
+          (id, account_id, dataset_id, version_number, created_at,
+           source_filename, source_mime_type, source_size_bytes,
+           source_sha256, source_format, import_run_id,
+           payload_backend, payload_ref)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          params.version.id,
+          params.accountId,
+          params.version.datasetId,
+          params.version.versionNumber,
+          new Date(params.version.createdAt),
+          params.version.source.filename,
+          params.version.source.mimeType,
+          params.version.source.sizeBytes,
+          params.version.source.sha256,
+          params.version.source.format,
+          params.version.importRunId,
+          params.version.payload.backend,
+          params.version.payload.ref,
+        ]
+      );
+
+      const updated = await client.query(
+        `UPDATE datasets
+         SET current_version_id = $3,
+             updated_at = $4
+         WHERE account_id = $1 AND id = $2`,
+        [
+          params.accountId,
+          params.dataset.id,
+          params.version.id,
+          new Date(params.dataset.updatedAt),
+        ]
+      );
+      if (!updated.rowCount) {
+        throw new Error(
+          'Dataset not found in the current account scope.'
+        );
+      }
+    });
+  }
+
+  async listImportRuns(
+    accountId: string,
+    limit = 500
+  ): Promise<DatasetImportRunMetadata[]> {
+    const result = await postgresPool().query(
+      `SELECT *
+       FROM dataset_import_runs
+       WHERE account_id = $1
+       ORDER BY created_at DESC, id DESC
+       LIMIT $2`,
+      [accountId, Math.max(1, Math.min(limit, 5000))]
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      accountId: row.account_id,
+      status: row.status,
+      createdAt: epoch(row.created_at)!,
+      completedAt: epoch(row.completed_at),
+      filename: row.filename,
+      format: row.format,
+      warnings: Array.isArray(row.warnings) ? row.warnings : [],
+      error: row.error ?? undefined,
+    }));
+  }
+
   async recordImportRun(
     run: DatasetImportRunMetadata
   ): Promise<void> {
