@@ -248,3 +248,6 @@ jobs:
 
       - name: Production A7C Watch runtime proof
         run: npm run check:production-a7c-watch-runtime
+
+      - name: Production A7D Living Knowledge Actions runtime proof
+        run: npm run check:production:a7d-knowledge-actions-runtime
