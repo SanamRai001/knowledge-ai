@@ -267,7 +267,16 @@ async function insertEntity(
        identity_key, aliases, source_refs, created_at, updated_at,
        first_observed_at, last_observed_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,$12)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO UPDATE SET
+       canonical_name = EXCLUDED.canonical_name,
+       normalized_name = EXCLUDED.normalized_name,
+       identity_key = EXCLUDED.identity_key,
+       aliases = EXCLUDED.aliases,
+       source_refs = EXCLUDED.source_refs,
+       updated_at = EXCLUDED.updated_at,
+       first_observed_at = LEAST(company_entities.first_observed_at, EXCLUDED.first_observed_at),
+       last_observed_at = GREATEST(company_entities.last_observed_at, EXCLUDED.last_observed_at)
+     WHERE company_entities.account_id = EXCLUDED.account_id`,
     [
       entity.id,
       entity.accountId,
@@ -296,7 +305,16 @@ async function insertRelationship(
        authority_reason, source_refs, first_observed_at, last_observed_at,
        occurrence_count, created_at, updated_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO UPDATE SET
+       authority_level = EXCLUDED.authority_level,
+       authority_rank = EXCLUDED.authority_rank,
+       authority_reason = EXCLUDED.authority_reason,
+       source_refs = EXCLUDED.source_refs,
+       first_observed_at = LEAST(company_relationships.first_observed_at, EXCLUDED.first_observed_at),
+       last_observed_at = GREATEST(company_relationships.last_observed_at, EXCLUDED.last_observed_at),
+       occurrence_count = EXCLUDED.occurrence_count,
+       updated_at = EXCLUDED.updated_at
+     WHERE company_relationships.account_id = EXCLUDED.account_id`,
     [
       relationship.id,
       relationship.accountId,
@@ -404,7 +422,19 @@ async function insertProjectionRun(
        entity_ids, relationship_ids, claim_ids, event_ids, error)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,
              $12::jsonb,$13::jsonb,$14)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO UPDATE SET
+       source_type = EXCLUDED.source_type,
+       source_id = EXCLUDED.source_id,
+       source_version_id = EXCLUDED.source_version_id,
+       source_version_label = EXCLUDED.source_version_label,
+       completed_at = EXCLUDED.completed_at,
+       status = EXCLUDED.status,
+       entity_ids = EXCLUDED.entity_ids,
+       relationship_ids = EXCLUDED.relationship_ids,
+       claim_ids = EXCLUDED.claim_ids,
+       event_ids = EXCLUDED.event_ids,
+       error = EXCLUDED.error
+     WHERE knowledge_projection_runs.account_id = EXCLUDED.account_id`,
     [
       run.id,
       run.accountId,
@@ -740,6 +770,35 @@ export class PostgresCompanyKnowledgeRepository
     await insertRelationship(postgresPool(), relationship);
   }
 
+  async listRelationships(params: {
+    accountId: string;
+    entityId?: string;
+    predicate?: string;
+    limit?: number;
+  }): Promise<CompanyRelationship[]> {
+    const limit = Math.max(1, Math.min(params.limit || 100, 1000));
+    const result = await postgresPool().query(
+      `SELECT *
+       FROM company_relationships
+       WHERE account_id = $1
+         AND (
+           $2::text IS NULL OR
+           subject_entity_id = $2 OR
+           object_entity_id = $2
+         )
+         AND ($3::text IS NULL OR predicate = $3)
+       ORDER BY last_observed_at DESC, id ASC
+       LIMIT $4`,
+      [
+        params.accountId,
+        params.entityId ?? null,
+        params.predicate?.trim().toUpperCase() ?? null,
+        limit,
+      ]
+    );
+    return result.rows.map(relationshipFromRow);
+  }
+
   async getClaim(
     accountId: string,
     claimId: string
@@ -888,6 +947,53 @@ export class PostgresCompanyKnowledgeRepository
   ): Promise<void> {
     await insertProjectionRun(postgresPool(), run);
   }
+
+  async listProjectionRuns(params: {
+    accountId: string;
+    sourceType?: KnowledgeProjectionRun['sourceType'];
+    sourceId?: string;
+    limit?: number;
+  }): Promise<KnowledgeProjectionRun[]> {
+    const limit = Math.max(1, Math.min(params.limit || 100, 1000));
+    const result = await postgresPool().query(
+      `SELECT *
+       FROM knowledge_projection_runs
+       WHERE account_id = $1
+         AND ($2::text IS NULL OR source_type = $2)
+         AND ($3::text IS NULL OR source_id = $3)
+       ORDER BY started_at DESC, id ASC
+       LIMIT $4`,
+      [
+        params.accountId,
+        params.sourceType ?? null,
+        params.sourceId ?? null,
+        limit,
+      ]
+    );
+    return result.rows.map(projectionRunFromRow);
+  }
+
+  async snapshotCounts(accountId: string): Promise<{
+    entities: number;
+    relationships: number;
+    currentClaims: number;
+    events: number;
+  }> {
+    const result = await postgresPool().query(
+      `SELECT
+         (SELECT count(*)::int FROM company_entities WHERE account_id = $1) AS entities,
+         (SELECT count(*)::int FROM company_relationships WHERE account_id = $1) AS relationships,
+         (SELECT count(*)::int FROM knowledge_claims WHERE account_id = $1 AND is_current = true) AS current_claims,
+         (SELECT count(*)::int FROM business_events WHERE account_id = $1) AS events`,
+      [accountId]
+    );
+    return {
+      entities: Number(result.rows[0]?.entities || 0),
+      relationships: Number(result.rows[0]?.relationships || 0),
+      currentClaims: Number(result.rows[0]?.current_claims || 0),
+      events: Number(result.rows[0]?.events || 0),
+    };
+  }
 }
 
 export class PostgresActionRepository
@@ -906,6 +1012,118 @@ export class PostgresActionRepository
 
   async saveProposal(proposal: ActionProposal): Promise<void> {
     await insertProposal(postgresPool(), proposal);
+  }
+
+  async createProposalWithAudit(
+    proposal: ActionProposal,
+    auditEntry: ActionAuditEntry
+  ): Promise<void> {
+    await withTransaction(async (client) => {
+      await insertProposal(client, proposal);
+      await insertAudit(client, auditEntry);
+    });
+  }
+
+  async listProposals(params: {
+    accountId: string;
+    status?: ActionProposalStatus;
+    limit?: number;
+  }): Promise<ActionProposal[]> {
+    const limit = Math.max(1, Math.min(params.limit || 100, 500));
+    const result = await postgresPool().query(
+      `SELECT *
+       FROM action_proposals
+       WHERE account_id = $1
+         AND ($2::text IS NULL OR status = $2)
+       ORDER BY created_at DESC, id ASC
+       LIMIT $3`,
+      [params.accountId, params.status ?? null, limit]
+    );
+
+    return Promise.all(
+      result.rows.map(async (row) =>
+        proposalFromRow(
+          row,
+          await proposalTargets(
+            postgresPool(),
+            params.accountId,
+            row.id
+          )
+        )
+      )
+    );
+  }
+
+  async transitionProposalWithAudit(params: {
+    accountId: string;
+    proposalId: string;
+    status: ActionProposalStatus;
+    timestamp: number;
+    detail: string;
+    auditEntryId: string;
+    executionId?: string;
+    failureReason?: string;
+  }): Promise<ActionProposal> {
+    return withTransaction(async (client) => {
+      const timestampColumn =
+        params.status === 'CONFIRMED'
+          ? 'confirmed_at'
+          : params.status === 'CANCELLED'
+            ? 'cancelled_at'
+            : params.status === 'STALE'
+              ? 'stale_at'
+              : params.status === 'FAILED'
+                ? 'failed_at'
+                : null;
+
+      const result = await client.query(
+        `UPDATE action_proposals
+         SET status = $3,
+             updated_at = $4,
+             execution_id = COALESCE($5, execution_id),
+             failure_reason = COALESCE($6, failure_reason),
+             confirmed_at = CASE WHEN $7 = 'confirmed_at' THEN $4 ELSE confirmed_at END,
+             cancelled_at = CASE WHEN $7 = 'cancelled_at' THEN $4 ELSE cancelled_at END,
+             stale_at = CASE WHEN $7 = 'stale_at' THEN $4 ELSE stale_at END,
+             failed_at = CASE WHEN $7 = 'failed_at' THEN $4 ELSE failed_at END
+         WHERE account_id = $1 AND id = $2
+         RETURNING *`,
+        [
+          params.accountId,
+          params.proposalId,
+          params.status,
+          new Date(params.timestamp),
+          params.executionId ?? null,
+          params.failureReason ?? null,
+          timestampColumn,
+        ]
+      );
+      if (!result.rowCount) {
+        throw new Error(
+          'Action proposal not found in the current account scope.'
+        );
+      }
+
+      const audit: ActionAuditEntry = {
+        id: params.auditEntryId,
+        accountId: params.accountId,
+        proposalId: params.proposalId,
+        action: params.status,
+        timestamp: params.timestamp,
+        detail: params.detail,
+        executionId: params.executionId,
+      };
+      await insertAudit(client, audit);
+
+      return proposalFromRow(
+        result.rows[0],
+        await proposalTargets(
+          client,
+          params.accountId,
+          params.proposalId
+        )
+      );
+    });
   }
 
   async transitionProposal(params: {
