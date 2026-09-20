@@ -251,3 +251,6 @@ jobs:
 
       - name: Production A7D Living Knowledge Actions runtime proof
         run: npm run check:production:a7d-knowledge-actions-runtime
+
+      - name: Production A7E Automation runtime proof
+        run: npm run check:production:a7e-automation-runtime
