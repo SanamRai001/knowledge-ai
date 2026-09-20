@@ -257,3 +257,6 @@ jobs:
 
       - name: Production A7F Platform runtime proof
         run: npm run check:production:a7f-platform-runtime
+
+      - name: Production A7G Core metadata runtime proof
+        run: npm run check:production:a7g-core-metadata-runtime
