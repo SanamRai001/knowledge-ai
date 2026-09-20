@@ -263,3 +263,6 @@ jobs:
 
       - name: Production B2A identity foundation proof
         run: npm run check:production:b2a-identity-foundation
+
+      - name: Production B2B1 auth session API proof
+        run: npm run check:production:b2b1-auth-session-api
