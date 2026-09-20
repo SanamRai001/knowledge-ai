@@ -590,7 +590,7 @@ async function main() {
     integrationCredentialStore,
     googleOAuthFetch
   );
-  const googleStart = googleOAuth.begin({
+  const googleStart = await googleOAuth.begin({
     accountId: googleAccount,
     connectionId: googleConnection.id,
   });
@@ -776,7 +776,7 @@ async function main() {
       integrationCredentialStore,
       microsoftOAuthFetch
     );
-  const microsoftStart = microsoftOAuth.begin({
+  const microsoftStart = await microsoftOAuth.begin({
     accountId: microsoftAccount,
     connectionId: microsoftConnection.id,
   });
