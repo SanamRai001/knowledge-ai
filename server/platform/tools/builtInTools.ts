@@ -1,9 +1,9 @@
 import { hybridActionInterpreter } from '../../actions/hybridActionInterpreter.js';
-import { companyKnowledgeStore } from '../../companyKnowledge/companyKnowledgeStore.js';
+import { companyKnowledgePersistence } from '../../companyKnowledge/companyKnowledgePersistence.js';
 import { discoveryRuntimeService } from '../../discovery/discoveryRuntimeService.js';
 import type { InsightStatus } from '../../discovery/types.js';
 import { unifiedQueryService } from '../../querying/unifiedQueryService.js';
-import { watchStore } from '../../watch/watchStore.js';
+import { watchPersistence } from '../../watch/watchPersistence.js';
 import type { WatchRuleStatus } from '../../watch/types.js';
 import { PLATFORM_SCOPES } from '../platformApiManifest.js';
 import { toolRegistry } from './toolRegistry.js';
@@ -68,27 +68,27 @@ const BUILT_IN_TOOLS: RegisteredTool[] = [
         },
       },
     },
-    handler: (input, context) => {
+    handler: async (input, context) => {
       const entityId = String(input.entityId);
-      const entity = companyKnowledgeStore.requireEntity(
+      const entity = await companyKnowledgePersistence.requireEntity(
         context.accountId,
         entityId
       );
       return {
         entity,
-        claims: companyKnowledgeStore.listClaims({
+        claims: await companyKnowledgePersistence.listClaims({
           accountId: context.accountId,
           entityId,
           currentOnly: false,
           limit: 300,
         }),
         relationships:
-          companyKnowledgeStore.listRelationships({
+          await companyKnowledgePersistence.listRelationships({
             accountId: context.accountId,
             entityId,
             limit: 100,
           }),
-        events: companyKnowledgeStore.listEvents({
+        events: await companyKnowledgePersistence.listEvents({
           accountId: context.accountId,
           entityId,
           limit: 200,
@@ -277,8 +277,8 @@ const BUILT_IN_TOOLS: RegisteredTool[] = [
         },
       },
     },
-    handler: (input, context) => ({
-      rules: watchStore.listRules({
+    handler: async (input, context) => ({
+      rules: await watchPersistence.listRules({
         accountId: context.accountId,
         status: optionalString(
           input,
