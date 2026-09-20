@@ -381,7 +381,7 @@ watchRouter.get('/alerts', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      alerts: watchPersistence.listAlerts({
+      alerts: await watchPersistence.listAlerts({
         accountId,
         watchRuleId:
           typeof req.query.watchRuleId === 'string'
