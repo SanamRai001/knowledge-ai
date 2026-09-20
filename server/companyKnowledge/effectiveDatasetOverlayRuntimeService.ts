@@ -334,14 +334,14 @@ export class EffectiveDatasetOverlayRuntimeService {
           const reference =
             (idIndex >= 0 ? stringValue(row[idIndex] ?? null) : null) ||
             (nameIndex >= 0 ? stringValue(row[nameIndex] ?? null) : null);
-          if (!reference) return;
+          if (!reference) continue;
 
           const entity = await exactEntity(
             params.accountId,
             rule.type,
             reference
           );
-          if (!entity) return;
+          if (!entity) continue;
 
           for (const field of fields) {
             const resolution =
