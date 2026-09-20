@@ -2,7 +2,10 @@ import { actionPersistence } from '../actions/actionPersistence.js';
 import type { RequestIdentity } from '../requestIdentity.js';
 import { automationActorLabel } from './automationActor.js';
 import { automationPersistence } from './automationPersistence.js';
-import { automationQualityService } from './automationQualityService.js';
+import {
+  AutomationQualityError,
+  automationQualityService,
+} from './automationQualityService.js';
 import type {
   AutomationQualitySummary,
   AutomationRun,
@@ -176,24 +179,20 @@ export class AutomationQualityRuntimeService {
     );
 
     if (run.status === 'RUNNING') {
-      const error = new Error(
+      throw new AutomationQualityError(
+        'AUTOMATION_FEEDBACK_RUN_ACTIVE',
+        409,
         'Automation feedback can only be recorded after the run reaches a terminal state.'
-      ) as Error & { statusCode: number; code: string };
-      error.name = 'AutomationQualityError';
-      error.statusCode = 409;
-      error.code = 'AUTOMATION_FEEDBACK_RUN_ACTIVE';
-      throw error;
+      );
     }
 
     const note = params.note?.trim();
     if (note && note.length > 500) {
-      const error = new Error(
+      throw new AutomationQualityError(
+        'AUTOMATION_FEEDBACK_INVALID',
+        400,
         'Automation feedback note must be 500 characters or fewer.'
-      ) as Error & { statusCode: number; code: string };
-      error.name = 'AutomationQualityError';
-      error.statusCode = 400;
-      error.code = 'AUTOMATION_FEEDBACK_INVALID';
-      throw error;
+      );
     }
 
     return automationPersistence.setRunFeedback({
