@@ -1252,6 +1252,36 @@ export class PostgresActionRepository
     });
   }
 
+  async updateExecutionAnalysis(params: {
+    accountId: string;
+    executionId: string;
+    downstreamAnalysisRunIds: string[];
+    downstreamWarnings: string[];
+  }): Promise<ActionExecution> {
+    const result = await postgresPool().query(
+      `UPDATE action_executions
+       SET downstream_analysis_run_ids = $3::jsonb,
+           downstream_warnings = $4::jsonb
+       WHERE account_id = $1 AND id = $2
+       RETURNING *`,
+      [
+        params.accountId,
+        params.executionId,
+        json(params.downstreamAnalysisRunIds),
+        json(params.downstreamWarnings),
+      ]
+    );
+    if (!result.rowCount) {
+      throw new Error(
+        'Action execution not found in the current account scope.'
+      );
+    }
+    return executionFromRow(
+      postgresPool(),
+      result.rows[0]
+    );
+  }
+
   async saveAudit(entry: ActionAuditEntry): Promise<void> {
     await insertAudit(postgresPool(), entry);
   }
