@@ -267,17 +267,39 @@ export class KnowledgeBaseStore {
     return Array.from(this.kbs.values());
   }
 
-  createKB(name: string, description?: string, accountId: string = DEFAULT_ACCOUNT_ID): KnowledgeBase {
-    const normalized = this.normalizeAccountId(accountId);
+  createKB(
+    name: string,
+    description?: string,
+    accountId: string = DEFAULT_ACCOUNT_ID
+  ): KnowledgeBase {
     const id = 'kb_' + Math.random().toString(36).substring(2, 10);
+    return this.createKBWithId(id, name, description, accountId);
+  }
+
+  createKBWithId(
+    id: string,
+    name: string,
+    description?: string,
+    accountId: string = DEFAULT_ACCOUNT_ID
+  ): KnowledgeBase {
+    const normalized = this.normalizeAccountId(accountId);
+    const cleanId = id.trim();
+    if (!cleanId) throw new Error('Knowledge base id is required.');
+    if (this.kbs.has(cleanId)) {
+      throw new Error(`Knowledge base ${cleanId} already exists.`);
+    }
+
     const cleanName = name.trim() || `Knowledge Base ${this.kbs.size + 1}`;
+    const now = Date.now();
     const newKb: KnowledgeBase = {
-      id,
+      id: cleanId,
       accountId: normalized,
       name: cleanName,
-      description: description?.trim() || `Custom domain knowledge repository for ${cleanName}.`,
-      createdDate: Date.now(),
-      updatedAt: Date.now(),
+      description:
+        description?.trim() ||
+        `Custom domain knowledge repository for ${cleanName}.`,
+      createdDate: now,
+      updatedAt: now,
       currentVersion: 'v1.0',
       versions: [
         {
@@ -285,7 +307,7 @@ export class KnowledgeBaseStore {
           versionNumber: 1,
           versionTag: 'v1.0',
           label: 'Initial Knowledge Base snapshot',
-          timestamp: Date.now(),
+          timestamp: now,
           documentCount: 0,
           totalPages: 0,
           documents: [],
@@ -295,15 +317,15 @@ export class KnowledgeBaseStore {
       documents: [],
       processingStatus: 'empty',
       chatHistory: [],
-      specializedAi: createDefaultSpecializedAI(id, cleanName),
-      testCases: createDefaultTestCases(id),
+      specializedAi: createDefaultSpecializedAI(cleanId, cleanName),
+      testCases: createDefaultTestCases(cleanId),
       evaluationRuns: [],
     };
 
-    this.kbs.set(id, newKb);
-    this.activeKbId = id;
+    this.kbs.set(cleanId, newKb);
+    this.activeKbId = cleanId;
     this.saveToDisk();
-    return newKb;
+    return structuredClone(newKb);
   }
 
   updateKB(
