@@ -844,6 +844,54 @@ export class PostgresCompanyKnowledgeRepository
     await insertClaim(postgresPool(), claim);
   }
 
+  async saveClaimWithSupersession(params: {
+    claim: KnowledgeClaim;
+    closeClaimId?: string;
+    closeValidTo?: number;
+  }): Promise<void> {
+    await withTransaction(async (client) => {
+      if (params.closeClaimId) {
+        const closed = await client.query(
+          `UPDATE knowledge_claims
+           SET is_current = false,
+               valid_to = $3
+           WHERE account_id = $1
+             AND id = $2
+             AND is_current = true`,
+          [
+            params.claim.accountId,
+            params.closeClaimId,
+            new Date(
+              params.closeValidTo ??
+                params.claim.observedAt
+            ),
+          ]
+        );
+        if (!closed.rowCount) {
+          const existing = await client.query(
+            `SELECT is_current
+             FROM knowledge_claims
+             WHERE account_id = $1 AND id = $2`,
+            [
+              params.claim.accountId,
+              params.closeClaimId,
+            ]
+          );
+          if (
+            !existing.rowCount ||
+            existing.rows[0].is_current !== false
+          ) {
+            throw new Error(
+              'Knowledge claim supersession target is no longer available.'
+            );
+          }
+        }
+      }
+
+      await insertClaim(client, params.claim);
+    });
+  }
+
   async closeClaim(params: {
     accountId: string;
     claimId: string;
