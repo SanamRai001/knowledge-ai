@@ -15,6 +15,7 @@ import {
   ParsedDatasetTable,
 } from './types.js';
 import { parseXlsxBuffer } from './xlsxParser.js';
+import { datasetRuntimePersistence } from './datasetRuntimePersistence.js';
 
 const PREVIEW_ROWS = 20;
 
@@ -399,6 +400,213 @@ export class DatasetService {
     }
   }
 
+  private async previewFilePostgres(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    schemaOverrides?: Record<
+      string,
+      Record<string, DatasetColumnType>
+    >;
+  }): Promise<DatasetPreview> {
+    const lower = params.filename.toLowerCase();
+    const format: 'CSV' | 'XLSX' = lower.endsWith('.csv')
+      ? 'CSV'
+      : lower.endsWith('.xlsx')
+        ? 'XLSX'
+        : (() => {
+            throw new DatasetImportError(
+              'UNSUPPORTED_FORMAT',
+              'Supported structured-data formats are .csv and .xlsx.'
+            );
+          })();
+
+    const importRun: DatasetImportRun = {
+      id: 'imp_' + crypto.randomBytes(8).toString('hex'),
+      accountId: params.accountId,
+      status: 'PREVIEWED',
+      createdAt: Date.now(),
+      completedAt: Date.now(),
+      filename: params.filename,
+      format,
+      warnings: [],
+    };
+
+    try {
+      const parsedTables =
+        format === 'CSV'
+          ? [
+              parseCsvBuffer(
+                params.buffer,
+                datasetNameFromFilename(params.filename)
+              ),
+            ]
+          : await parseXlsxBuffer(params.buffer);
+
+      const tables = parsedTables.map((parsed) =>
+        tableFromParsed(
+          parsed,
+          params.schemaOverrides?.[parsed.name]
+        )
+      );
+      const source = sourceFor(
+        params.buffer,
+        params.filename,
+        params.mimeType ||
+          (format === 'CSV'
+            ? 'text/csv'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        format
+      );
+
+      for (const table of tables) {
+        if (table.duplicateRowCount > 0) {
+          importRun.warnings.push(
+            (format === 'XLSX' ? 'Sheet "' + table.name + '" contains ' : '') +
+              String(table.duplicateRowCount) +
+              ' duplicate row(s).'
+          );
+        }
+        for (const column of table.columns) {
+          if (column.nullable) {
+            importRun.warnings.push(
+              (format === 'XLSX'
+                ? 'Sheet "' + table.name + '", '
+                : '') +
+                'column "' +
+                column.name +
+                '" contains ' +
+                String(column.missingCount) +
+                ' missing value(s).'
+            );
+          }
+        }
+      }
+
+      await datasetRuntimePersistence.recordImportRun(
+        importRun
+      );
+
+      return {
+        importRun,
+        source,
+        tables: tables.map((table) => ({
+          name: table.name,
+          rowCount: table.rowCount,
+          duplicateRowCount: table.duplicateRowCount,
+          columns: table.columns,
+          previewRows: table.rows.slice(0, PREVIEW_ROWS),
+        })),
+      };
+    } catch (error: any) {
+      importRun.status = 'FAILED';
+      importRun.error =
+        error?.message || 'Dataset preview failed.';
+      importRun.completedAt = Date.now();
+      await datasetRuntimePersistence
+        .recordImportRun(importRun)
+        .catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private async importFilePostgres(params: {
+    accountId: string;
+    buffer: Buffer;
+    filename: string;
+    mimeType?: string;
+    datasetName?: string;
+    description?: string;
+    existingDatasetId?: string;
+    schemaOverrides?: Record<
+      string,
+      Record<string, DatasetColumnType>
+    >;
+  }) {
+    const lower = params.filename.toLowerCase();
+    const format: 'CSV' | 'XLSX' = lower.endsWith('.csv')
+      ? 'CSV'
+      : lower.endsWith('.xlsx')
+        ? 'XLSX'
+        : (() => {
+            throw new DatasetImportError(
+              'UNSUPPORTED_FORMAT',
+              'Supported structured-data formats are .csv and .xlsx.'
+            );
+          })();
+
+    const importRun: DatasetImportRun = {
+      id: 'imp_' + crypto.randomBytes(8).toString('hex'),
+      accountId: params.accountId,
+      status: 'IMPORTED',
+      createdAt: Date.now(),
+      completedAt: Date.now(),
+      filename: params.filename,
+      format,
+      warnings: [],
+    };
+
+    try {
+      const parsedTables =
+        format === 'CSV'
+          ? [
+              parseCsvBuffer(
+                params.buffer,
+                datasetNameFromFilename(params.filename)
+              ),
+            ]
+          : await parseXlsxBuffer(params.buffer);
+
+      const tables = parsedTables.map((parsed) =>
+        tableFromParsed(
+          parsed,
+          params.schemaOverrides?.[parsed.name]
+        )
+      );
+      const source = sourceFor(
+        params.buffer,
+        params.filename,
+        params.mimeType ||
+          (format === 'CSV'
+            ? 'text/csv'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        format
+      );
+
+      for (const table of tables) {
+        if (table.duplicateRowCount > 0) {
+          importRun.warnings.push(
+            (format === 'XLSX' ? 'Sheet "' + table.name + '" contains ' : '') +
+              String(table.duplicateRowCount) +
+              ' duplicate row(s) that were preserved.'
+          );
+        }
+      }
+
+      return await datasetRuntimePersistence.commitImportedDataset({
+        accountId: params.accountId,
+        name:
+          params.datasetName?.trim() ||
+          datasetNameFromFilename(params.filename),
+        description: params.description,
+        source,
+        tables,
+        importRun,
+        existingDatasetId: params.existingDatasetId,
+      });
+    } catch (error: any) {
+      importRun.status = 'FAILED';
+      importRun.error =
+        error?.message || 'Dataset import failed.';
+      importRun.completedAt = Date.now();
+      await datasetRuntimePersistence
+        .recordImportRun(importRun)
+        .catch(() => undefined);
+      throw error;
+    }
+  }
+
   public async previewFile(params: {
     accountId: string;
     buffer: Buffer;
@@ -406,6 +614,10 @@ export class DatasetService {
     mimeType?: string;
     schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
   }): Promise<DatasetPreview> {
+    if (datasetRuntimePersistence.usesPostgres()) {
+      return this.previewFilePostgres(params);
+    }
+
     const lower = params.filename.toLowerCase();
     if (lower.endsWith('.csv')) {
       const csvTableName = datasetNameFromFilename(params.filename);
@@ -436,6 +648,10 @@ export class DatasetService {
     existingDatasetId?: string;
     schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
   }) {
+    if (datasetRuntimePersistence.usesPostgres()) {
+      return this.importFilePostgres(params);
+    }
+
     const lower = params.filename.toLowerCase();
     if (lower.endsWith('.csv')) {
       const csvTableName = datasetNameFromFilename(params.filename);
