@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { structuredKnowledgeProjectionService } from '../companyKnowledge/structuredKnowledgeProjectionService.js';
+import { structuredKnowledgeRuntimeProjectionService } from '../companyKnowledge/structuredKnowledgeRuntimeProjectionService.js';
 import { datasetService } from '../datasets/datasetService.js';
-import { postgresCompanyKnowledgeRepository } from '../persistence/a3PostgresRepositories.js';
 import { connectorRegistry } from './connectorRegistry.js';
 import { classifyIntegrationFailure } from './integrationFailure.js';
 import { integrationPersistence } from './integrationPersistence.js';
@@ -834,22 +834,17 @@ export class IntegrationRuntimeService {
     }
 
     try {
-      const projection =
-        structuredKnowledgeProjectionService.projectDataset({
-          accountId,
-          datasetId: importState.internalId,
-          versionId: importState.internalVersionId,
-        });
-
-      // A7B cuts Integration metadata to PostgreSQL before the complete
-      // Living Knowledge runtime cutover. Persisting the projection-run
-      // metadata here preserves the A4 relational FK/provenance contract
-      // without changing the authoritative Phase 3 projection behavior yet.
-      if (this.usesPostgres()) {
-        await postgresCompanyKnowledgeRepository.saveProjectionRun(
-          projection
-        );
-      }
+      const projection = this.usesPostgres()
+        ? await structuredKnowledgeRuntimeProjectionService.projectDataset({
+            accountId,
+            datasetId: importState.internalId,
+            versionId: importState.internalVersionId,
+          })
+        : structuredKnowledgeProjectionService.projectDataset({
+            accountId,
+            datasetId: importState.internalId,
+            versionId: importState.internalVersionId,
+          });
 
       const ready = await integrationPersistence.updateImport(
         accountId,
