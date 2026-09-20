@@ -8,7 +8,7 @@ import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledg
 import {
   WatchAccessError,
   WatchStateError,
-} from './watchPersistence.js';
+} from './watchStore.js';
 import { watchPersistence } from './watchPersistence.js';
 import {
   WatchEvaluationError,
@@ -16,7 +16,7 @@ import {
 import { watchRuntimeEvaluator } from './watchRuntimeEvaluator.js';
 import {
   WatchValidationError,
-} from './watchRuntimeService.js';
+} from './watchService.js';
 import { watchRuntimeService } from './watchRuntimeService.js';
 import {
   WatchDraftError,
