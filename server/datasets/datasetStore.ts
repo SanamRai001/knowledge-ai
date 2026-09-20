@@ -8,6 +8,7 @@ import {
   DatasetTable,
   DatasetVersion,
 } from './types.js';
+import { postgresPersistenceEnabled } from '../persistence/postgres.js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATASET_FILE = path.join(DATA_DIR, 'datasets.json');
@@ -70,6 +71,7 @@ export class DatasetStore {
   }
 
   private save(): void {
+    if (postgresPersistenceEnabled()) return;
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
@@ -83,6 +85,53 @@ export class DatasetStore {
     const temporary = DATASET_FILE + '.tmp';
     fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
     fs.renameSync(temporary, DATASET_FILE);
+  }
+
+  /**
+   * PostgreSQL mode reconstructs this cache before the server accepts traffic.
+   * The cache exists for synchronous analytics; relational metadata remains
+   * authoritative and payload bytes/rows are loaded from a separate backend.
+   */
+  public replaceRuntimeState(params: {
+    datasets: Dataset[];
+    versions: DatasetVersion[];
+    importRuns?: DatasetImportRun[];
+  }): void {
+    this.datasets.clear();
+    this.versions.clear();
+    this.importRuns.clear();
+
+    for (const dataset of params.datasets) {
+      this.datasets.set(dataset.id, clone(dataset));
+    }
+    for (const version of params.versions) {
+      this.versions.set(version.id, clone(version));
+    }
+    for (const run of params.importRuns || []) {
+      this.importRuns.set(run.id, clone(run));
+    }
+  }
+
+  public cacheDataset(dataset: Dataset): void {
+    this.datasets.set(dataset.id, clone(dataset));
+  }
+
+  public cacheVersion(version: DatasetVersion): void {
+    this.versions.set(version.id, clone(version));
+  }
+
+  public cacheImportRun(run: DatasetImportRun): void {
+    this.importRuns.set(run.id, clone(run));
+  }
+
+  public removeCachedDataset(datasetId: string): void {
+    const dataset = this.datasets.get(datasetId);
+    if (dataset) {
+      for (const versionId of dataset.versionIds) {
+        this.versions.delete(versionId);
+      }
+    }
+    this.datasets.delete(datasetId);
   }
 
   public listDatasets(accountId: string): Dataset[] {
