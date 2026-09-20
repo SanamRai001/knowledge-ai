@@ -688,6 +688,23 @@ export class PostgresWatchRepository implements WatchRepository {
     return result.rowCount ? watchDraftFromRow(result.rows[0]) : null;
   }
 
+  public async listDrafts(params: {
+    accountId: string;
+    limit?: number;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_drafts
+       WHERE account_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [
+        params.accountId,
+        Math.max(1, Math.min(params.limit || 100, 500)),
+      ]
+    );
+    return result.rows.map(watchDraftFromRow);
+  }
+
   public async saveDraft(draft: WatchDraft) {
     await saveDraftWith(postgresPool(), draft);
   }
@@ -702,6 +719,2242 @@ export class PostgresWatchRepository implements WatchRepository {
 
   public async saveEvaluation(evaluation: WatchEvaluation) {
     await saveEvaluationWith(postgresPool(), evaluation);
+  }
+
+  public async listEvaluations(params: {
+    accountId: string;
+    watchRuleId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = 
+
+  public async getAlert(accountId: string, alertId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_alerts WHERE account_id = $1 AND id = $2',
+      [accountId, alertId]
+    );
+    return result.rowCount ? watchAlertFromRow(result.rows[0]) : null;
+  }
+
+  public async listAlerts(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchAlert['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = 
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+  public async listDueIntervalRules(params: {
+    now: number;
+    limit?: number;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_rules
+       WHERE status = 'ACTIVE'
+         AND evaluation_mode = 'INTERVAL'
+         AND next_evaluation_at IS NOT NULL
+         AND next_evaluation_at <= $1
+       ORDER BY next_evaluation_at ASC
+       LIMIT $2`,
+      [
+        new Date(params.now),
+        Math.max(1, Math.min(params.limit || 500, 5000)),
+      ]
+    );
+    return result.rows.map(watchRuleFromRow);
+  }
+
+  public async requeueStaleRunningJobs(params: {
+    now: number;
+    leaseMs: number;
+  }) {
+    const cutoff = new Date(params.now - params.leaseMs);
+    const result = await postgresPool().query(
+      `UPDATE watch_jobs
+       SET status = 'PENDING',
+           next_attempt_at = $1,
+           started_at = NULL,
+           last_error =
+             'Recovered stale RUNNING job after worker restart/lease expiry.',
+           updated_at = $1
+       WHERE status = 'RUNNING'
+         AND started_at IS NOT NULL
+         AND started_at <= $2
+       RETURNING *`,
+      [new Date(params.now), cutoff]
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
+ + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_evaluations
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY evaluated_at DESC
+       LIMIT ${values.length}`,
+      values
+    );
+    return result.rows.map(watchEvaluationFromRow);
+  }
+
+  public async getAlert(accountId: string, alertId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_alerts WHERE account_id = $1 AND id = $2',
+      [accountId, alertId]
+    );
+    return result.rowCount ? watchAlertFromRow(result.rows[0]) : null;
+  }
+
+  public async saveAlert(alert: WatchAlert) {
+    await saveAlertWith(postgresPool(), alert);
+  }
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
+ + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = 
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
+ + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_evaluations
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY evaluated_at DESC
+       LIMIT ${values.length}`,
+      values
+    );
+    return result.rows.map(watchEvaluationFromRow);
+  }
+
+  public async getAlert(accountId: string, alertId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_alerts WHERE account_id = $1 AND id = $2',
+      [accountId, alertId]
+    );
+    return result.rowCount ? watchAlertFromRow(result.rows[0]) : null;
+  }
+
+  public async saveAlert(alert: WatchAlert) {
+    await saveAlertWith(postgresPool(), alert);
+  }
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
+ + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_alerts
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY last_triggered_at DESC, created_at DESC
+       LIMIT ${values.length}`,
+      values
+    );
+    return result.rows.map(watchAlertFromRow);
+  }
+
+  public async getActiveAlertForRule(
+    accountId: string,
+    watchRuleId: string
+  ) {
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_alerts
+       WHERE account_id = $1
+         AND watch_rule_id = $2
+         AND status <> 'RESOLVED'
+       ORDER BY last_triggered_at DESC
+       LIMIT 1`,
+      [accountId, watchRuleId]
+    );
+    return result.rowCount
+      ? watchAlertFromRow(result.rows[0])
+      : null;
+  }
+
+  public async saveAlert(alert: WatchAlert) {
+    await saveAlertWith(postgresPool(), alert);
+  }
+
+  public async getJob(accountId: string, jobId: string) {
+    const result = await postgresPool().query(
+      'SELECT * FROM watch_jobs WHERE account_id = $1 AND id = $2',
+      [accountId, jobId]
+    );
+    return result.rowCount ? watchJobFromRow(result.rows[0]) : null;
+  }
+
+  public async listJobs(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchJob['status'];
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.watchRuleId) {
+      values.push(params.watchRuleId);
+      clauses.push('watch_rule_id = $' + values.length);
+    }
+    if (params.status) {
+      values.push(params.status);
+      clauses.push('status = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_jobs
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY next_attempt_at ASC, created_at ASC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(watchJobFromRow);
+  }
+
+  public async saveJob(job: WatchJob) {
+    await saveJobWith(postgresPool(), job);
+  }
+
+  public async ensureJob(job: WatchJob): Promise<WatchJob> {
+    return withTransaction(async (client) => {
+      await client.query(
+        `INSERT INTO watch_jobs
+          (id, fingerprint, account_id, watch_rule_id, rule_version,
+           scheduled_for, status, attempt_count, max_attempts, next_attempt_at,
+           created_at, updated_at, started_at, completed_at, evaluation_id,
+           last_error, skip_reason)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         ON CONFLICT (account_id, fingerprint) DO NOTHING`,
+        [
+          job.id,
+          job.fingerprint,
+          job.accountId,
+          job.watchRuleId,
+          job.ruleVersion,
+          new Date(job.scheduledFor),
+          job.status,
+          job.attemptCount,
+          job.maxAttempts,
+          new Date(job.nextAttemptAt),
+          new Date(job.createdAt),
+          new Date(job.updatedAt),
+          date(job.startedAt),
+          date(job.completedAt),
+          job.evaluationId ?? null,
+          job.lastError ?? null,
+          job.skipReason ?? null,
+        ]
+      );
+
+      const result = await client.query(
+        `SELECT * FROM watch_jobs
+         WHERE account_id = $1 AND fingerprint = $2`,
+        [job.accountId, job.fingerprint]
+      );
+      return watchJobFromRow(result.rows[0]);
+    });
+  }
+
+  public async claimReadyJob(params: {
+    now: number;
+    leaseStartedAt: number;
+  }): Promise<WatchJob | null> {
+    return withTransaction(async (client) => {
+      const selected = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE status = 'PENDING'
+           AND next_attempt_at <= $1
+         ORDER BY next_attempt_at ASC, scheduled_for ASC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
+        [new Date(params.now)]
+      );
+      if (!selected.rowCount) return null;
+
+      const row = selected.rows[0];
+      const updated = await client.query(
+        `UPDATE watch_jobs
+         SET status = 'RUNNING',
+             attempt_count = attempt_count + 1,
+             started_at = $2,
+             updated_at = $2
+         WHERE id = $1
+         RETURNING *`,
+        [row.id, new Date(params.leaseStartedAt)]
+      );
+      return watchJobFromRow(updated.rows[0]);
+    });
+  }
+}
+
+export class PostgresIntegrationRepository
+  implements IntegrationRepository
+{
+  public async getConnection(accountId: string, connectionId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, connectionId]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async listConnections(accountId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_connections
+       WHERE account_id = $1
+       ORDER BY updated_at DESC`,
+      [accountId]
+    );
+    return result.rows.map(integrationConnectionFromRow);
+  }
+
+  public async saveConnection(connection: IntegrationConnection) {
+    await saveConnectionWith(postgresPool(), connection);
+  }
+
+  public async tryAcquireSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    leaseExpiresAt: number;
+    now: number;
+  }) {
+    const result = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = $3,
+           sync_lease_expires_at = $4,
+           updated_at = $5
+       WHERE account_id = $1
+         AND id = $2
+         AND (
+           sync_lease_id IS NULL
+           OR sync_lease_expires_at IS NULL
+           OR sync_lease_expires_at <= $5
+         )
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.leaseExpiresAt),
+        new Date(params.now),
+      ]
+    );
+    return result.rowCount
+      ? integrationConnectionFromRow(result.rows[0])
+      : null;
+  }
+
+  public async releaseSyncLease(params: {
+    accountId: string;
+    connectionId: string;
+    leaseId: string;
+    now: number;
+  }) {
+    const released = await postgresPool().query(
+      `UPDATE integration_connections
+       SET sync_lease_id = NULL,
+           sync_lease_expires_at = NULL,
+           updated_at = $4
+       WHERE account_id = $1
+         AND id = $2
+         AND sync_lease_id = $3
+       RETURNING *`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.leaseId,
+        new Date(params.now),
+      ]
+    );
+    if (released.rowCount) {
+      return integrationConnectionFromRow(released.rows[0]);
+    }
+
+    const existing = await this.getConnection(
+      params.accountId,
+      params.connectionId
+    );
+    return existing;
+  }
+
+  public async getSyncRun(accountId: string, runId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, runId]
+    );
+    return result.rowCount ? syncRunFromRow(result.rows[0]) : null;
+  }
+
+  public async listSyncRuns(params: {
+    accountId: string;
+    connectionId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    let where = 'account_id = $1';
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      where += ' AND connection_id = $2';
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_sync_runs
+       WHERE ${where}
+       ORDER BY started_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(syncRunFromRow);
+  }
+
+  public async saveSyncRun(run: SyncRun) {
+    await saveSyncRunWith(postgresPool(), run);
+  }
+
+  public async getImport(accountId: string, importId: string) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, importId]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async findExactImport(params: {
+    accountId: string;
+    connectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }) {
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE account_id = $1 AND connection_id = $2
+         AND external_id = $3 AND external_version = $4`,
+      [
+        params.accountId,
+        params.connectionId,
+        params.externalId,
+        params.externalVersion,
+      ]
+    );
+    return result.rowCount ? externalImportFromRow(result.rows[0]) : null;
+  }
+
+  public async listImports(params: {
+    accountId: string;
+    connectionId?: string;
+    externalId?: string;
+    limit?: number;
+  }) {
+    const values: unknown[] = [params.accountId];
+    const clauses = ['account_id = $1'];
+    if (params.connectionId) {
+      values.push(params.connectionId);
+      clauses.push('connection_id = $' + values.length);
+    }
+    if (params.externalId) {
+      values.push(params.externalId);
+      clauses.push('external_id = $' + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM integration_external_imports
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY imported_at DESC
+       LIMIT $${values.length}`,
+      values
+    );
+    return result.rows.map(externalImportFromRow);
+  }
+
+  public async saveImport(importState: ExternalImportState) {
+    await saveImportWith(postgresPool(), importState);
+  }
+}
+
+export class PostgresIntegrationCheckpointRepository
+  implements IntegrationCheckpointRepository
+{
+  public async commitSuccessfulCheckpoint(
+    input: IntegrationCheckpointCommitInput
+  ) {
+    return withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2
+         FOR UPDATE`,
+        [input.accountId, input.connectionId]
+      );
+      if (!locked.rowCount) {
+        throw new Error(
+          'Integration connection not found in the current account scope.'
+        );
+      }
+
+      const currentCursor: string | undefined =
+        locked.rows[0].cursor ?? undefined;
+      if (currentCursor !== input.expectedCursor) {
+        throw new Error(
+          'INTEGRATION_CHECKPOINT_STALE: connection cursor changed before checkpoint commit.'
+        );
+      }
+
+      const runRow = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2 AND connection_id = $3
+         FOR UPDATE`,
+        [input.accountId, input.runId, input.connectionId]
+      );
+      if (!runRow.rowCount) {
+        throw new Error(
+          'Sync run not found in the current connection scope.'
+        );
+      }
+
+      for (const imported of input.imports) {
+        if (
+          imported.accountId !== input.accountId ||
+          imported.connectionId !== input.connectionId
+        ) {
+          throw new Error(
+            'External import does not belong to this checkpoint account/connection.'
+          );
+        }
+        await saveImportWith(client, imported);
+      }
+
+      const completedRun: SyncRun = {
+        ...input.run,
+        accountId: input.accountId,
+        connectionId: input.connectionId,
+        id: input.runId,
+        status: 'COMPLETED',
+        cursorBefore: input.expectedCursor,
+        cursorAfter: input.nextCursor,
+        completedAt: input.completedAt,
+        retryable: false,
+        failureCategory: undefined,
+        nextRetryAt: undefined,
+        error: undefined,
+      };
+      await saveSyncRunWith(client, completedRun);
+
+      const connection = integrationConnectionFromRow(locked.rows[0]);
+      const updatedConnection: IntegrationConnection = {
+        ...connection,
+        cursor: input.nextCursor,
+        lastSyncAt: input.completedAt,
+        lastSuccessfulSyncAt: input.completedAt,
+        lastError: undefined,
+        lastFailureCategory: undefined,
+        attentionReason: undefined,
+        consecutiveFailureCount: 0,
+        nextRetryAt: undefined,
+        updatedAt: input.completedAt,
+      };
+      await saveConnectionWith(client, updatedConnection);
+
+      const refreshedConnection = await client.query(
+        `SELECT * FROM integration_connections
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.connectionId]
+      );
+      const refreshedRun = await client.query(
+        `SELECT * FROM integration_sync_runs
+         WHERE account_id = $1 AND id = $2`,
+        [input.accountId, input.runId]
+      );
+
+      return {
+        connection: integrationConnectionFromRow(
+          refreshedConnection.rows[0]
+        ),
+        run: syncRunFromRow(refreshedRun.rows[0]),
+        imports: input.imports.map((item) => structuredClone(item)),
+      };
+    });
+  }
+}
+
+export const postgresWatchRepository =
+  new PostgresWatchRepository();
+export const postgresIntegrationRepository =
+  new PostgresIntegrationRepository();
+export const postgresIntegrationCheckpointRepository =
+  new PostgresIntegrationCheckpointRepository();
+ + values.length);
+    }
+    values.push(Math.max(1, Math.min(params.limit || 100, 1000)));
+    const result = await postgresPool().query(
+      `SELECT * FROM watch_evaluations
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY evaluated_at DESC
+       LIMIT ${values.length}`,
+      values
+    );
+    return result.rows.map(watchEvaluationFromRow);
   }
 
   public async getAlert(accountId: string, alertId: string) {
