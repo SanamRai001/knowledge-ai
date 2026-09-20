@@ -1,13 +1,13 @@
 import express from 'express';
-import { actionStore } from '../actions/actionStore.js';
+import { actionPersistence } from '../actions/actionPersistence.js';
 import { hybridActionInterpreter } from '../actions/hybridActionInterpreter.js';
-import { companyKnowledgeStore } from '../companyKnowledge/companyKnowledgeStore.js';
+import { companyKnowledgePersistence } from '../companyKnowledge/companyKnowledgePersistence.js';
 import type { CompanyEntityType } from '../companyKnowledge/types.js';
 import { datasetStore } from '../datasets/datasetStore.js';
 import { discoveryRuntimeService } from '../discovery/discoveryRuntimeService.js';
 import type { InsightStatus } from '../discovery/types.js';
 import { unifiedQueryService } from '../querying/unifiedQueryService.js';
-import { watchStore } from '../watch/watchStore.js';
+import { watchPersistence } from '../watch/watchPersistence.js';
 import type {
   WatchAlertStatus,
   WatchRuleStatus,
@@ -206,12 +206,12 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/knowledge/summary',
   requirePlatformOperation('knowledge.summary.get'),
-  (_req, res) => {
+  async (_req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
         summary:
-          companyKnowledgeStore.snapshotCounts(accountId),
+          await companyKnowledgePersistence.snapshotCounts(accountId),
       });
     } catch (error) {
       handleError(res, error);
@@ -222,11 +222,11 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/knowledge/entities',
   requirePlatformOperation('knowledge.entities.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        entities: companyKnowledgeStore.listEntities({
+        entities: await companyKnowledgePersistence.listEntities({
           accountId,
           type: entityTypeFrom(req.query.type),
           search:
@@ -245,28 +245,29 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/knowledge/entities/:id',
   requirePlatformOperation('knowledge.entity.get'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
-      const entity = companyKnowledgeStore.requireEntity(
-        accountId,
-        req.params.id
-      );
+      const entity =
+        await companyKnowledgePersistence.requireEntity(
+          accountId,
+          req.params.id
+        );
       res.json({
         entity,
-        claims: companyKnowledgeStore.listClaims({
+        claims: await companyKnowledgePersistence.listClaims({
           accountId,
           entityId: entity.id,
           currentOnly: false,
           limit: 300,
         }),
         relationships:
-          companyKnowledgeStore.listRelationships({
+          await companyKnowledgePersistence.listRelationships({
             accountId,
             entityId: entity.id,
             limit: 100,
           }),
-        events: companyKnowledgeStore.listEvents({
+        events: await companyKnowledgePersistence.listEvents({
           accountId,
           entityId: entity.id,
           limit: 200,
@@ -362,11 +363,11 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/actions',
   requirePlatformOperation('actions.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        proposals: actionStore.listProposals({
+        proposals: await actionPersistence.listProposals({
           accountId,
           status: actionStatusFrom(req.query.status),
           limit: limitFrom(req.query.limit, 100, 500),
@@ -404,11 +405,11 @@ platformApiRouter.post(
 platformApiRouter.get(
   '/watch/rules',
   requirePlatformOperation('watch.rules.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        rules: watchStore.listRules({
+        rules: await watchPersistence.listRules({
           accountId,
           status: watchRuleStatusFrom(req.query.status),
           limit: limitFrom(req.query.limit, 100, 500),
@@ -423,11 +424,11 @@ platformApiRouter.get(
 platformApiRouter.get(
   '/watch/alerts',
   requirePlatformOperation('watch.alerts.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       res.json({
-        alerts: watchStore.listAlerts({
+        alerts: await watchPersistence.listAlerts({
           accountId,
           watchRuleId:
             typeof req.query.watchRuleId === 'string' &&
@@ -666,16 +667,16 @@ platformApiRouter.post(
 platformApiRouter.get(
   '/audit/activity',
   requirePlatformOperation('audit.activity.list'),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { accountId } = platformContext(res);
       const limit = limitFrom(req.query.limit, 100, 500);
-      const actionAudit = actionStore
-        .listAudit({
+      const actionAudit = (
+        await actionPersistence.listAudit({
           accountId,
           limit,
         })
-        .map((entry) => ({
+      ).map((entry) => ({
           id: 'action:' + entry.id,
           kind: 'ACTION_AUDIT' as const,
           timestamp: entry.timestamp,
@@ -685,13 +686,12 @@ platformApiRouter.get(
           executionId: entry.executionId,
         }));
 
-      const businessEvents =
-        companyKnowledgeStore
-          .listEvents({
-            accountId,
-            limit,
-          })
-          .map((event) => ({
+      const businessEvents = (
+        await companyKnowledgePersistence.listEvents({
+          accountId,
+          limit,
+        })
+      ).map((event) => ({
             id: 'event:' + event.id,
             kind: 'BUSINESS_EVENT' as const,
             timestamp:
