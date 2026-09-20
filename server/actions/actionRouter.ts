@@ -7,23 +7,23 @@ import {
 import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
 import {
   ActionAccessError,
-  actionStore,
 } from './actionStore.js';
+import { actionPersistence } from './actionPersistence.js';
 import {
   ActionExecutionError,
-  actionExecutionService,
 } from './actionExecutionService.js';
+import { actionRuntimeExecutionService } from './actionRuntimeExecutionService.js';
 import {
   ActionInterpretationError,
-  hybridActionInterpreter,
 } from './hybridActionInterpreter.js';
+import { hybridActionRuntimeInterpreter } from './hybridActionRuntimeInterpreter.js';
 import {
   ActionProposalError,
 } from './actionProposalService.js';
 import {
   ActionRefinementError,
-  actionRefinementService,
 } from './actionRefinementService.js';
+import { actionRuntimeRefinementService } from './actionRuntimeRefinementService.js';
 import { EffectiveStateError } from '../companyKnowledge/effectiveCompanyStateService.js';
 import { ActionProposalStatus } from './types.js';
 
@@ -104,7 +104,8 @@ actionRouter.post('/propose', async (req, res) => {
         ? req.body.instruction
         : '';
 
-    const result = await hybridActionInterpreter.interpret({
+    const result =
+      await hybridActionRuntimeInterpreter.interpret({
       accountId,
       instruction,
       allowLlmParsing: req.body?.allowLlmParsing !== false,
@@ -116,11 +117,11 @@ actionRouter.post('/propose', async (req, res) => {
   }
 });
 
-actionRouter.get('/', (req, res) => {
+actionRouter.get('/', async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
-      proposals: actionStore.listProposals({
+      proposals: await actionPersistence.listProposals({
         accountId,
         status: proposalStatus(req.query.status),
         limit: limitFrom(req.query.limit, 100),
@@ -131,20 +132,21 @@ actionRouter.get('/', (req, res) => {
   }
 });
 
-actionRouter.get('/:id', (req, res) => {
+actionRouter.get('/:id', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const proposal = actionStore.requireProposal(
+    const proposal = await actionPersistence.requireProposal(
       accountId,
       req.params.id
     );
     res.json({
       proposal,
-      execution: actionStore.getExecutionByProposal(
-        accountId,
-        proposal.id
-      ),
-      audit: actionStore.listAudit({
+      execution:
+        await actionPersistence.getExecutionByProposal(
+          accountId,
+          proposal.id
+        ),
+      audit: await actionPersistence.listAudit({
         accountId,
         proposalId: proposal.id,
         limit: 100,
@@ -155,12 +157,15 @@ actionRouter.get('/:id', (req, res) => {
   }
 });
 
-actionRouter.get('/:id/audit', (req, res) => {
+actionRouter.get('/:id/audit', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    actionStore.requireProposal(accountId, req.params.id);
+    await actionPersistence.requireProposal(
+      accountId,
+      req.params.id
+    );
     res.json({
-      audit: actionStore.listAudit({
+      audit: await actionPersistence.listAudit({
         accountId,
         proposalId: req.params.id,
         limit: limitFrom(req.query.limit, 200),
@@ -171,7 +176,7 @@ actionRouter.get('/:id/audit', (req, res) => {
   }
 });
 
-actionRouter.post('/:id/select-target', (req, res) => {
+actionRouter.post('/:id/select-target', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const entityId =
@@ -187,7 +192,8 @@ actionRouter.post('/:id/select-target', (req, res) => {
       return;
     }
 
-    const proposal = actionRefinementService.selectTarget({
+    const proposal =
+      await actionRuntimeRefinementService.selectTarget({
       accountId,
       proposalId: req.params.id,
       entityId,
@@ -198,10 +204,11 @@ actionRouter.post('/:id/select-target', (req, res) => {
   }
 });
 
-actionRouter.post('/:id/confirm', (req, res) => {
+actionRouter.post('/:id/confirm', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const result = actionExecutionService.confirm({
+    const result =
+      await actionRuntimeExecutionService.confirm({
       accountId,
       proposalId: req.params.id,
     });
@@ -211,10 +218,11 @@ actionRouter.post('/:id/confirm', (req, res) => {
   }
 });
 
-actionRouter.post('/:id/cancel', (req, res) => {
+actionRouter.post('/:id/cancel', async (req, res) => {
   try {
     const { accountId } = identity(res);
-    const proposal = actionExecutionService.cancel({
+    const proposal =
+      await actionRuntimeExecutionService.cancel({
       accountId,
       proposalId: req.params.id,
     });
