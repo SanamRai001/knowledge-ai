@@ -1,7 +1,7 @@
 import { detectorExecutionRuntimeService } from '../detectors/detectorExecutionRuntimeService.js';
 import { validateDetectorConfig } from '../detectors/detectorConfigValidator.js';
 import { detectorRegistry } from '../detectors/detectorRegistry.js';
-import { domainPackInstallationStore } from './domainPackInstallationStore.js';
+import { platformPersistence } from '../platformPersistence.js';
 import { domainPackRegistry } from './domainPackRegistry.js';
 import { DomainPackServiceError } from './domainPackService.js';
 import type {
@@ -19,7 +19,7 @@ export class DomainPackRuntimeService {
     referenceTime?: number;
   }): Promise<DomainPackDetectorRunResult> {
     const installation =
-      domainPackInstallationStore.requireActive({
+      await platformPersistence.requireActiveDomainPack({
         accountId: params.accountId,
         packId: params.packId,
       });
