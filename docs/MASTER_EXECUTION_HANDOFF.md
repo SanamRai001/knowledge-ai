@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7C — Watch runtime PostgreSQL cutover.**
+> **Continue with Production Hardening A7D — Living Knowledge + Actions runtime PostgreSQL cutover.**
 
 Phases 0–8 are complete.
 
@@ -1055,10 +1055,13 @@ Persistence/runtime milestones:
 - A6 Discovery / Insights schema/repositories — COMPLETE
 - A7A Discovery / Insights runtime cutover — COMPLETE, workflow `35460199628`
 - A7B Integrations runtime cutover — COMPLETE, workflow `35517514449`
-- A7C Watch runtime cutover — IN PROGRESS
+- A7C Watch runtime cutover — COMPLETE, workflow `35518107862`
+- A7D Living Knowledge + Actions runtime cutover — IN PROGRESS
 
 A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
 
 A7B evidence: `docs/PRODUCTION_A7B_INTEGRATION_RUNTIME.md`.
 
-Next, route normal Watch HTTP state and scheduler/job execution through the A4 PostgreSQL Watch repository when production persistence mode is enabled. Use the existing database-enforced schedule fingerprint and atomic ready-job claim. Preserve file mode and all Phase 5 behavior.
+A7C evidence: `docs/PRODUCTION_A7C_WATCH_RUNTIME.md`.
+
+Next, route structured projection, normal Living Knowledge reads, Action proposals/audit, and confirmed Action execution through the existing A3 PostgreSQL repositories when production persistence mode is enabled. Use the existing atomic confirmed-action transaction rather than rebuilding write logic. Preserve file mode and all Phase 3/4 behavior.
