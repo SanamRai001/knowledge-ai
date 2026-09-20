@@ -166,7 +166,7 @@ export class ActionRuntimeProposalService {
     now: number;
     reason: string;
     candidates?: ActionTargetCandidate[];
-  }): ActionProposal {
+  }): Promise<ActionProposal> {
     return actionPersistence.createProposal({
       accountId: params.accountId,
       instruction: params.instruction,
