@@ -66,7 +66,7 @@ import { discoveryRouter } from './server/discovery/discoveryRouter.js';
 import { companyKnowledgeRouter } from './server/companyKnowledge/companyKnowledgeRouter.js';
 import { actionRouter } from './server/actions/actionRouter.js';
 import { watchRouter } from './server/watch/watchRouter.js';
-import { watchScheduler } from './server/watch/watchScheduler.js';
+import { watchRuntimeScheduler } from './server/watch/watchRuntimeScheduler.js';
 import { integrationRouter } from './server/integrations/integrationRouter.js';
 import { automationRouter } from './server/automation/automationRouter.js';
 import { platformApiRouter } from './server/platform/platformApiRouter.js';
@@ -2951,7 +2951,7 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Knowledge AI server running on http://0.0.0.0:${PORT}`);
-    watchScheduler.start();
+    watchRuntimeScheduler.start();
   });
 }
 
