@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { ApiKey, ApiUsage, ApiUsageStats } from '../src/types.js';
+import { postgresPersistenceEnabled } from './persistence/postgres.js';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const KEYS_FILE = path.join(DATA_DIR, 'api_keys.json');
@@ -96,11 +97,47 @@ export class ApiKeyStore {
     }
   }
 
+  /**
+   * PostgreSQL mode keeps a process-local validation cache so request identity
+   * can remain synchronous. The durable source is loaded before traffic starts.
+   */
+  public replaceValidationCache(keys: ApiKey[]): void {
+    this.keys.clear();
+    for (const key of keys) {
+      this.keys.set(key.id, structuredClone(key));
+    }
+    this.defaultTestRawKey = null;
+  }
+
+  public cacheApiKey(key: ApiKey): void {
+    this.keys.set(key.id, structuredClone(key));
+  }
+
+  public removeCachedApiKey(keyId: string): void {
+    this.keys.delete(keyId);
+  }
+
+  public markCachedApiKeyRevoked(
+    keyId: string,
+    accountId: string
+  ): void {
+    const key = this.keys.get(keyId);
+    if (!key || key.accountId !== accountId) return;
+    key.status = 'revoked';
+  }
+
+  public touchCachedApiKey(keyId: string, at: number): void {
+    const key = this.keys.get(keyId);
+    if (!key) return;
+    key.lastUsedAt = at;
+  }
+
   public hashKey(rawKey: string): string {
     return crypto.createHash('sha256').update(rawKey.trim()).digest('hex');
   }
 
   private saveKeysToDisk(): void {
+    if (postgresPersistenceEnabled()) return;
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -112,6 +149,7 @@ export class ApiKeyStore {
   }
 
   private saveUsageToDisk(): void {
+    if (postgresPersistenceEnabled()) return;
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
