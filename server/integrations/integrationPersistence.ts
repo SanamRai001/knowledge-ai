@@ -4,6 +4,7 @@ import {
   postgresIntegrationCheckpointRepository,
   postgresIntegrationRepository,
 } from '../persistence/a4PostgresRepositories.js';
+import { postgresAccountRepository } from '../persistence/postgresRepositories.js';
 import {
   IntegrationStateError,
   integrationStore,
@@ -46,6 +47,7 @@ export class IntegrationPersistence {
       return integrationStore.createConnection(params);
     }
 
+    await postgresAccountRepository.ensureAccount(params.accountId);
     const now = Date.now();
     const connection: IntegrationConnection = {
       id: id('int'),
@@ -438,10 +440,8 @@ export class IntegrationPersistence {
         imported.externalVersion
       );
       if (!existing) {
-        integrationStore.recordImport({
-          ...imported,
-          id: undefined as never,
-        });
+        const { id: _id, ...withoutId } = imported;
+        integrationStore.recordImport(withoutId);
       } else {
         integrationStore.updateImport(
           imported.accountId,
