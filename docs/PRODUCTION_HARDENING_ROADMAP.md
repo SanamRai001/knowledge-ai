@@ -134,6 +134,32 @@ Replace the legacy unauthenticated `acc_default` browser fallback for production
 - automation-policy administration permission
 - source/authority administration permission
 
+## B1 forensic audit checkpoint
+
+Status: **COMPLETE** — evidence: `docs/PRODUCTION_B1_IDENTITY_AUTHORIZATION_AUDIT.md`.
+
+B1 confirmed:
+
+- browser requests currently have no real human session; missing credentials become unauthenticated `DEFAULT_WEB / acc_default`
+- the existing `accounts` table is the correct initial organization/tenant boundary
+- there are no user, account-membership, or browser-session tables yet
+- active workspace selection is account-global rather than user/session scoped
+- normal product routers blur browser and API-key credential classes through one `RequestIdentity`
+- unauthenticated developer-key management and arbitrary legacy key scopes create a concrete machine-key privilege-escalation path
+- automation policy administration is not role protected
+- integration management has no dedicated management permission
+- manual Action confirmation can create `USER_CONFIRMED` authority without an attributable human user
+- multiple legacy/prototype admin and diagnostic route families remain outside the modern identity boundary
+
+The implementation sequence is deliberately split into small slices:
+
+1. **B2A — Human Identity Persistence Foundation** — NEXT
+2. B2B — Auth endpoints + human request identity
+3. B2C — Browser route cutover
+4. B2D — Privileged authorization + legacy route quarantine
+
+B2A is schema/repository/session-state foundation only. Do not combine it with the full browser cutover.
+
 ## Security rules
 
 - browser identity must come from a session/auth boundary
