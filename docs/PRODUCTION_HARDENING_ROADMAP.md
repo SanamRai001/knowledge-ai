@@ -155,17 +155,23 @@ The implementation sequence is deliberately split into small slices:
 
 1. **B2A — Human Identity Persistence Foundation** — COMPLETE, workflow `35526535634`
 2. **B2B1 — Human Credential + Auth Session API** — COMPLETE, workflow `35527482968`
-3. **B2B2 — HUMAN_SESSION request identity + production fallback removal** — NEXT
-4. B2C — Browser route cutover
-5. B2D — Privileged authorization + legacy route quarantine
+3. **B2B2 — HUMAN_SESSION request identity + production fallback removal** — COMPLETE, workflow `35528053793`
+4. **B2C1 — Core browser route cutover: KB + Datasets + Query** — NEXT
+5. B2C2 — Insights + Company Knowledge route cutover
+6. B2C3 — Actions + Watch + Integration + Automation route cutover
+7. B2D — Privileged authorization + Platform Management + legacy route quarantine
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
 B2B1 evidence: `docs/PRODUCTION_B2B1_AUTH_SESSION_API.md`.
 
+B2B2 evidence: `docs/PRODUCTION_B2B2_REQUEST_IDENTITY.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
-B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation without changing existing product-router identity behavior.
+B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
+
+B2B2 added distinct HUMAN_SESSION request identity, preserved API_KEY as a separate machine credential class, made DEFAULT_WEB explicit/non-production-only, and removed implicit production `acc_default` fallback from the identity boundary.
 
 ## Security rules
 
@@ -595,20 +601,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2B2 — HUMAN_SESSION Request Identity + Production Fallback Removal**
+**Production Hardening B2C1 — Core Browser Route Cutover: KB + Datasets + Query**
 
-Keep this slice identity-resolution-only.
+Keep this slice limited to the three core browser route families.
 
-1. extend `RequestIdentity` with a distinct `HUMAN_SESSION` source
-2. resolve the `ka_session` cookie through the durable B2A/B2B1 session foundation
-3. carry authenticated `userId`, active membership role, selected account, and selected workspace context where applicable
-4. keep API keys as a separate machine credential class
-5. in production, do not silently turn missing credentials into `DEFAULT_WEB / acc_default`
-6. allow `DEFAULT_WEB` only behind an explicit development/test compatibility switch
-7. add focused human-session/API-key/no-credential resolution tests
-8. do not cut all product routers over yet
+1. migrate `/api/kb` middleware to `resolveAuthenticatedRequestIdentity()`
+2. migrate `/api/datasets` middleware to `resolveAuthenticatedRequestIdentity()`
+3. migrate `/api/query` middleware to `resolveAuthenticatedRequestIdentity()`
+4. preserve API-key behavior where intentionally supported
+5. accept valid HUMAN_SESSION account/workspace scope
+6. reject missing production identity
+7. preserve explicit dev/test compatibility
+8. add focused HTTP tests for human session, API key, missing identity, and isolation
+9. do not migrate other route families yet
 
-Do not start B2C route-by-route browser cutover, B2D privileged authorization cleanup, object storage, or workers in this slice.
+Do not start Insights, Company Knowledge, Actions, Watch, Integrations, Automation, Platform Management, B2D authorization cleanup, object storage, or workers in this slice.
 
 ---
 
