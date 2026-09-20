@@ -22,6 +22,10 @@ export interface WatchRepository {
   saveRule(rule: WatchRule): Promise<void>;
 
   getDraft(accountId: string, draftId: string): Promise<WatchDraft | null>;
+  listDrafts(params: {
+    accountId: string;
+    limit?: number;
+  }): Promise<WatchDraft[]>;
   saveDraft(draft: WatchDraft): Promise<void>;
 
   getEvaluation(
@@ -29,8 +33,23 @@ export interface WatchRepository {
     evaluationId: string
   ): Promise<WatchEvaluation | null>;
   saveEvaluation(evaluation: WatchEvaluation): Promise<void>;
+  listEvaluations(params: {
+    accountId: string;
+    watchRuleId?: string;
+    limit?: number;
+  }): Promise<WatchEvaluation[]>;
 
   getAlert(accountId: string, alertId: string): Promise<WatchAlert | null>;
+  listAlerts(params: {
+    accountId: string;
+    watchRuleId?: string;
+    status?: WatchAlert['status'];
+    limit?: number;
+  }): Promise<WatchAlert[]>;
+  getActiveAlertForRule(
+    accountId: string,
+    watchRuleId: string
+  ): Promise<WatchAlert | null>;
   saveAlert(alert: WatchAlert): Promise<void>;
 
   getJob(accountId: string, jobId: string): Promise<WatchJob | null>;
@@ -46,6 +65,14 @@ export interface WatchRepository {
     now: number;
     leaseStartedAt: number;
   }): Promise<WatchJob | null>;
+  listDueIntervalRules(params: {
+    now: number;
+    limit?: number;
+  }): Promise<WatchRule[]>;
+  requeueStaleRunningJobs(params: {
+    now: number;
+    leaseMs: number;
+  }): Promise<WatchJob[]>;
 }
 
 export interface IntegrationRepository {
