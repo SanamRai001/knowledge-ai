@@ -7,11 +7,8 @@ import {
   IntegrationCredentialStore,
   integrationCredentialStore,
 } from './integrationCredentialStore.js';
-import {
-  integrationStore,
-  publicConnection,
-} from './integrationStore.js';
-import { integrationSyncService } from './integrationSyncService.js';
+import { publicConnection } from './integrationStore.js';
+import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
   MicrosoftOneDriveOAuthStateStore,
   microsoftOneDriveOAuthStateStore,
@@ -77,16 +74,16 @@ export class MicrosoftOneDriveOAuthService {
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
-  public begin(params: {
+  public async begin(params: {
     accountId: string;
     displayName?: string;
     connectionId?: string;
-  }): {
+  }): Promise<{
     authorizationUrl: string;
     expiresAt: number;
     scopes: string[];
     pkce: 'S256';
-  } {
+  }> {
     const config = microsoftOneDriveServerConfig({
       requireRedirectUri: true,
     });
@@ -94,7 +91,7 @@ export class MicrosoftOneDriveOAuthService {
       params.displayName?.trim() || 'Microsoft OneDrive';
 
     if (params.connectionId) {
-      const existing = integrationStore.requireConnection(
+      const existing = await integrationRuntimeService.getInternalConnection(
         params.accountId,
         params.connectionId
       );
@@ -264,7 +261,7 @@ export class MicrosoftOneDriveOAuthService {
     try {
       let connection;
       if (attempt.connectionId) {
-        const current = integrationStore.requireConnection(
+        const current = await integrationRuntimeService.getInternalConnection(
           attempt.accountId,
           attempt.connectionId
         );
@@ -280,7 +277,7 @@ export class MicrosoftOneDriveOAuthService {
         }
 
         const oldCredentialRef = current.credentialRef;
-        connection = integrationStore.updateConnection(
+        connection = await integrationRuntimeService.updateConnection(
           attempt.accountId,
           current.id,
           {
@@ -314,7 +311,7 @@ export class MicrosoftOneDriveOAuthService {
           });
         }
       } else {
-        connection = integrationSyncService.createConnection({
+        connection = await integrationRuntimeService.createConnection({
           accountId: attempt.accountId,
           provider: 'MICROSOFT_ONEDRIVE',
           displayName: attempt.displayName,
@@ -352,7 +349,7 @@ export class MicrosoftOneDriveOAuthService {
     accountId: string;
     connectionId: string;
   }): Promise<{ ok: boolean; message?: string }> {
-    const connection = integrationStore.requireConnection(
+    const connection = await integrationRuntimeService.getInternalConnection(
       params.accountId,
       params.connectionId
     );
@@ -368,13 +365,13 @@ export class MicrosoftOneDriveOAuthService {
     });
   }
 
-  public disconnect(params: {
+  public async disconnect(params: {
     accountId: string;
     connectionId: string;
-  }): {
+  }): Promise<{
     connection: PublicIntegrationConnection;
     localCredentialDeleted: boolean;
-  } {
+  }> {
     const connection = integrationStore.requireConnection(
       params.accountId,
       params.connectionId
@@ -396,10 +393,12 @@ export class MicrosoftOneDriveOAuthService {
         })
       : false;
 
-    const revoked = integrationStore.setConnectionStatus(
+    const revoked = await integrationRuntimeService.updateConnection(
       params.accountId,
       params.connectionId,
-      'REVOKED'
+      {
+        status: 'REVOKED',
+      }
     );
 
     return {
