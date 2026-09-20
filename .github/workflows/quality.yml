@@ -269,3 +269,6 @@ jobs:
 
       - name: Production B2B1 auth session API proof
         run: npm run check:production:b2b1-auth-session-api
+
+      - name: Production B2B2 request identity proof
+        run: npm run check:production:b2b2-request-identity
