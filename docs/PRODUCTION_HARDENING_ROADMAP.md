@@ -527,6 +527,9 @@ A4 Watch + Integrations PostgreSQL                    ✅ COMPLETE
 A5 Automation + Platform state PostgreSQL             ✅ COMPLETE
 A6 Discovery + Insights PostgreSQL                    ✅ COMPLETE
 A7 Production runtime PostgreSQL cutover              🚧 IN PROGRESS
+  A7A Discovery / Insights runtime                     ✅ COMPLETE
+  A7B Integrations runtime                             ✅ COMPLETE
+  A7C Watch runtime                                    🚧 IN PROGRESS
 ```
 
 A4 authoritative integrated workflow: `35458772829`.
@@ -537,19 +540,26 @@ A4 completion evidence:
 
 ## Current exact task
 
-**Production Hardening A7 — PostgreSQL runtime cutover**
+**Production Hardening A7C — Watch runtime PostgreSQL cutover**
 
 Repository/schema existence is no longer the blocker. Production runtime selection is.
 
-1. inventory which normal runtime services still instantiate/import legacy file stores directly
-2. introduce explicit repository/provider selection for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
-3. start with Discovery/Insights as the first bounded async cutover because A6 now has a complete repository
-4. preserve file-mode behavior for local development
-5. add restart persistence proof: write through normal service/API → reconstruct process/service → read the same PostgreSQL state
-6. add file/postgres behavioral parity for account isolation, recurrence, and status transitions
-7. then cut over higher-risk Action/Watch/Integration/Automation paths in bounded slices
-8. keep legacy import and rollback paths until the production cutover gate is complete
-9. do not remove source/object payload files that belong to the separate object-storage track
+A7A Discovery / Insights runtime is complete — workflow `35460199628`.
+
+A7B Integrations runtime is complete — workflow `35517514449`.
+
+Continue with Watch:
+
+1. introduce selected Watch persistence for `KNOWLEDGE_AI_PERSISTENCE_MODE=postgres`
+2. route normal Watch HTTP rules/drafts/evaluations/alerts/jobs through PostgreSQL
+3. route Watch scheduler job creation/claim/update through the PostgreSQL repository
+4. use database-enforced schedule fingerprint uniqueness and atomic ready-job claim semantics
+5. preserve deterministic evaluation behavior and alert episode lifecycle
+6. prove restart persistence through PostgreSQL pool/service reconstruction
+7. prove cross-account Watch isolation in production mode
+8. prove the production scheduler does not mutate `data/watch.json`
+9. preserve the current file-mode Watch service/scheduler for local development and the historical Phase 5 regression suite
+10. after A7C, choose the next bounded Action/Living-Knowledge or Automation runtime cutover based on transaction risk
 
 A6 completion evidence:
 
