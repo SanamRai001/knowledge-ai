@@ -70,7 +70,8 @@
     "check:production:a7e-automation-runtime": "tsx scripts/check-production-a7e-automation-runtime.ts",
     "check:production:a7f-platform-runtime": "tsx scripts/check-production-a7f-platform-runtime.ts",
     "check:production:a7g-core-metadata-runtime": "tsx scripts/check-production-a7g-core-metadata-runtime.ts",
-    "check:production:b2a-identity-foundation": "tsx scripts/check-production-b2a-identity-foundation.ts"
+    "check:production:b2a-identity-foundation": "tsx scripts/check-production-b2a-identity-foundation.ts",
+    "check:production:b2b1-auth-session-api": "tsx scripts/check-production-b2b1-auth-session-api.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
