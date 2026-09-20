@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening A7B — Integrations runtime PostgreSQL cutover.**
+> **Continue with Production Hardening A7C — Watch runtime PostgreSQL cutover.**
 
 Phases 0–8 are complete.
 
@@ -1054,8 +1054,11 @@ Persistence/runtime milestones:
 - A5 Automation + Platform schema/repositories — COMPLETE
 - A6 Discovery / Insights schema/repositories — COMPLETE
 - A7A Discovery / Insights runtime cutover — COMPLETE, workflow `35460199628`
-- A7B Integrations runtime cutover — IN PROGRESS
+- A7B Integrations runtime cutover — COMPLETE, workflow `35517514449`
+- A7C Watch runtime cutover — IN PROGRESS
 
 A7A evidence: `docs/PRODUCTION_A7A_DISCOVERY_RUNTIME.md`.
 
-Next, route non-secret IntegrationConnection / SyncRun / external import state and successful checkpoint commits through the A4 PostgreSQL repositories when production persistence mode is enabled. Keep OAuth token material in the encrypted credential vault. Preserve file mode and all Phase 6 behavior.
+A7B evidence: `docs/PRODUCTION_A7B_INTEGRATION_RUNTIME.md`.
+
+Next, route normal Watch HTTP state and scheduler/job execution through the A4 PostgreSQL Watch repository when production persistence mode is enabled. Use the existing database-enforced schedule fingerprint and atomic ready-job claim. Preserve file mode and all Phase 5 behavior.
