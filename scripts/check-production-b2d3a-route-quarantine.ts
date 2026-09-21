@@ -344,7 +344,7 @@ async function main() {
         assert(
           response.status === 404 &&
             body?.code ===
-              LEGACY_ROUTE_QUARANTINED,
+              LEGACY_ROUTE_QUARANTINE_CODE,
           'Retired route must remain unavailable even with non-production compatibility enabled: ' +
             path
         );
