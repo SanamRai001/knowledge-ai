@@ -4,8 +4,8 @@ import { WorkspaceAccessError } from '../workspaceAccessService.js';
 import {
   RequestIdentity,
   RequestIdentityError,
-  resolveRequestIdentity,
 } from '../requestIdentity.js';
+import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
 import {
   CompanyKnowledgeAccessError,
 } from './companyKnowledgeStore.js';
@@ -19,23 +19,7 @@ import { CompanyEntityType } from './types.js';
 
 export const companyKnowledgeRouter = express.Router();
 
-companyKnowledgeRouter.use((req, res, next) => {
-  try {
-    res.locals.requestIdentity = resolveRequestIdentity(req);
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({
-      error: 'Failed to resolve request identity.',
-    });
-  }
-});
+companyKnowledgeRouter.use(applicationIdentityMiddleware);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
