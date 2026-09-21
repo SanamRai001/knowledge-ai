@@ -162,7 +162,7 @@ The implementation sequence is deliberately split into small slices:
 7. **B2D1 — Privileged Human Authorization Foundation + Platform Management** — COMPLETE, implementation validation `35609479920`
 8. **B2D2A — Legacy Developer-Key Route Closure** — COMPLETE, workflow `35610867425`
 9. **B2D2B1 — Automation Privileged Authorization + API-key Role Separation** — COMPLETE, workflow `35614246876`
-10. **B2D2B2 — Integration Management Privileged Authorization** — COMPLETE, workflow `35620269855`
+10. **B2D2B2 — Integration Management Privileged Authorization** — COMPLETE, workflow `35620617850`
 11. **B2D3A — Legacy/Prototype Route Quarantine Foundation** — NEXT
 12. B2D3B — Legacy/prototype route retirement/migration groups
 
