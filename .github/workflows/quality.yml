@@ -272,3 +272,6 @@ jobs:
 
       - name: Production B2B2 request identity proof
         run: npm run check:production:b2b2-request-identity
+
+      - name: Production B2C1 core route cutover proof
+        run: npm run check:production:b2c1-core-route-cutover
