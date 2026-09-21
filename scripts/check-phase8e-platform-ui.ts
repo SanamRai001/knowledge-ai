@@ -1,12 +1,5 @@
-import express from 'express';
 import fs from 'fs';
-import { apiKeyStore } from '../server/apiKeyStore.js';
 import {
-  PLATFORM_INTERNAL_DEVELOPER_MANAGE_SCOPE,
-  platformManagementRouter,
-} from '../server/platform/platformManagementRouter.js';
-import {
-  PLATFORM_SCOPES,
   publicPlatformManifest,
 } from '../server/platform/platformApiManifest.js';
 
@@ -22,271 +15,14 @@ function read(path: string): string {
 }
 
 async function main() {
-  const accountA = 'acc_phase8e_platform_a';
-  const accountB = 'acc_phase8e_platform_b';
-
-  const { secret: adminA } = apiKeyStore.createApiKey({
-    name: 'Phase 8E developer admin A',
-    accountId: accountA,
-    environment: 'test',
-    scopes: [PLATFORM_INTERNAL_DEVELOPER_MANAGE_SCOPE],
-  });
-  const { secret: adminB } = apiKeyStore.createApiKey({
-    name: 'Phase 8E developer admin B',
-    accountId: accountB,
-    environment: 'test',
-    scopes: [PLATFORM_INTERNAL_DEVELOPER_MANAGE_SCOPE],
-  });
-  const { secret: readOnlyA } = apiKeyStore.createApiKey({
-    name: 'Phase 8E stable read key',
-    accountId: accountA,
-    environment: 'test',
-    scopes: [PLATFORM_SCOPES.sourcesRead],
-  });
-
-  apiKeyStore.recordUsage({
-    requestId: 'phase8e_usage_a',
-    apiKeyId: 'phase8e_key_a',
-    accountId: accountA,
-    aiId: 'platform',
-    endpoint: '/api/platform/v1/sources',
-    timestamp: Date.now(),
-    status: 200,
-    latencyMs: 12,
-    refused: false,
-    grounded: true,
-  });
-  apiKeyStore.recordUsage({
-    requestId: 'phase8e_usage_b',
-    apiKeyId: 'phase8e_key_b',
-    accountId: accountB,
-    aiId: 'platform',
-    endpoint: '/api/platform/v1/knowledge/summary',
-    timestamp: Date.now(),
-    status: 200,
-    latencyMs: 15,
-    refused: false,
-    grounded: true,
-  });
-
-  const app = express();
-  app.use(express.json());
-  app.use('/api/platform-management', platformManagementRouter);
-  const server = app.listen(0, '127.0.0.1');
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once('listening', () => resolve());
-      server.once('error', reject);
-    });
-
-    const address = server.address();
-    if (!address || typeof address === 'string') {
-      throw new Error('Could not resolve Phase 8E HTTP test port.');
-    }
-    const baseUrl = 'http://127.0.0.1:' + address.port;
-
-    const createAResponse = await fetch(
-      baseUrl + '/api/platform-management/keys',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminA,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'A scoped Platform key',
-          environment: 'test',
-          scopes: [
-            PLATFORM_SCOPES.sourcesRead,
-            PLATFORM_SCOPES.toolsRead,
-            PLATFORM_SCOPES.detectorsRead,
-          ],
-        }),
-      }
-    );
-    assert(
-      createAResponse.status === 201,
-      'Developer admin should be able to create an explicitly scoped Platform key.'
-    );
-    const createABody = await createAResponse.json();
-    const createdAId = createABody.apiKey?.id;
-
-    assert(
-      typeof createdAId === 'string' &&
-        typeof createABody.secret === 'string' &&
-        createABody.secret.startsWith('kn_test_') &&
-        createABody.apiKey.accountId === accountA &&
-        createABody.apiKey.keyHash === undefined &&
-        JSON.stringify(createABody).includes('keyHash') === false &&
-        createABody.apiKey.scopes.length === 3 &&
-        createABody.apiKey.scopes.includes(
-          PLATFORM_SCOPES.sourcesRead
-        ),
-      'Created-key response must preserve requested stable scopes while never exposing the stored key hash.'
-    );
-
-    const storedA = apiKeyStore.getApiKeyById(createdAId);
-    assert(
-      storedA?.accountId === accountA &&
-        storedA.scopes.includes(PLATFORM_SCOPES.toolsRead) &&
-        typeof storedA.keyHash === 'string' &&
-        storedA.keyHash.length > 0,
-      'Key hash should remain available internally while being absent from management responses.'
-    );
-
-    const invalidScopeResponse = await fetch(
-      baseUrl + '/api/platform-management/keys',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminA,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'Unsafe arbitrary scope',
-          scopes: [
-            PLATFORM_SCOPES.sourcesRead,
-            'platform:automation:execute',
-          ],
-        }),
-      }
-    );
-    assert(
-      invalidScopeResponse.status === 400,
-      'Developer key management must reject scopes that are not declared by the stable Platform manifest.'
-    );
-
-    const readKeyManagementResponse = await fetch(
-      baseUrl + '/api/platform-management/keys',
-      {
-        headers: {
-          Authorization: 'Bearer ' + readOnlyA,
-        },
-      }
-    );
-    assert(
-      readKeyManagementResponse.status === 403,
-      'A normal stable API read key must not gain developer key-management authority.'
-    );
-
-    const listAResponse = await fetch(
-      baseUrl + '/api/platform-management/keys',
-      {
-        headers: {
-          Authorization: 'Bearer ' + adminA,
-          'X-Account-ID': accountB,
-        },
-      }
-    );
-    assert(
-      listAResponse.status === 200,
-      'Developer admin should be able to list keys in its own account scope.'
-    );
-    const listABody = await listAResponse.json();
-
-    assert(
-      Array.isArray(listABody.keys) &&
-        listABody.keys.some(
-          (key: any) => key.id === createdAId
-        ) &&
-        listABody.keys.every(
-          (key: any) =>
-            key.accountId === accountA &&
-            key.keyHash === undefined
-        ) &&
-        JSON.stringify(listABody).includes('keyHash') === false,
-      'Key listing must derive account identity from the Bearer key, ignore spoofed account headers, and omit key hashes.'
-    );
-
-    const listBResponse = await fetch(
-      baseUrl + '/api/platform-management/keys',
-      {
-        headers: {
-          Authorization: 'Bearer ' + adminB,
-        },
-      }
-    );
-    const listBBody = await listBResponse.json();
-    assert(
-      listBResponse.status === 200 &&
-        listBBody.keys.every(
-          (key: any) => key.accountId === accountB
-        ) &&
-        !listBBody.keys.some(
-          (key: any) => key.id === createdAId
-        ),
-      'Developer management key inventory must be tenant isolated.'
-    );
-
-    const foreignRevoke = await fetch(
-      baseUrl +
-        '/api/platform-management/keys/' +
-        createdAId,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: 'Bearer ' + adminB,
-          'X-Account-ID': accountA,
-        },
-      }
-    );
-    assert(
-      foreignRevoke.status === 404,
-      'Foreign developer admin must not revoke another account API key.'
-    );
-
-    const usageAResponse = await fetch(
-      baseUrl + '/api/platform-management/usage',
-      {
-        headers: {
-          Authorization: 'Bearer ' + adminA,
-          'X-Account-ID': accountB,
-        },
-      }
-    );
-    const usageABody = await usageAResponse.json();
-    assert(
-      usageAResponse.status === 200 &&
-        usageABody.recentLogs.some(
-          (item: any) =>
-            item.requestId === 'phase8e_usage_a'
-        ) &&
-        !usageABody.recentLogs.some(
-          (item: any) =>
-            item.requestId === 'phase8e_usage_b'
-        ),
-      'Developer usage/audit must remain account scoped.'
-    );
-
-    const revokeA = await fetch(
-      baseUrl +
-        '/api/platform-management/keys/' +
-        createdAId,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: 'Bearer ' + adminA,
-        },
-      }
-    );
-    assert(
-      revokeA.status === 200 &&
-        apiKeyStore.getApiKeyById(createdAId)?.status ===
-          'revoked',
-      'Owning developer admin must be able to revoke its scoped key.'
-    );
-  } finally {
-    await new Promise<void>((resolve) =>
-      server.close(() => resolve())
-    );
-  }
-
   const ui = read('src/components/DeveloperPlatform.tsx');
   const header = read('src/components/Header.tsx');
   const appSource = read('src/App.tsx');
   const management = read(
     'server/platform/platformManagementRouter.ts'
+  );
+  const privilegedAuthorization = read(
+    'server/identity/privilegedAuthorization.ts'
   );
   const manifestSource = read(
     'server/platform/platformApiManifest.ts'
@@ -363,13 +99,38 @@ async function main() {
   );
 
   assert(
+    ui.includes('ka_csrf=') &&
+      ui.includes("'X-CSRF-Token': csrfToken()"),
+    'Developer key create/revoke mutations must send the browser CSRF token required by the privileged control plane.'
+  );
+
+  assert(
     management.includes('ALLOWED_PLATFORM_SCOPES') &&
       management.includes(
-        'PLATFORM_INTERNAL_DEVELOPER_MANAGE_SCOPE'
+        'applicationIdentityMiddleware'
       ) &&
-      management.includes('resolveRequestIdentity') &&
-      management.includes('listApiKeyMetadata'),
-    'Developer management control plane must enforce authoritative identity, explicit stable-scope allowlisting, management privilege, and safe key metadata.'
+      management.includes('requireOwnerOrAdmin') &&
+      management.includes('apiKeyRuntimeService') &&
+      !management.includes('resolveRequestIdentity') &&
+      !management.includes(
+        'platform-internal:developer:manage'
+      ),
+    'Platform Management must use durable human-session identity, OWNER/ADMIN authorization, PostgreSQL-aware API-key runtime operations, and stable-scope allowlisting.'
+  );
+
+  assert(
+    privilegedAuthorization.includes(
+      "identity.source !== 'HUMAN_SESSION'"
+    ) &&
+      privilegedAuthorization.includes(
+        'PRIVILEGED_HUMAN_SESSION_REQUIRED'
+      ) &&
+      privilegedAuthorization.includes(
+        'PRIVILEGED_ROLE_REQUIRED'
+      ) &&
+      privilegedAuthorization.includes("'OWNER'") &&
+      privilegedAuthorization.includes("'ADMIN'"),
+    'Privileged browser authorization must require HUMAN_SESSION and explicit OWNER/ADMIN membership roles.'
   );
 
   const publicManifest = publicPlatformManifest();
@@ -399,7 +160,7 @@ async function main() {
 
   console.log('PHASE_8E_PLATFORM_UI_CHECK_PASSED');
   console.log(
-    'Account-scoped developer key management, stable-scope allowlisting, hash-safe metadata, tenant isolation, stable/legacy namespace separation, governed extension inventory, read-only API explorer, and usage/audit visibility are verified.'
+    'Developer workspace wiring, human-admin Platform Management contract, PostgreSQL-aware key control plane, stable-scope allowlisting, stable/legacy namespace separation, governed extension inventory, read-only API explorer, and usage/audit visibility are verified.'
   );
 }
 

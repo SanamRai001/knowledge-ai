@@ -75,7 +75,8 @@
     "check:production:b2b2-request-identity": "tsx scripts/check-production-b2b2-request-identity.ts",
     "check:production:b2c1-core-route-cutover": "tsx scripts/check-production-b2c1-core-route-cutover.ts",
     "check:production:b2c2-insights-company-knowledge": "tsx scripts/check-production-b2c2-insights-company-knowledge.ts",
-    "check:production:b2c3-product-route-cutover": "tsx scripts/check-production-b2c3-product-route-cutover.ts"
+    "check:production:b2c3-product-route-cutover": "tsx scripts/check-production-b2c3-product-route-cutover.ts",
+    "check:production:b2d1-privileged-platform-management": "tsx scripts/check-production-b2d1-privileged-platform-management.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

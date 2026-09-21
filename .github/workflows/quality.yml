@@ -281,3 +281,6 @@ jobs:
 
       - name: Production B2C3 product route cutover proof
         run: npm run check:production:b2c3-product-route-cutover
+
+      - name: Production B2D1 privileged Platform Management proof
+        run: npm run check:production:b2d1-privileged-platform-management

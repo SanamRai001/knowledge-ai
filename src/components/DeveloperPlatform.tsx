@@ -94,6 +94,16 @@ function dateTime(value?: number | null): string {
   return new Date(value).toLocaleString();
 }
 
+function csrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const entry = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith('ka_csrf='));
+  if (!entry) return '';
+  return decodeURIComponent(entry.slice('ka_csrf='.length));
+}
+
 export const DeveloperPlatform: React.FC<
   DeveloperPlatformProps
 > = ({ activeKb: _activeKb }) => {
@@ -268,6 +278,7 @@ export const DeveloperPlatform: React.FC<
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
           },
           body: JSON.stringify({
             name:
@@ -303,7 +314,12 @@ export const DeveloperPlatform: React.FC<
     try {
       const response = await fetch(
         '/api/platform-management/keys/' + keyId,
-        { method: 'DELETE' }
+        {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-Token': csrfToken(),
+          },
+        }
       );
       const body = await response.json();
       if (!response.ok) {
