@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement.**
+> **Continue with Production Hardening B2D3B2A — Operations + Observability Route Retirement.**
 
 Phases 0–8 are complete.
 
@@ -1072,6 +1072,7 @@ Track A relational milestones:
 - B2D2B1 Automation Privileged Authorization + API-key Role Separation — COMPLETE, workflow `35614246876`
 - B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620617850`
 - B2D3A Legacy/Prototype Route Quarantine Foundation — COMPLETE, workflow `35623669505`
+- B2D3B1 Test / Stress / Evaluation / Audit Route Retirement — COMPLETE, workflow `35626642229`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1099,6 +1100,8 @@ B2D2B2 evidence: `docs/PRODUCTION_B2D2B2_INTEGRATION_PRIVILEGED_AUTH.md`.
 
 B2D3A evidence: `docs/PRODUCTION_B2D3A_ROUTE_QUARANTINE.md`.
 
+B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1123,18 +1126,19 @@ B2D2B2 now makes Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-
 
 B2D3A now inventories the remaining legacy/prototype HTTP families and enforces one reusable fail-closed quarantine boundary. Prototype/test/admin/research families are unavailable in production, explicit non-production compatibility is opt-in, intended API-key compatibility paths remain reachable, and legacy `/api/kb` fall-through cannot bypass the modern workspace router.
 
-Next, do **B2D3B1 only — Test / Stress / Evaluation / Audit Route Retirement**:
+B2D3B1 now removes the legacy test/stress/eval/audit HTTP execution routes entirely while keeping their underlying runners/services available for CLI/CI. These families are now RETIRED and cannot be reopened by the non-production compatibility flag.
 
-1. remove `/api/v1/tests/*` server registration
-2. remove `/api/v1/stress/*` server registration
-3. remove `/api/v1/eval/*` server registration
-4. remove `/api/v1/audit/*` server registration
-5. keep the underlying test/evaluation services available to CLI/CI where still required
-6. remove obsolete imports from `server.ts`
-7. preserve regression coverage without HTTP exposure
-8. add focused retirement proof
-9. stop before operations/observability/tenant/SaaS cleanup
+Next, do **B2D3B2A only — Operations + Observability Route Retirement**:
 
-B2D3B2 will handle operations/observability/tenant/SaaS. B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
+1. remove `/api/v1/operations/*` server registration
+2. remove `/api/v1/observability/*` server registration
+3. keep useful operational/telemetry services available outside HTTP where needed
+4. remove obsolete `server.ts` imports
+5. mark both families RETIRED
+6. preserve `/api/v1/system/*` and `/api/v1/providers/*` read-only compatibility
+7. add focused retirement proof
+8. stop before tenant/SaaS cleanup
 
-Do not start B2D3B2, B2D3B3, Track C object storage, or workers in the same slice.
+B2D3B2B will handle tenant/SaaS. B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
+
+Do not start B2D3B2B, B2D3B3, Track C object storage, or workers in the same slice.

@@ -97,13 +97,27 @@ async function main() {
     process.env[LEGACY_ROUTE_COMPATIBILITY_FLAG];
 
   try {
-    const expectedDevelopmentOnly = [
+    const expectedRetired = [
       '/api/v1/tests',
       '/api/v1/stress',
-      '/api/v1/operations',
-      '/api/v1/observability',
       '/api/v1/eval',
       '/api/v1/audit',
+    ];
+
+    for (const prefix of expectedRetired) {
+      const family = classifyLegacyRoute(
+        prefix + '/proof'
+      );
+      assert(
+        family?.disposition === 'RETIRED',
+        prefix +
+          ' must remain permanently retired.'
+      );
+    }
+
+    const expectedDevelopmentOnly = [
+      '/api/v1/operations',
+      '/api/v1/observability',
       '/api/v1/tenants',
       '/api/v1/saas',
       '/api/v1/mediator',
@@ -268,8 +282,7 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       const response = await fetch(
-        baseUrl + '/api/v1/tests/run',
-        { method: 'POST' }
+        baseUrl + '/api/v1/operations/incidents'
       );
       const body = await readJson(response);
       assert(
@@ -286,16 +299,14 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       for (const path of [
-        '/api/v1/tests/run',
+        '/api/v1/operations/incidents',
         '/api/v1/mediator/execute',
         '/api/phase4/dashboard',
-        '/api/kb/legacy-only',
       ]) {
         const response = await fetch(
           baseUrl + path,
           {
             method:
-              path.includes('/run') ||
               path.endsWith('/execute')
                 ? 'POST'
                 : 'GET',
@@ -306,7 +317,35 @@ async function main() {
           response.status === 200 &&
             body?.source ===
               'post-quarantine-handler',
-          'Explicit non-production compatibility must allow ' +
+          'Explicit non-production compatibility must allow DEVELOPMENT_ONLY route ' +
+            path
+        );
+      }
+
+      for (const path of [
+        '/api/v1/tests/run',
+        '/api/v1/stress/concurrency',
+        '/api/v1/eval/run',
+        '/api/v1/audit/comprehensive',
+        '/api/kb/legacy-only',
+      ]) {
+        const response = await fetch(
+          baseUrl + path,
+          {
+            method:
+              path.includes('/run') ||
+              path.includes('/concurrency') ||
+              path.includes('/comprehensive')
+                ? 'POST'
+                : 'GET',
+          }
+        );
+        const body = await readJson(response);
+        assert(
+          response.status === 404 &&
+            body?.code ===
+              LEGACY_ROUTE_QUARANTINE_CODE,
+          'Retired route must remain unavailable even with non-production compatibility enabled: ' +
             path
         );
       }

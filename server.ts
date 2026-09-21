@@ -13,23 +13,14 @@ import { runEvaluationSuite } from './server/evaluationService.js';
 import { apiKeyStore } from './server/apiKeyStore.js';
 import { apiKeyRuntimeService } from './server/apiKeyRuntimeService.js';
 import { specializedAIService, SpecializedAIError } from './server/specializedAIService.js';
-import { runApiAcceptanceTests } from './server/apiTestRunner.js';
 import { memoryStore } from './server/memoryStore.js';
 import { memoryRetrievalService } from './server/memoryRetrievalService.js';
 import { sandboxService } from './server/sandboxService.js';
 import { learningService } from './server/learningService.js';
-import { runPhase4AcceptanceTests } from './server/phase4TestRunner.js';
 import { orchestrationEngine } from './server/mediator/orchestrationEngine.js';
 import { agentRegistry } from './server/mediator/agentRegistry.js';
 import { benchmarkRunner } from './server/mediator/benchmarkRunner.js';
-import { runMediatorPhase3Tests } from './server/mediator/mediatorPhase3Runner.js';
-import { runMediatorPhase4Tests } from './server/mediator/mediatorPhase4Runner.js';
-import { runMediatorPhase5Tests } from './server/mediator/mediatorPhase5Runner.js';
 import { runMediatorPhase6Tests } from './server/mediator/mediatorPhase6Runner.js';
-import { runMediatorPhase7Tests } from './server/mediator/mediatorPhase7Runner.js';
-import { runMediatorPhase8Tests } from './server/mediator/mediatorPhase8Runner.js';
-import { runMediatorPhase9Tests } from './server/mediator/mediatorPhase9Runner.js';
-import { executeComprehensiveAudit } from './server/fullAuditRunner.js';
 import { runRag50GoldenBenchmark } from './server/ragBenchmarkRunner.js';
 import { runEightTurnConversationalSequence } from './server/ragConversationalTester.js';
 import { ragTelemetryStore } from './server/ragTelemetryStore.js';
@@ -40,11 +31,9 @@ import { tenantGovernanceService } from './server/mediator/tenantGovernanceServi
 import { webhookService } from './server/mediator/webhookService.js';
 import { saasReadinessService } from './server/mediator/saasReadinessService.js';
 import { realProviderAdapter } from './server/mediator/realProviderAdapter.js';
-import { goldenDatasetService } from './server/mediator/goldenDatasetService.js';
 import { telemetryService } from './server/mediator/telemetryAndObservability.js';
 import { operationalHardeningService } from './server/mediator/operationalHardeningService.js';
 import { systemReadinessService } from './server/mediator/systemReadinessService.js';
-import { integratedStressHarness } from './server/mediator/integratedStressHarness.js';
 import { getProductionLimitations } from './server/mediator/limitationsRegister.js';
 import { adaptiveOrchestrator } from './server/mediator/adaptiveOrchestrator.js';
 import { adaptiveBenchmarkEngine } from './server/mediator/adaptiveBenchmarkEngine.js';
@@ -865,95 +854,17 @@ app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
 // above prevents hard-coded acc_default administration and arbitrary-scope
 // key creation through /api/v1/developer/*.
 
-// Run Phase 3 Automated API Acceptance Tests
-app.post('/api/v1/tests/run', async (req, res) => {
-  try {
-    const results = await runApiAcceptanceTests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Phase 3 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Phase 3 API tests' });
-  }
-});
+// B2D3B1: legacy HTTP acceptance-test execution retired.
+// Test runners remain available to CLI/CI scripts.
 
 // =========================================================================
 // PHASE 4: MEMORY, EXPERIENCE & CONTROLLED LEARNING SANDBOX ROUTES
 // =========================================================================
 
-// --- 1. RUN PHASE 4 ACCEPTANCE TESTS ---
-app.post('/api/v1/tests/phase4', async (req, res) => {
-  try {
-    const results = await runPhase4AcceptanceTests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Phase 4 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Phase 4 acceptance tests' });
-  }
-});
+// B2D3B1: Phase 4 acceptance tests remain script-callable, not HTTP-exposed.
 
-// --- MEDIATOR TEST SUITES ---
-// Run Mediator Phase 3 Core Tests (12 tests)
-app.post('/api/v1/tests/mediator-phase3', async (req, res) => {
-  try {
-    const results = await runMediatorPhase3Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Mediator Phase 3 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Mediator Phase 3 tests' });
-  }
-});
-
-// Run Mediator Phase 4 Advanced Protocol Tests (21 tests)
-app.post('/api/v1/tests/mediator-phase4', async (req, res) => {
-  try {
-    const results = await runMediatorPhase4Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Mediator Phase 4 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Mediator Phase 4 tests' });
-  }
-});
-
-// Run Mediator Phase 5 Comprehensive Battery (51 tests)
-app.post('/api/v1/tests/mediator-phase5', async (req, res) => {
-  try {
-    const results = await runMediatorPhase5Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Mediator Phase 5 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Mediator Phase 5 tests' });
-  }
-});
-
-// Run Mediator Phase 6 Adaptive Evidence-Driven Battery (54 tests)
-app.post('/api/v1/tests/mediator-phase6', async (req, res) => {
-  try {
-    const results = await runMediatorPhase6Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Mediator Phase 6 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Mediator Phase 6 tests' });
-  }
-});
-
+// B2D3B1: /api/v1/tests/mediator-* HTTP test runners retired.
+// The separate mediator family is intentionally left for B2D3B3.
 app.post('/api/v1/mediator/tests/phase6', async (req, res) => {
   try {
     const results = await runMediatorPhase6Tests();
@@ -971,19 +882,7 @@ app.post('/api/v1/mediator/tests/phase6', async (req, res) => {
 // PHASE 7: SYSTEM INTEGRATION, STRESS TESTING & PRODUCTION READINESS
 // =========================================================================
 
-// Run Phase 7 Comprehensive 70-test Acceptance Battery
-app.post(['/api/v1/tests/phase7', '/api/v1/tests/mediator-phase7'], async (req, res) => {
-  try {
-    const results = await runMediatorPhase7Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Phase 7 acceptance tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Phase 7 acceptance tests' });
-  }
-});
+// B2D3B1: Phase 7 HTTP acceptance-test route retired; CI runner retained.
 
 // System Health Endpoint: GET /api/v1/system/health
 app.get('/api/v1/system/health', (req, res) => {
@@ -1033,55 +932,13 @@ app.get('/api/v1/system/limitations', (req, res) => {
   }
 });
 
-// Concurrency Stress Run: POST /api/v1/stress/concurrency
-app.post('/api/v1/stress/concurrency', async (req, res) => {
-  try {
-    const { concurrencyLevel } = req.body || {};
-    const level = concurrencyLevel ? parseInt(concurrencyLevel, 10) : 10;
-    const result = await integratedStressHarness.runConcurrencyStress(level);
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Task & Tenant Isolation Audit: POST /api/v1/stress/isolation
-app.post('/api/v1/stress/isolation', async (req, res) => {
-  try {
-    const result = await integratedStressHarness.auditTaskAndTenantIsolation();
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// State Machine Transition Audit: POST /api/v1/stress/state-machine
-app.post('/api/v1/stress/state-machine', (req, res) => {
-  try {
-    const result = integratedStressHarness.auditStateMachineTransitions();
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// B2D3B1: stress harness HTTP routes retired; stress service remains script-callable.
 
 // =========================================================================
 // PHASE 8: REAL-WORLD EVALUATION, OBSERVABILITY & OPERATIONAL HARDENING
 // =========================================================================
 
-// Run Phase 8 Comprehensive 80-test Acceptance Battery
-app.post(['/api/v1/tests/phase8', '/api/v1/tests/mediator-phase8'], async (req, res) => {
-  try {
-    const results = await runMediatorPhase8Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Phase 8 acceptance tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Phase 8 acceptance tests' });
-  }
-});
+// B2D3B1: Phase 8 HTTP acceptance-test route retired; CI runner retained.
 
 // Operational Readiness Dashboard Report: GET /api/v1/operations/readiness-dashboard
 app.get('/api/v1/operations/readiness-dashboard', (req, res) => {
@@ -1145,60 +1002,7 @@ app.post('/api/v1/observability/alerts/:id/resolve', (req, res) => {
   }
 });
 
-// Golden Evaluation Datasets: GET /api/v1/eval/golden-datasets
-app.get('/api/v1/eval/golden-datasets', (req, res) => {
-  try {
-    const datasets = goldenDatasetService.listDatasets();
-    res.json({ datasets });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Execute Evaluation Run: POST /api/v1/eval/run
-app.post('/api/v1/eval/run', async (req, res) => {
-  try {
-    const run = await goldenDatasetService.executeEvaluationRun(req.body || {});
-    res.json({ run });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// List Evaluation Runs: GET /api/v1/eval/runs
-app.get('/api/v1/eval/runs', (req, res) => {
-  try {
-    const runs = goldenDatasetService.listEvaluationRuns();
-    res.json({ runs });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Human Evaluation: Record POST /api/v1/eval/human
-app.post('/api/v1/eval/human', (req, res) => {
-  try {
-    const record = goldenDatasetService.recordHumanEvaluation(req.body);
-    res.json({ record });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Human Evaluation: List & Agreement GET /api/v1/eval/human
-app.get('/api/v1/eval/human', (req, res) => {
-  try {
-    const taskId = req.query.taskId as string | undefined;
-    const records = goldenDatasetService.listHumanEvaluations(taskId);
-    let agreement = null;
-    if (taskId) {
-      agreement = goldenDatasetService.calculateInterRaterAgreement(taskId);
-    }
-    res.json({ records, agreement });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// B2D3B1: evaluation HTTP control surface retired; evaluation service remains script-callable.
 
 // Operations Incidents: GET /api/v1/operations/incidents
 app.get('/api/v1/operations/incidents', (req, res) => {
@@ -1336,19 +1140,7 @@ app.get('/api/v1/providers/health', (req, res) => {
 // PHASE 9: MULTI-TENANCY, API GATEWAY, USAGE METERING & SAAS READINESS
 // =========================================================================
 
-// Run Phase 9 Comprehensive 103-test Battery
-app.post(['/api/v1/tests/phase9', '/api/v1/tests/mediator-phase9'], async (req, res) => {
-  try {
-    const results = await runMediatorPhase9Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Phase 9 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Phase 9 test suite' });
-  }
-});
+// B2D3B1: Phase 9 HTTP acceptance-test route retired; CI runner retained.
 
 // Overall SaaS Platform Readiness: GET /api/v1/saas/status
 app.get('/api/v1/saas/status', (req, res) => {
@@ -1360,16 +1152,7 @@ app.get('/api/v1/saas/status', (req, res) => {
   }
 });
 
-// Comprehensive Production-Readiness & Security Audit Battery
-app.post('/api/v1/audit/comprehensive', async (req, res) => {
-  try {
-    const report = await executeComprehensiveAudit();
-    res.json(report);
-  } catch (err: any) {
-    console.error('Comprehensive audit execution error:', err);
-    res.status(500).json({ error: err.message || 'Audit execution failed' });
-  }
-});
+// B2D3B1: comprehensive audit HTTP trigger retired; audit runner remains script-callable.
 
 // Tenants List: GET /api/v1/tenants
 app.get('/api/v1/tenants', (req, res) => {

@@ -175,6 +175,9 @@ jobs:
       - name: Production B2D3A route quarantine proof
         run: npm run check:production:b2d3a-route-quarantine
 
+      - name: Production B2D3B1 internal quality route retirement proof
+        run: npm run check:production:b2d3b1-internal-quality-route-retirement
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 

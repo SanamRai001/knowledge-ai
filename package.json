@@ -80,7 +80,8 @@
     "check:production:b2d2a-legacy-developer-route-closure": "tsx scripts/check-production-b2d2a-legacy-developer-route-closure.ts",
     "check:production:b2d2b1-automation-privileged-auth": "tsx scripts/check-production-b2d2b1-automation-privileged-auth.ts",
     "check:production:b2d2b2-integration-privileged-auth": "tsx scripts/check-production-b2d2b2-integration-privileged-auth.ts",
-    "check:production:b2d3a-route-quarantine": "tsx scripts/check-production-b2d3a-route-quarantine.ts"
+    "check:production:b2d3a-route-quarantine": "tsx scripts/check-production-b2d3a-route-quarantine.ts",
+    "check:production:b2d3b1-internal-quality-route-retirement": "tsx scripts/check-production-b2d3b1-internal-quality-route-retirement.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
