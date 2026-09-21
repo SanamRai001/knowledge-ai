@@ -6,9 +6,11 @@ import {
 import { actionProposalService } from '../server/actions/actionProposalService.js';
 import { actionStore } from '../server/actions/actionStore.js';
 import { automationControlStore } from '../server/automation/automationControlStore.js';
+import { automationControlService } from '../server/automation/automationControlService.js';
 import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
 import { automationRunStore } from '../server/automation/automationRunStore.js';
+import type { RequestIdentity } from '../server/requestIdentity.js';
 import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowledgeStore.js';
 import { effectiveCompanyStateService } from '../server/companyKnowledge/effectiveCompanyStateService.js';
 import { SOURCE_AUTHORITIES } from '../server/companyKnowledge/sourceAuthority.js';
@@ -54,18 +56,6 @@ async function main() {
     validFrom: now,
   });
 
-  const adminKey = apiKeyStore.createApiKey({
-    name: 'Phase 7D Admin',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:admin', 'role:admin'],
-  });
-  const approverKey = apiKeyStore.createApiKey({
-    name: 'Phase 7D Approver',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:approve', 'role:approver'],
-  });
   const operatorKey = apiKeyStore.createApiKey({
     name: 'Phase 7D Operator',
     accountId: accountA,
@@ -79,6 +69,15 @@ async function main() {
     scopes: ['automation:admin', 'role:admin'],
   });
 
+  const adminHumanIdentity: RequestIdentity = {
+    accountId: accountA,
+    source: 'HUMAN_SESSION',
+    authenticated: true,
+    userId: 'usr_phase7d_admin',
+    membershipRole: 'ADMIN',
+    sessionId: 'sess_phase7d_admin',
+  };
+
   automationPolicyStore.upsertPolicy({
     accountId: accountA,
     actor: 'test:phase7d',
@@ -89,8 +88,8 @@ async function main() {
       maxRiskClass: 'LOW',
       maxQuantity: 5,
       allowedIdentitySources: ['API_KEY'],
-      allowedActorRoles: ['OPERATOR'],
-      approvalRoles: ['ADMIN', 'APPROVER'],
+      allowedActorRoles: ['SERVICE'],
+      approvalRoles: ['ADMIN'],
       allowedTargetEntityTypes: ['PRODUCT'],
       allowedTargetEntityIds: [product.id],
     },
