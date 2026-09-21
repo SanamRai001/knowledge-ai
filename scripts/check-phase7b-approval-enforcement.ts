@@ -416,7 +416,7 @@ async function main() {
       },
     });
 
-    const approveResponse = await fetch(
+    const scopedApproverAttempt = await fetch(
       baseUrl +
         '/api/automation/approvals/' +
         approvalId +
@@ -428,20 +428,30 @@ async function main() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          note: 'Reviewed quantity exception.',
+          note: 'Attempted API-key role:approver escalation.',
         }),
       }
     );
-    const approveBody = await approveResponse.json();
+    assert(
+      scopedApproverAttempt.status === 403,
+      'API-key role:approver must remain SERVICE and cannot resolve a human-admin approval.'
+    );
+
+    const approved = automationApprovalService.approve({
+      accountId: accountA,
+      approvalId,
+      identity: adminHumanIdentity,
+      note: 'Reviewed quantity exception.',
+    });
 
     assert(
-      approveResponse.status === 200 &&
-        approveBody.approval?.status === 'APPROVED' &&
-        approveBody.approval?.resolvedByRole === 'APPROVER' &&
-        approveBody.approval?.policyVersion ===
+      approved.status === 'APPROVED' &&
+        approved.resolvedByRole === 'ADMIN' &&
+        approved.resolvedBy === 'user:usr_phase7b_admin' &&
+        approved.policyVersion ===
           requestBody.approval.policyVersion &&
-        approveBody.approval?.eligibleRoles.includes('APPROVER'),
-      'Approval must resolve against the immutable escalation snapshot rather than silently inheriting later policy edits.'
+        approved.eligibleRoles.includes('ADMIN'),
+      'Approval must resolve through an eligible human ADMIN against the immutable escalation snapshot rather than inheriting later policy edits.'
     );
 
     assert(
