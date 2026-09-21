@@ -3,8 +3,8 @@ import { DatasetAccessError } from '../datasets/datasetStore.js';
 import {
   RequestIdentity,
   RequestIdentityError,
-  resolveRequestIdentity,
 } from '../requestIdentity.js';
+import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
 import { WorkspaceAccessError } from '../workspaceAccessService.js';
 import { DiscoveryAccessError } from './discoveryStore.js';
 import { discoveryRuntimeService } from './discoveryRuntimeService.js';
@@ -12,21 +12,7 @@ import { InsightStatus } from './types.js';
 
 export const discoveryRouter = express.Router();
 
-discoveryRouter.use((req, res, next) => {
-  try {
-    res.locals.requestIdentity = resolveRequestIdentity(req);
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({ error: 'Failed to resolve request identity.' });
-  }
-});
+discoveryRouter.use(applicationIdentityMiddleware);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
