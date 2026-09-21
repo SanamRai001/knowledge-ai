@@ -162,8 +162,9 @@ The implementation sequence is deliberately split into small slices:
 7. **B2D1 — Privileged Human Authorization Foundation + Platform Management** — COMPLETE, implementation validation `35609479920`
 8. **B2D2A — Legacy Developer-Key Route Closure** — COMPLETE, workflow `35610867425`
 9. **B2D2B1 — Automation Privileged Authorization + API-key Role Separation** — COMPLETE, workflow `35614246876`
-10. **B2D2B2 — Integration Management Privileged Authorization** — NEXT
-11. B2D3 — Legacy/prototype route quarantine
+10. **B2D2B2 — Integration Management Privileged Authorization** — COMPLETE, workflow `35620617850`
+11. **B2D3A — Legacy/Prototype Route Quarantine Foundation** — NEXT
+12. B2D3B — Legacy/prototype route retirement/migration groups
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -183,6 +184,8 @@ B2D2A evidence: `docs/PRODUCTION_B2D2A_LEGACY_DEVELOPER_ROUTE_CLOSURE.md`.
 
 B2D2B1 evidence: `docs/PRODUCTION_B2D2B1_AUTOMATION_PRIVILEGED_AUTH.md`.
 
+B2D2B2 evidence: `docs/PRODUCTION_B2D2B2_INTEGRATION_PRIVILEGED_AUTH.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -200,6 +203,8 @@ B2D1 added reusable HUMAN_SESSION OWNER/ADMIN authorization, made Platform Manag
 B2D2A retired the legacy `/api/v1/developer/*` key-management routes with explicit 410 responses, removed hard-coded `acc_default` administration, and closed unauthenticated arbitrary-scope key creation.
 
 B2D2B1 made Automation policy administration HUMAN_SESSION OWNER/ADMIN-only, removed API-key human-role synthesis, preserved machine Automation as SERVICE when explicitly allowed, and repaired Automation UI CSRF for human mutations.
+
+B2D2B2 made Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-only, preserved account-scoped API-key reads/sync, added OAuth callback account matching, and repaired Integration UI CSRF.
 
 ## Security rules
 
@@ -629,20 +634,19 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D2B2 — Integration Management Privileged Authorization**
+**Production Hardening B2D3A — Legacy/Prototype Route Quarantine Foundation**
 
-Keep this slice limited to Integration management authority.
+Keep this slice limited to quarantine infrastructure and classification.
 
-1. classify Integration read vs management operations
-2. require HUMAN_SESSION OWNER/ADMIN for privileged connection administration
-3. prevent API keys from acting as browser Integration administrators
-4. preserve intentional machine sync/runtime operations where required
-5. preserve OAuth state/account binding
-6. preserve tenant isolation
-7. add focused OWNER/ADMIN/MEMBER/API_KEY authorization coverage
-8. stop before broad legacy/prototype route quarantine
+1. inventory the remaining legacy/prototype route families in `server.ts`
+2. classify each family as production-supported, development-only, or retired
+3. add one reusable production quarantine boundary for development/prototype endpoints
+4. fail closed in production
+5. preserve explicit non-production compatibility only where existing regression suites require it
+6. add focused route-quarantine coverage
+7. stop before individually retiring/migrating every legacy subsystem
 
-Do not start B2D3, Track C object storage, or workers in this slice.
+Do not start B2D3B, Track C object storage, or workers in this slice.
 ---
 
 # Track A closure note

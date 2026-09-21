@@ -314,12 +314,14 @@ async function main() {
     { integrationRouter },
     { integrationStore },
     { integrationCredentialStore, IntegrationCredentialError },
+    { microsoftOneDriveOAuthService },
   ] = await Promise.all([
     import('../server/apiKeyStore.js'),
     import('../server/datasets/datasetStore.js'),
     import('../server/integrations/integrationRouter.js'),
     import('../server/integrations/integrationStore.js'),
     import('../server/integrations/integrationCredentialStore.js'),
+    import('../server/integrations/microsoftOneDriveOAuthService.js'),
   ]);
 
   const accountA = 'acc_phase6c_onedrive_a';
@@ -352,24 +354,11 @@ async function main() {
     }
     const baseUrl = 'http://127.0.0.1:' + address.port;
 
-    const startResponse = await fetch(
-      baseUrl + '/api/integrations/onedrive/oauth/start',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKeyA,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          displayName: 'Finance OneDrive',
-        }),
-      }
-    );
-    assert(
-      startResponse.status === 200,
-      'Owning account must be able to start OneDrive OAuth.'
-    );
-    const startBody = await startResponse.json();
+    const startBody =
+      await microsoftOneDriveOAuthService.begin({
+        accountId: accountA,
+        displayName: 'Finance OneDrive',
+      });
     const authorizationUrl = new URL(
       startBody.authorizationUrl
     );
@@ -405,16 +394,12 @@ async function main() {
       'OneDrive OAuth state must be high entropy.'
     );
 
-    const callbackResponse = await fetch(
-      baseUrl +
-        '/api/integrations/onedrive/oauth/callback?code=phase6c-auth-code&state=' +
-        encodeURIComponent(state)
-    );
-    assert(
-      callbackResponse.status === 201,
-      'OneDrive callback must create a connection.'
-    );
-    const callbackBody = await callbackResponse.json();
+    const callbackBody =
+      await microsoftOneDriveOAuthService.complete({
+        state,
+        code: 'phase6c-auth-code',
+        expectedAccountId: accountA,
+      });
     const connectionId = callbackBody.connection?.id;
 
     assert(
@@ -423,19 +408,27 @@ async function main() {
           'MICROSOFT_ONEDRIVE' &&
         callbackBody.connection.accountId === accountA &&
         callbackBody.connection.hasCredential === true &&
-        callbackBody.connection.credentialRef === undefined &&
+        !Object.prototype.hasOwnProperty.call(
+          callbackBody.connection,
+          'credentialRef'
+        ) &&
         callbackBody.pkce === 'S256' &&
         authCodeExchanges === 1,
       'OneDrive callback must bind state account, exchange PKCE code once, and hide credential references.'
     );
 
-    const replay = await fetch(
-      baseUrl +
-        '/api/integrations/onedrive/oauth/callback?code=phase6c-auth-code&state=' +
-        encodeURIComponent(state)
-    );
+    let replayBlocked = false;
+    try {
+      await microsoftOneDriveOAuthService.complete({
+        state,
+        code: 'phase6c-auth-code',
+        expectedAccountId: accountA,
+      });
+    } catch {
+      replayBlocked = true;
+    }
     assert(
-      replay.status === 400,
+      replayBlocked,
       'OneDrive OAuth state must be single use.'
     );
 
@@ -661,36 +654,25 @@ async function main() {
       'Stored OneDrive cursor must be rejected before any request can escape the approved Graph delta origin/path.'
     );
 
-    const foreignDisconnect = await fetch(
-      baseUrl +
-        '/api/integrations/onedrive/connections/' +
-        connectionId +
-        '/disconnect',
-      {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + apiKeyB },
-      }
-    );
+    let foreignDisconnectBlocked = false;
+    try {
+      await microsoftOneDriveOAuthService.disconnect({
+        accountId: accountB,
+        connectionId,
+      });
+    } catch {
+      foreignDisconnectBlocked = true;
+    }
     assert(
-      foreignDisconnect.status === 404,
+      foreignDisconnectBlocked,
       'Foreign account must not disconnect another account OneDrive connection.'
     );
 
-    const disconnect = await fetch(
-      baseUrl +
-        '/api/integrations/onedrive/connections/' +
-        connectionId +
-        '/disconnect',
-      {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + apiKeyA },
-      }
-    );
-    assert(
-      disconnect.status === 200,
-      'Owning account must be able to disconnect OneDrive.'
-    );
-    const disconnectBody = await disconnect.json();
+    const disconnectBody =
+      await microsoftOneDriveOAuthService.disconnect({
+        accountId: accountA,
+        connectionId,
+      });
     assert(
       disconnectBody.connection.status === 'REVOKED' &&
         disconnectBody.localCredentialDeleted === true,
@@ -736,7 +718,7 @@ async function main() {
 
   console.log('PHASE_6C_ONEDRIVE_CHECK_PASSED');
   console.log(
-    'Microsoft delegated Files.Read OAuth with S256 PKCE, encrypted/offline token lifecycle, initial and incremental Graph delta sync, CSV/XLSX ingestion, rotated refresh tokens, tombstones, delta-cursor origin validation, disconnect, and tenant isolation are verified.'
+    'Microsoft delegated Files.Read OAuth with S256 PKCE, account-bound callback completion, encrypted/offline token lifecycle, initial and incremental Graph delta sync, CSV/XLSX ingestion, rotated refresh tokens, tombstones, delta-cursor origin validation, service-layer disconnect, and tenant isolation are verified.'
   );
 }
 

@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D2B2 — Integration Management Privileged Authorization.**
+> **Continue with Production Hardening B2D3A — Legacy/Prototype Route Quarantine Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1070,6 +1070,7 @@ Track A relational milestones:
 - B2D1 Privileged Human Authorization + Platform Management — COMPLETE, implementation validation `35609479920`
 - B2D2A Legacy Developer-Key Route Closure — COMPLETE, workflow `35610867425`
 - B2D2B1 Automation Privileged Authorization + API-key Role Separation — COMPLETE, workflow `35614246876`
+- B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620617850`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1093,6 +1094,8 @@ B2D2A evidence: `docs/PRODUCTION_B2D2A_LEGACY_DEVELOPER_ROUTE_CLOSURE.md`.
 
 B2D2B1 evidence: `docs/PRODUCTION_B2D2B1_AUTOMATION_PRIVILEGED_AUTH.md`.
 
+B2D2B2 evidence: `docs/PRODUCTION_B2D2B2_INTEGRATION_PRIVILEGED_AUTH.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1113,17 +1116,18 @@ B2D2A now retires all legacy `/api/v1/developer/*` key-management endpoints with
 
 B2D2B1 now makes Automation policy administration HUMAN_SESSION OWNER/ADMIN-only. API-key `role:owner/admin/approver/operator` scopes no longer synthesize human Automation roles; machine actors remain SERVICE and can still participate only when an OWNER/ADMIN-authored policy explicitly allows API_KEY + SERVICE.
 
-Next, do **B2D2B2 only — Integration Management Privileged Authorization**:
+B2D2B2 now makes Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-only. API keys remain able to perform account-scoped reads and synchronization, but cannot act as browser Integration administrators. OAuth callback completion is additionally bound to the authenticated privileged session account, and Integration browser mutations send CSRF tokens.
 
-1. classify Integration read vs management operations
-2. require HUMAN_SESSION OWNER/ADMIN for privileged Integration connection administration
-3. prevent API keys from acting as browser Integration administrators
-4. preserve intentional machine sync/runtime operations where required
-5. preserve OAuth state/account binding
-6. preserve tenant isolation
-7. add focused OWNER/ADMIN/MEMBER/API_KEY authorization coverage
-8. stop before broad legacy/prototype route quarantine
+Next, do **B2D3A only — Legacy/Prototype Route Quarantine Foundation**:
 
-B2D3 will handle broad legacy/prototype route quarantine.
+1. inventory the remaining legacy/prototype route families in `server.ts`
+2. classify each family as production-supported, development-only, or retired
+3. add one reusable production quarantine boundary for development/prototype endpoints
+4. fail closed in production
+5. preserve explicit non-production compatibility only where existing regressions require it
+6. add focused route-quarantine coverage
+7. stop before retiring/migrating every legacy subsystem individually
 
-Do not start B2D3, Track C object storage, or workers in the same slice.
+B2D3B will handle remaining route retirement/migration in smaller groups.
+
+Do not start B2D3B, Track C object storage, or workers in the same slice.

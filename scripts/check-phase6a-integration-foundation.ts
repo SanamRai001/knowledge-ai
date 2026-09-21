@@ -402,19 +402,13 @@ async function main() {
       'Sync history must expose failure and successful retry state.'
     );
 
-    const revokeResponse = await fetch(
-      baseUrl +
-        '/api/integrations/connections/' +
-        connection.id +
-        '/revoke',
-      {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + secretA },
-      }
+    const revoked = integrationSyncService.revoke(
+      accountA,
+      connection.id
     );
     assert(
-      revokeResponse.status === 200,
-      'Connection revocation endpoint failed.'
+      revoked.status === 'REVOKED',
+      'Connection revocation must remain available through the Integration runtime.'
     );
 
     const revokedSync = await fetch(
@@ -432,19 +426,18 @@ async function main() {
       'Revoked connection must fail closed instead of syncing.'
     );
 
-    const resumeRevoked = await fetch(
-      baseUrl +
-        '/api/integrations/connections/' +
-        connection.id +
-        '/resume',
-      {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + secretA },
-      }
-    );
+    let resumeRevokedBlocked = false;
+    try {
+      integrationSyncService.resume(
+        accountA,
+        connection.id
+      );
+    } catch {
+      resumeRevokedBlocked = true;
+    }
     assert(
-      resumeRevoked.status === 409,
-      'Revoked connection must not be reactivated through normal resume.'
+      resumeRevokedBlocked,
+      'Revoked connection must not be reactivated through normal runtime resume.'
     );
   } finally {
     await new Promise<void>((resolve) =>
@@ -454,7 +447,7 @@ async function main() {
 
   console.log('PHASE_6A_INTEGRATION_FOUNDATION_CHECK_PASSED');
   console.log(
-    'Shared connector contracts, incremental cursor sync, external-version idempotency, same-dataset versioning, failed-checkpoint retry, exact provenance, secret-safe API metadata, revocation, and account isolation are verified.'
+    'Shared connector contracts, incremental cursor sync, external-version idempotency, same-dataset versioning, failed-checkpoint retry, exact provenance, secret-safe API metadata, runtime revocation, machine sync behavior, and account isolation are verified.'
   );
 }
 

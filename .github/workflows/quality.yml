@@ -290,3 +290,6 @@ jobs:
 
       - name: Production B2D2B1 Automation privileged authorization proof
         run: npm run check:production:b2d2b1-automation-privileged-auth
+
+      - name: Production B2D2B2 Integration privileged authorization proof
+        run: npm run check:production:b2d2b2-integration-privileged-auth

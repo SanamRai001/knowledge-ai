@@ -39,14 +39,16 @@ export class GoogleDriveOAuthError extends Error {
     | 'OAUTH_CODE_MISSING'
     | 'OAUTH_TOKEN_EXCHANGE_FAILED'
     | 'OAUTH_REFRESH_TOKEN_MISSING'
-    | 'OAUTH_SCOPE_INVALID';
+    | 'OAUTH_SCOPE_INVALID'
+    | 'OAUTH_ACCOUNT_MISMATCH';
 
   constructor(
     code:
       | 'OAUTH_CODE_MISSING'
       | 'OAUTH_TOKEN_EXCHANGE_FAILED'
       | 'OAUTH_REFRESH_TOKEN_MISSING'
-      | 'OAUTH_SCOPE_INVALID',
+      | 'OAUTH_SCOPE_INVALID'
+      | 'OAUTH_ACCOUNT_MISMATCH',
     statusCode: number,
     message: string
   ) {
@@ -134,6 +136,7 @@ export class GoogleDriveOAuthService {
   public async complete(params: {
     state: string;
     code: string;
+    expectedAccountId?: string;
   }): Promise<{
     connection: PublicIntegrationConnection;
     scope: string;
@@ -148,6 +151,16 @@ export class GoogleDriveOAuthService {
     }
 
     const attempt = this.stateStore.consume(params.state);
+    if (
+      params.expectedAccountId &&
+      attempt.accountId !== params.expectedAccountId
+    ) {
+      throw new GoogleDriveOAuthError(
+        'OAUTH_ACCOUNT_MISMATCH',
+        403,
+        'Google Drive OAuth state belongs to a different account.'
+      );
+    }
     const config = googleDriveServerConfig({
       requireRedirectUri: true,
     });

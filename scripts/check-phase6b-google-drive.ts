@@ -345,12 +345,14 @@ async function main() {
     { integrationRouter },
     { integrationStore },
     { integrationCredentialStore, IntegrationCredentialError },
+    { googleDriveOAuthService },
   ] = await Promise.all([
     import('../server/apiKeyStore.js'),
     import('../server/datasets/datasetStore.js'),
     import('../server/integrations/integrationRouter.js'),
     import('../server/integrations/integrationStore.js'),
     import('../server/integrations/integrationCredentialStore.js'),
+    import('../server/integrations/googleDriveOAuthService.js'),
   ]);
 
   const accountA = 'acc_phase6b_google_a';
@@ -384,24 +386,10 @@ async function main() {
     }
     const baseUrl = 'http://127.0.0.1:' + address.port;
 
-    const startResponse = await fetch(
-      baseUrl + '/api/integrations/google-drive/oauth/start',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKeyA,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          displayName: 'Company Drive',
-        }),
-      }
-    );
-    assert(
-      startResponse.status === 200,
-      'Authenticated account must be able to start Google Drive OAuth.'
-    );
-    const startBody = await startResponse.json();
+    const startBody = await googleDriveOAuthService.begin({
+      accountId: accountA,
+      displayName: 'Company Drive',
+    });
     const authorizationUrl = new URL(
       startBody.authorizationUrl
     );
@@ -427,23 +415,22 @@ async function main() {
       'OAuth start must return a high-entropy server-side state token.'
     );
 
-    const callbackResponse = await fetch(
-      baseUrl +
-        '/api/integrations/google-drive/oauth/callback?code=phase6b-auth-code&state=' +
-        encodeURIComponent(state)
-    );
-    assert(
-      callbackResponse.status === 201,
-      'Google Drive OAuth callback must create the integration connection.'
-    );
-    const callbackBody = await callbackResponse.json();
+    const callbackBody =
+      await googleDriveOAuthService.complete({
+        state,
+        code: 'phase6b-auth-code',
+        expectedAccountId: accountA,
+      });
     const connectionId = callbackBody.connection?.id;
     assert(
       typeof connectionId === 'string' &&
         callbackBody.connection.provider === 'GOOGLE_DRIVE' &&
         callbackBody.connection.accountId === accountA &&
         callbackBody.connection.hasCredential === true &&
-        callbackBody.connection.credentialRef === undefined &&
+        !Object.prototype.hasOwnProperty.call(
+          callbackBody.connection,
+          'credentialRef'
+        ) &&
         callbackBody.scope ===
           'https://www.googleapis.com/auth/drive.file',
       'OAuth callback must bind the connection to the state account and expose only safe connection metadata.'
@@ -453,13 +440,18 @@ async function main() {
       'OAuth callback must exchange the authorization code exactly once.'
     );
 
-    const replayResponse = await fetch(
-      baseUrl +
-        '/api/integrations/google-drive/oauth/callback?code=phase6b-auth-code&state=' +
-        encodeURIComponent(state)
-    );
+    let replayBlocked = false;
+    try {
+      await googleDriveOAuthService.complete({
+        state,
+        code: 'phase6b-auth-code',
+        expectedAccountId: accountA,
+      });
+    } catch {
+      replayBlocked = true;
+    }
     assert(
-      replayResponse.status === 400,
+      replayBlocked,
       'Consumed OAuth state must not be reusable.'
     );
 
@@ -657,40 +649,25 @@ async function main() {
       'Persisted integration credential file must contain ciphertext rather than OAuth tokens or the Google client secret.'
     );
 
-    const foreignDisconnect = await fetch(
-      baseUrl +
-        '/api/integrations/google-drive/connections/' +
-        connectionId +
-        '/disconnect',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKeyB,
-        },
-      }
-    );
+    let foreignDisconnectBlocked = false;
+    try {
+      await googleDriveOAuthService.disconnect({
+        accountId: accountB,
+        connectionId,
+      });
+    } catch {
+      foreignDisconnectBlocked = true;
+    }
     assert(
-      foreignDisconnect.status === 404,
+      foreignDisconnectBlocked,
       'Foreign account must not disconnect another account Google Drive connection.'
     );
 
-    const disconnectResponse = await fetch(
-      baseUrl +
-        '/api/integrations/google-drive/connections/' +
-        connectionId +
-        '/disconnect',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKeyA,
-        },
-      }
-    );
-    assert(
-      disconnectResponse.status === 200,
-      'Owning account must be able to disconnect Google Drive.'
-    );
-    const disconnectBody = await disconnectResponse.json();
+    const disconnectBody =
+      await googleDriveOAuthService.disconnect({
+        accountId: accountA,
+        connectionId,
+      });
     assert(
       disconnectBody.connection.status === 'REVOKED' &&
         disconnectBody.remoteRevoked === true &&
@@ -739,7 +716,7 @@ async function main() {
 
   console.log('PHASE_6B_GOOGLE_DRIVE_CHECK_PASSED');
   console.log(
-    'Per-file offline OAuth, single-use state, encrypted credentials, snapshot-safe initial discovery, CSV download, Sheets XLSX export, incremental Drive changes, refresh-token lifecycle, version reuse, deletion tombstones, disconnect, and tenant isolation are verified.'
+    'Per-file offline OAuth, single-use state, account-bound callback completion, encrypted credentials, snapshot-safe initial discovery, CSV download, Sheets XLSX export, incremental Drive changes, refresh-token lifecycle, version reuse, deletion tombstones, service-layer disconnect, and tenant isolation are verified.'
   );
 }
 
