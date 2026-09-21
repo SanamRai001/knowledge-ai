@@ -26,6 +26,10 @@ function roleFromScopes(scopes: string[]): AutomationActorRole | null {
 export function resolveAutomationActorRole(
   identity: RequestIdentity
 ): AutomationActorRole {
+  if (identity.source === 'HUMAN_SESSION') {
+    return identity.membershipRole || 'MEMBER';
+  }
+
   if (identity.source === 'DEFAULT_WEB') {
     return 'MEMBER';
   }
@@ -46,7 +50,13 @@ export function resolveAutomationActorRole(
 export function automationActorLabel(
   identity: RequestIdentity
 ): string {
-  return identity.source === 'API_KEY'
-    ? 'api-key:' + (identity.apiKeyId || 'unknown')
-    : 'web:default';
+  if (identity.source === 'API_KEY') {
+    return 'api-key:' + (identity.apiKeyId || 'unknown');
+  }
+
+  if (identity.source === 'HUMAN_SESSION') {
+    return 'user:' + (identity.userId || 'unknown');
+  }
+
+  return 'web:default';
 }
