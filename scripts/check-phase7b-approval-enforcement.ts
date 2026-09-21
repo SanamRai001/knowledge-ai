@@ -3,6 +3,8 @@ import { apiKeyStore } from '../server/apiKeyStore.js';
 import { actionStore } from '../server/actions/actionStore.js';
 import type { ActionProposal } from '../server/actions/types.js';
 import { automationApprovalStore } from '../server/automation/automationApprovalStore.js';
+import { automationApprovalService } from '../server/automation/automationApprovalService.js';
+import type { RequestIdentity } from '../server/requestIdentity.js';
 import { automationPolicyEvaluator } from '../server/automation/automationPolicyEvaluator.js';
 import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
@@ -123,8 +125,8 @@ async function main() {
           maxAmount: 1000,
           maxQuantity: 10,
           allowedIdentitySources: ['API_KEY'],
-          allowedActorRoles: ['OPERATOR'],
-          approvalRoles: ['ADMIN', 'APPROVER'],
+          allowedActorRoles: ['SERVICE'],
+          approvalRoles: ['ADMIN'],
           allowedTargetEntityTypes: ['PRODUCT'],
           allowedTargetEntityIds: ['ent_phase7b_allowed'],
         }),
@@ -133,14 +135,48 @@ async function main() {
     const policyBody = await policyResponse.json();
 
     assert(
-      policyResponse.status === 201 &&
-        policyBody.policy?.allowedActorRoles?.[0] === 'OPERATOR' &&
-        policyBody.policy?.approvalRoles?.includes('APPROVER') &&
-        policyBody.policy?.allowedTargetEntityTypes?.[0] === 'PRODUCT' &&
-        policyBody.policy?.allowedTargetEntityIds?.[0] ===
-          'ent_phase7b_allowed',
-      '7B policy API must persist role, approval-role, entity-type, and entity-ID constraints.'
+      policyResponse.status === 403 &&
+        policyBody.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API-key role:admin must not administer Automation policy.'
     );
+
+    const seededPolicy = automationPolicyStore.upsertPolicy({
+      accountId: accountA,
+      actor: 'user:phase7b-admin-fixture',
+      policy: {
+        enabled: true,
+        mode: 'AUTO_EXECUTE_LOW_RISK',
+        allowedActionIntents: ['RECEIVE_INVENTORY'],
+        maxRiskClass: 'LOW',
+        maxAmount: 1000,
+        maxQuantity: 10,
+        allowedIdentitySources: ['API_KEY'],
+        allowedActorRoles: ['SERVICE'],
+        approvalRoles: ['ADMIN'],
+        allowedTargetEntityTypes: ['PRODUCT'],
+        allowedTargetEntityIds: ['ent_phase7b_allowed'],
+      },
+    });
+
+    assert(
+      seededPolicy.version === 1 &&
+        seededPolicy.allowedActorRoles?.[0] === 'SERVICE' &&
+        seededPolicy.approvalRoles?.[0] === 'ADMIN' &&
+        seededPolicy.allowedTargetEntityTypes?.[0] === 'PRODUCT' &&
+        seededPolicy.allowedTargetEntityIds?.[0] ===
+          'ent_phase7b_allowed',
+      '7B policy fixture must persist SERVICE-machine, human-admin approval, entity-type, and entity-ID constraints.'
+    );
+
+    const adminHumanIdentity: RequestIdentity = {
+      accountId: accountA,
+      source: 'HUMAN_SESSION',
+      authenticated: true,
+      userId: 'usr_phase7b_admin',
+      membershipRole: 'ADMIN',
+      sessionId: 'sess_phase7b_admin',
+    };
 
     const allowedProposal = createProposal({
       accountId: accountA,
