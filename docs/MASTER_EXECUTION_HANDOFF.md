@@ -1070,7 +1070,7 @@ Track A relational milestones:
 - B2D1 Privileged Human Authorization + Platform Management — COMPLETE, implementation validation `35609479920`
 - B2D2A Legacy Developer-Key Route Closure — COMPLETE, workflow `35610867425`
 - B2D2B1 Automation Privileged Authorization + API-key Role Separation — COMPLETE, workflow `35614246876`
-- B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620269855`
+- B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620617850`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
