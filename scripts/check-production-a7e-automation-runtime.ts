@@ -270,10 +270,7 @@ async function main() {
           '/approve',
         {
           method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + approverKey.secret,
-            'Content-Type': 'application/json',
-          },
+          headers: adminMutationHeaders,
           body: JSON.stringify({ note: 'A7E approved.' }),
         }
       )
@@ -281,7 +278,9 @@ async function main() {
     assert(
       approved.response.status === 200 &&
         approved.body.approval?.status === 'APPROVED' &&
-        approved.body.approval?.resolvedByRole === 'APPROVER',
+        approved.body.approval?.resolvedByRole === 'ADMIN' &&
+        approved.body.approval?.resolvedBy ===
+          'user:' + adminUser.id,
       'Eligible approver must resolve PostgreSQL approval state.'
     );
 
