@@ -287,3 +287,6 @@ jobs:
 
       - name: Production B2D1 privileged Platform Management proof
         run: npm run check:production:b2d1-privileged-platform-management
+
+      - name: Production B2D2B1 Automation privileged authorization proof
+        run: npm run check:production:b2d2b1-automation-privileged-auth
