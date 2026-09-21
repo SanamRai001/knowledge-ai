@@ -74,6 +74,7 @@ import { automationRouter } from './server/automation/automationRouter.js';
 import { platformApiRouter } from './server/platform/platformApiRouter.js';
 import { platformManagementRouter } from './server/platform/platformManagementRouter.js';
 import { legacyDeveloperRouteClosureRouter } from './server/platform/legacyDeveloperRouteClosureRouter.js';
+import { legacyPrototypeRouteQuarantineMiddleware } from './server/legacyRouteQuarantine.js';
 import { authRouter } from './server/identity/authRouter.js';
 import crypto from 'crypto';
 
@@ -123,6 +124,12 @@ app.use('/api/automation', automationRouter);
 app.use('/api/platform/v1', platformApiRouter);
 app.use('/api/platform-management', platformManagementRouter);
 app.use('/api/v1/developer', legacyDeveloperRouteClosureRouter);
+
+// Production quarantine boundary for inline legacy/prototype routes below.
+// Modern routers and the explicit retired developer route get first chance;
+// any matching legacy family that reaches this point is blocked unless
+// explicit non-production compatibility is enabled.
+app.use(legacyPrototypeRouteQuarantineMiddleware);
 
 // --- API ROUTES ---
 
