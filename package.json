@@ -72,7 +72,8 @@
     "check:production:a7g-core-metadata-runtime": "tsx scripts/check-production-a7g-core-metadata-runtime.ts",
     "check:production:b2a-identity-foundation": "tsx scripts/check-production-b2a-identity-foundation.ts",
     "check:production:b2b1-auth-session-api": "tsx scripts/check-production-b2b1-auth-session-api.ts",
-    "check:production:b2b2-request-identity": "tsx scripts/check-production-b2b2-request-identity.ts"
+    "check:production:b2b2-request-identity": "tsx scripts/check-production-b2b2-request-identity.ts",
+    "check:production:b2c1-core-route-cutover": "tsx scripts/check-production-b2c1-core-route-cutover.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
