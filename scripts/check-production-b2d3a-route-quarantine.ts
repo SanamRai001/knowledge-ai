@@ -102,6 +102,8 @@ async function main() {
       '/api/v1/stress',
       '/api/v1/eval',
       '/api/v1/audit',
+      '/api/v1/operations',
+      '/api/v1/observability',
     ];
 
     for (const prefix of expectedRetired) {
@@ -116,8 +118,6 @@ async function main() {
     }
 
     const expectedDevelopmentOnly = [
-      '/api/v1/operations',
-      '/api/v1/observability',
       '/api/v1/tenants',
       '/api/v1/saas',
       '/api/v1/mediator',
@@ -282,7 +282,7 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       const response = await fetch(
-        baseUrl + '/api/v1/operations/incidents'
+        baseUrl + '/api/v1/tenants'
       );
       const body = await readJson(response);
       assert(
@@ -299,7 +299,7 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       for (const path of [
-        '/api/v1/operations/incidents',
+        '/api/v1/tenants',
         '/api/v1/mediator/execute',
         '/api/phase4/dashboard',
       ]) {
@@ -327,6 +327,8 @@ async function main() {
         '/api/v1/stress/concurrency',
         '/api/v1/eval/run',
         '/api/v1/audit/comprehensive',
+        '/api/v1/operations/incidents',
+        '/api/v1/observability/slos',
         '/api/kb/legacy-only',
       ]) {
         const response = await fetch(

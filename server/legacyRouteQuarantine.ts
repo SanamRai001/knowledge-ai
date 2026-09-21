@@ -94,14 +94,14 @@ export const legacyRouteInventory:
     {
       id: 'prototype-operations',
       prefix: '/api/v1/operations',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Prototype operational controls expose mutable incident, feature-flag, backup, canary, and readiness tooling without the modern admin boundary.',
     },
     {
       id: 'prototype-observability',
       prefix: '/api/v1/observability',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Prototype telemetry and mutable alert/SLO controls are not the production observability control plane.',
     },
