@@ -195,6 +195,8 @@ B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
 
 B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
 
+B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -218,6 +220,8 @@ B2D2B2 made Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-only,
 B2D3A added an explicit legacy-route inventory and reusable fail-closed quarantine boundary, preserved intended API-key compatibility paths, blocked prototype/internal route families in production, and prevented legacy `/api/kb` fall-through.
 
 B2D3B1 removed test/stress/eval/audit HTTP execution, retained the underlying quality services for CLI/CI, and made those route families permanently retired rather than compatibility-reopenable.
+
+B2D3B2A removed prototype operations/observability HTTP exposure, retained reusable operational/telemetry services for internal use, permanently retired both route families, and preserved system/provider read-only compatibility.
 
 B2D3B2A removed prototype operations/observability HTTP exposure, retained reusable operational/telemetry services for internal use, permanently retired both route families, and preserved system/provider read-only compatibility.
 
@@ -655,7 +659,7 @@ Keep this slice limited to prototype tenant and SaaS HTTP families.
 
 1. retire `/api/v1/tenants/*`
 2. retire `/api/v1/saas/*`
-3. keep any useful tenancy/readiness service logic available outside HTTP where needed
+3. keep useful tenancy/readiness service logic available outside HTTP where needed
 4. remove obsolete `server.ts` imports
 5. mark both route families RETIRED
 6. close legacy tenant/key/billing/quota/webhook administration paths
