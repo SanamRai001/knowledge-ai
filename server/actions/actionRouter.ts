@@ -2,8 +2,8 @@ import express from 'express';
 import {
   RequestIdentity,
   RequestIdentityError,
-  resolveRequestIdentity,
 } from '../requestIdentity.js';
+import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
 import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
 import {
   ActionAccessError,
@@ -29,23 +29,7 @@ import { ActionProposalStatus } from './types.js';
 
 export const actionRouter = express.Router();
 
-actionRouter.use((req, res, next) => {
-  try {
-    res.locals.requestIdentity = resolveRequestIdentity(req);
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({
-      error: 'Failed to resolve request identity.',
-    });
-  }
-});
+actionRouter.use(applicationIdentityMiddleware);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
