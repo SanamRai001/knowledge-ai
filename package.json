@@ -83,7 +83,8 @@
     "check:production:b2d3a-route-quarantine": "tsx scripts/check-production-b2d3a-route-quarantine.ts",
     "check:production:b2d3b1-internal-quality-route-retirement": "tsx scripts/check-production-b2d3b1-internal-quality-route-retirement.ts",
     "check:production:b2d3b2a-operations-observability-retirement": "tsx scripts/check-production-b2d3b2a-operations-observability-retirement.ts",
-    "check:production:b2d3b2b-tenant-saas-retirement": "tsx scripts/check-production-b2d3b2b-tenant-saas-retirement.ts"
+    "check:production:b2d3b2b-tenant-saas-retirement": "tsx scripts/check-production-b2d3b2b-tenant-saas-retirement.ts",
+    "check:production:b2d3b3a-mediator-route-retirement": "tsx scripts/check-production-b2d3b3a-mediator-route-retirement.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
