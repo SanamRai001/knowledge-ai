@@ -230,7 +230,7 @@ async function main() {
     }
 
     const devOnly = await fetch(
-      baseUrl + '/api/v1/operations/incidents'
+      baseUrl + '/api/v1/tenants'
     );
     const devOnlyBody = await readJson(devOnly);
     assert(
