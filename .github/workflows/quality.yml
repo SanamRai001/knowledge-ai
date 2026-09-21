@@ -172,6 +172,9 @@ jobs:
       - name: Production B2D2A legacy developer route closure proof
         run: npm run check:production:b2d2a-legacy-developer-route-closure
 
+      - name: Production B2D3A route quarantine proof
+        run: npm run check:production:b2d3a-route-quarantine
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 

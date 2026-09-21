@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3A — Legacy/Prototype Route Quarantine Foundation.**
+> **Continue with Production Hardening B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement.**
 
 Phases 0–8 are complete.
 
@@ -1071,6 +1071,7 @@ Track A relational milestones:
 - B2D2A Legacy Developer-Key Route Closure — COMPLETE, workflow `35610867425`
 - B2D2B1 Automation Privileged Authorization + API-key Role Separation — COMPLETE, workflow `35614246876`
 - B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620617850`
+- B2D3A Legacy/Prototype Route Quarantine Foundation — COMPLETE, workflow `35623669505`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1096,6 +1097,8 @@ B2D2B1 evidence: `docs/PRODUCTION_B2D2B1_AUTOMATION_PRIVILEGED_AUTH.md`.
 
 B2D2B2 evidence: `docs/PRODUCTION_B2D2B2_INTEGRATION_PRIVILEGED_AUTH.md`.
 
+B2D3A evidence: `docs/PRODUCTION_B2D3A_ROUTE_QUARANTINE.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1118,16 +1121,20 @@ B2D2B1 now makes Automation policy administration HUMAN_SESSION OWNER/ADMIN-only
 
 B2D2B2 now makes Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-only. API keys remain able to perform account-scoped reads and synchronization, but cannot act as browser Integration administrators. OAuth callback completion is additionally bound to the authenticated privileged session account, and Integration browser mutations send CSRF tokens.
 
-Next, do **B2D3A only — Legacy/Prototype Route Quarantine Foundation**:
+B2D3A now inventories the remaining legacy/prototype HTTP families and enforces one reusable fail-closed quarantine boundary. Prototype/test/admin/research families are unavailable in production, explicit non-production compatibility is opt-in, intended API-key compatibility paths remain reachable, and legacy `/api/kb` fall-through cannot bypass the modern workspace router.
 
-1. inventory the remaining legacy/prototype route families in `server.ts`
-2. classify each family as production-supported, development-only, or retired
-3. add one reusable production quarantine boundary for development/prototype endpoints
-4. fail closed in production
-5. preserve explicit non-production compatibility only where existing regressions require it
-6. add focused route-quarantine coverage
-7. stop before retiring/migrating every legacy subsystem individually
+Next, do **B2D3B1 only — Test / Stress / Evaluation / Audit Route Retirement**:
 
-B2D3B will handle remaining route retirement/migration in smaller groups.
+1. remove `/api/v1/tests/*` server registration
+2. remove `/api/v1/stress/*` server registration
+3. remove `/api/v1/eval/*` server registration
+4. remove `/api/v1/audit/*` server registration
+5. keep the underlying test/evaluation services available to CLI/CI where still required
+6. remove obsolete imports from `server.ts`
+7. preserve regression coverage without HTTP exposure
+8. add focused retirement proof
+9. stop before operations/observability/tenant/SaaS cleanup
 
-Do not start B2D3B, Track C object storage, or workers in the same slice.
+B2D3B2 will handle operations/observability/tenant/SaaS. B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
+
+Do not start B2D3B2, B2D3B3, Track C object storage, or workers in the same slice.
