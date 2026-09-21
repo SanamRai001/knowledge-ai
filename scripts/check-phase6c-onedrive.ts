@@ -408,7 +408,10 @@ async function main() {
           'MICROSOFT_ONEDRIVE' &&
         callbackBody.connection.accountId === accountA &&
         callbackBody.connection.hasCredential === true &&
-        callbackBody.connection.credentialRef === undefined &&
+        !Object.prototype.hasOwnProperty.call(
+          callbackBody.connection,
+          'credentialRef'
+        ) &&
         callbackBody.pkce === 'S256' &&
         authCodeExchanges === 1,
       'OneDrive callback must bind state account, exchange PKCE code once, and hide credential references.'
