@@ -409,7 +409,7 @@ async function main() {
         mode: 'SUGGEST_ONLY',
         allowedActionIntents: [],
         allowedIdentitySources: ['API_KEY'],
-        allowedActorRoles: ['ADMIN'],
+        allowedActorRoles: ['SERVICE'],
         approvalRoles: ['OWNER'],
         allowedTargetEntityTypes: ['PRODUCT'],
         allowedTargetEntityIds: ['ent_phase7b_allowed'],
@@ -476,7 +476,7 @@ async function main() {
         maxRiskClass: 'LOW',
         maxQuantity: 10,
         allowedIdentitySources: ['API_KEY'],
-        allowedActorRoles: ['OPERATOR'],
+        allowedActorRoles: ['SERVICE'],
         approvalRoles: ['ADMIN'],
         allowedTargetEntityTypes: ['PRODUCT'],
         allowedTargetEntityIds: ['ent_phase7b_allowed'],
@@ -512,7 +512,7 @@ async function main() {
       'REQUIRE_APPROVAL mode must create an explicit role-bound escalation.'
     );
 
-    const rejectResponse = await fetch(
+    const scopedAdminRejectAttempt = await fetch(
       baseUrl +
         '/api/automation/approvals/' +
         rejectRequestBody.approval.id +
@@ -523,15 +523,27 @@ async function main() {
           Authorization: 'Bearer ' + adminKey.secret,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ note: 'Not approved for automation.' }),
+        body: JSON.stringify({
+          note: 'Attempted API-key role:admin rejection.',
+        }),
       }
     );
-    const rejectBody = await rejectResponse.json();
     assert(
-      rejectResponse.status === 200 &&
-        rejectBody.approval?.status === 'REJECTED' &&
-        rejectBody.approval?.resolvedByRole === 'ADMIN',
-      'Eligible admin must be able to explicitly reject an escalation.'
+      scopedAdminRejectAttempt.status === 403,
+      'API-key role:admin must remain SERVICE and cannot resolve a human-admin approval.'
+    );
+
+    const rejected = automationApprovalService.reject({
+      accountId: accountA,
+      approvalId: rejectRequestBody.approval.id,
+      identity: adminHumanIdentity,
+      note: 'Not approved for automation.',
+    });
+    assert(
+      rejected.status === 'REJECTED' &&
+        rejected.resolvedByRole === 'ADMIN' &&
+        rejected.resolvedBy === 'user:usr_phase7b_admin',
+      'Eligible human ADMIN must be able to explicitly reject an escalation.'
     );
 
     const pendingList = automationApprovalStore.list({
@@ -572,7 +584,7 @@ async function main() {
 
   console.log('PHASE_7B_APPROVAL_ENFORCEMENT_CHECK_PASSED');
   console.log(
-    'Actor-role constraints, target entity/type allowlists, amount/quantity escalation, immutable approval snapshots, idempotent escalation, role-gated approve/reject, account isolation, and no-execution-on-approval are verified.'
+    'SERVICE machine-role constraints, target entity/type allowlists, amount/quantity escalation, immutable approval snapshots, idempotent escalation, human-admin approve/reject, API-key role-scope non-escalation, account isolation, and no-execution-on-approval are verified.'
   );
 }
 
