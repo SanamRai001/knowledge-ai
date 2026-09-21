@@ -253,14 +253,14 @@ async function main() {
     }
 
     const devOnly = await fetch(
-      baseUrl + '/api/v1/mediator/execute'
+      baseUrl + '/api/v1/rag/benchmark/run'
     );
     const devOnlyBody = await readJson(devOnly);
     assert(
       devOnly.status === 200 &&
         devOnlyBody?.source ===
           'post-quarantine-handler',
-      'B2D3B2B must preserve explicit non-production compatibility for the remaining mediator/RAG/cognitive/Phase 4 DEVELOPMENT_ONLY group.'
+      'B2D3B2B must preserve explicit non-production compatibility for the remaining RAG/Cognitive/Phase 4 DEVELOPMENT_ONLY group.'
     );
   } finally {
     await new Promise<void>((resolve, reject) => {
