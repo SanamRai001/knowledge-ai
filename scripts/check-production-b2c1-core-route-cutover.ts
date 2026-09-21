@@ -6,6 +6,7 @@ import {
   postgresPool,
 } from '../server/persistence/postgres.js';
 import { runPostgresMigrations } from '../server/persistence/migrationRunner.js';
+import { postgresAccountRepository } from '../server/persistence/postgresRepositories.js';
 import { humanIdentityFoundationService } from '../server/identity/humanIdentityFoundationService.js';
 import {
   AUTH_CSRF_COOKIE,
@@ -102,6 +103,10 @@ async function main() {
       email: 'b2c1-human@example.com',
       displayName: 'B2C1 Human',
     });
+
+  await postgresAccountRepository.ensureAccount(
+    humanAccount
+  );
 
   await humanIdentityFoundationService.upsertMembership({
     accountId: humanAccount,
