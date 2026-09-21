@@ -87,6 +87,12 @@ function main() {
   );
 
   assert(
+    automation.includes('ka_csrf=') &&
+      automation.includes("'X-CSRF-Token': csrfToken()"),
+    'Automation browser mutations must send the CSRF token required by HUMAN_SESSION protection.'
+  );
+
+  assert(
     !automation.includes('/api/actions/confirm') &&
       !automation.includes('/api/company-knowledge/write') &&
       !automation.includes('fetch("/api/automation/direct') &&
