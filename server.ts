@@ -73,6 +73,7 @@ import { integrationRouter } from './server/integrations/integrationRouter.js';
 import { automationRouter } from './server/automation/automationRouter.js';
 import { platformApiRouter } from './server/platform/platformApiRouter.js';
 import { platformManagementRouter } from './server/platform/platformManagementRouter.js';
+import { legacyDeveloperRouteClosureRouter } from './server/platform/legacyDeveloperRouteClosureRouter.js';
 import { authRouter } from './server/identity/authRouter.js';
 import crypto from 'crypto';
 
@@ -121,6 +122,7 @@ app.use('/api/integrations', integrationRouter);
 app.use('/api/automation', automationRouter);
 app.use('/api/platform/v1', platformApiRouter);
 app.use('/api/platform-management', platformManagementRouter);
+app.use('/api/v1/developer', legacyDeveloperRouteClosureRouter);
 
 // --- API ROUTES ---
 
@@ -851,64 +853,10 @@ app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
   });
 });
 
-// --- DEVELOPER PLATFORM MANAGEMENT ROUTES (FOR WEB APP DASHBOARD) ---
-
-// List API Keys
-app.get('/api/v1/developer/keys', async (req, res) => {
-  try {
-    const keys = await apiKeyRuntimeService.listApiKeyMetadata('acc_default');
-    res.json({ keys });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to list API keys' });
-  }
-});
-
-// Create API Key
-app.post('/api/v1/developer/keys', async (req, res) => {
-  try {
-    const { name, environment, scopes } = req.body || {};
-    const created = await apiKeyRuntimeService.createApiKey({
-      name: name || 'New API Key',
-      accountId: 'acc_default',
-      environment: environment === 'test' ? 'test' : 'live',
-      scopes,
-    });
-    res.json({
-      apiKey: apiKeyStore.publicApiKey(created.apiKey),
-      secret: created.secret,
-      message: 'API Key created successfully. Store this key securely; it will not be shown again.',
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to create API key' });
-  }
-});
-
-// Revoke API Key
-app.delete('/api/v1/developer/keys/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const revoked = await apiKeyRuntimeService.revokeApiKey(id, 'acc_default');
-    if (!revoked) {
-      return res.status(404).json({ error: 'API key not found or already revoked' });
-    }
-    res.json({
-      message: 'API key revoked successfully',
-      keys: await apiKeyRuntimeService.listApiKeyMetadata('acc_default'),
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to revoke API key' });
-  }
-});
-
-// Get Developer Usage Statistics
-app.get('/api/v1/developer/usage', async (req, res) => {
-  try {
-    const stats = await apiKeyRuntimeService.getUsageStats('acc_default');
-    res.json(stats);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch usage metrics' });
-  }
-});
+// --- LEGACY DEVELOPER PLATFORM ROUTES ---
+// Retired in Production Hardening B2D2A. The explicit 410 closure router
+// above prevents hard-coded acc_default administration and arbitrary-scope
+// key creation through /api/v1/developer/*.
 
 // Run Phase 3 Automated API Acceptance Tests
 app.post('/api/v1/tests/run', async (req, res) => {

@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D2A — Legacy Developer-Key Route Closure.**
+> **Continue with Production Hardening B2D2B1 — Automation Privileged Authorization + API-Key Role Separation.**
 
 Phases 0–8 are complete.
 
@@ -1068,6 +1068,7 @@ Track A relational milestones:
 - B2C2 Insights + Company Knowledge Route Cutover — COMPLETE, workflow `35556818820`
 - B2C3 Actions + Watch + Integrations + Automation Route Cutover — COMPLETE, workflow `35557668826`
 - B2D1 Privileged Human Authorization + Platform Management — COMPLETE, implementation validation `35609479920`
+- B2D2A Legacy Developer-Key Route Closure — COMPLETE, workflow `35610867425`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1087,6 +1088,8 @@ B2C3 evidence: `docs/PRODUCTION_B2C3_PRODUCT_ROUTE_CUTOVER.md`.
 
 B2D1 evidence: `docs/PRODUCTION_B2D1_PRIVILEGED_PLATFORM_MANAGEMENT.md`.
 
+B2D2A evidence: `docs/PRODUCTION_B2D2A_LEGACY_DEVELOPER_ROUTE_CLOSURE.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1103,19 +1106,18 @@ Normal product-route browser identity cutover is now complete.
 
 B2D1 now provides reusable HUMAN_SESSION OWNER/ADMIN authorization. `/api/platform-management` is human-admin-only, MEMBER and API_KEY are denied, key management uses PostgreSQL-authoritative runtime services, and `/api/platform/v1` remains API-key-only.
 
-Next, do **B2D2A only — Legacy Developer-Key Route Closure**:
+B2D2A now retires all legacy `/api/v1/developer/*` key-management endpoints with explicit 410 responses. The old hard-coded `acc_default` administration path and unauthenticated arbitrary-scope key creation are closed.
 
-1. close legacy `GET /api/v1/developer/keys`
-2. close legacy `POST /api/v1/developer/keys`
-3. close legacy `DELETE /api/v1/developer/keys/:id`
-4. close legacy `GET /api/v1/developer/usage`
-5. eliminate hard-coded `acc_default` administration
-6. prevent unauthenticated arbitrary-scope key creation
-7. preserve the modern OWNER/ADMIN Platform Management control plane
-8. preserve stable machine `/api/platform/v1`
-9. add focused regression/security coverage
-10. stop before policy/integration admin cleanup and broad legacy-route quarantine
+Next, do **B2D2B1 only — Automation Privileged Authorization + API-Key Role Separation**:
 
-B2D2B will handle privileged Automation policy / Integration management authorization and API-key human-role separation. B2D3 will handle broad legacy/prototype route quarantine.
+1. require HUMAN_SESSION OWNER/ADMIN for Automation policy administration
+2. remove API-key `role:owner/admin/approver` -> human-like Automation role mapping
+3. preserve legitimate machine Automation behavior as SERVICE where intended
+4. preserve tenant isolation
+5. preserve approval/execution safety invariants
+6. add focused OWNER/ADMIN/MEMBER/API_KEY authorization coverage
+7. stop before Integration-management privilege cleanup
 
-Do not start B2D2B, B2D3, Track C object storage, or workers in the same slice.
+B2D2B2 will handle privileged Integration management. B2D3 will handle broad legacy/prototype route quarantine.
+
+Do not start B2D2B2, B2D3, Track C object storage, or workers in the same slice.

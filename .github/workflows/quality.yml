@@ -169,6 +169,9 @@ jobs:
       - name: Phase 8E developer platform proof
         run: npm run check:phase8e-platform-ui
 
+      - name: Production B2D2A legacy developer route closure proof
+        run: npm run check:production:b2d2a-legacy-developer-route-closure
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
