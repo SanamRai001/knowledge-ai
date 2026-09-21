@@ -164,9 +164,10 @@ The implementation sequence is deliberately split into small slices:
 9. **B2D2B1 — Automation Privileged Authorization + API-key Role Separation** — COMPLETE, workflow `35614246876`
 10. **B2D2B2 — Integration Management Privileged Authorization** — COMPLETE, workflow `35620617850`
 11. **B2D3A — Legacy/Prototype Route Quarantine Foundation** — COMPLETE, workflow `35623669505`
-12. **B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement** — NEXT
-13. B2D3B2 — Operations / Observability / Tenant / SaaS Route Cleanup
-14. B2D3B3 — Mediator / RAG / Cognitive / Phase 4 Route Retirement or Migration
+12. **B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement** — COMPLETE, workflow `35626642229`
+13. **B2D3B2A — Operations + Observability Route Retirement** — NEXT
+14. B2D3B2B — Tenant + SaaS Route Retirement
+15. B2D3B3 — Mediator / RAG / Cognitive / Phase 4 Route Retirement or Migration
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -190,6 +191,8 @@ B2D2B2 evidence: `docs/PRODUCTION_B2D2B2_INTEGRATION_PRIVILEGED_AUTH.md`.
 
 B2D3A evidence: `docs/PRODUCTION_B2D3A_ROUTE_QUARANTINE.md`.
 
+B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -211,6 +214,8 @@ B2D2B1 made Automation policy administration HUMAN_SESSION OWNER/ADMIN-only, rem
 B2D2B2 made Integration lifecycle administration HUMAN_SESSION OWNER/ADMIN-only, preserved account-scoped API-key reads/sync, added OAuth callback account matching, and repaired Integration UI CSRF.
 
 B2D3A added an explicit legacy-route inventory and reusable fail-closed quarantine boundary, preserved intended API-key compatibility paths, blocked prototype/internal route families in production, and prevented legacy `/api/kb` fall-through.
+
+B2D3B1 removed test/stress/eval/audit HTTP execution, retained the underlying quality services for CLI/CI, and made those route families permanently retired rather than compatibility-reopenable.
 
 ## Security rules
 
@@ -640,21 +645,20 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement**
+**Production Hardening B2D3B2A — Operations + Observability Route Retirement**
 
-Keep this slice limited to internal quality-execution HTTP families.
+Keep this slice limited to prototype operational and observability HTTP families.
 
-1. retire `/api/v1/tests/*`
-2. retire `/api/v1/stress/*`
-3. retire `/api/v1/eval/*`
-4. retire `/api/v1/audit/*`
-5. keep underlying test/evaluation services available to CLI/CI where still needed
-6. remove obsolete `server.ts` imports caused by route retirement
-7. preserve CI regression coverage without HTTP exposure
-8. add focused proof that these internal tools remain script-callable while their server routes stay unavailable
-9. stop before operations/observability/tenant/SaaS cleanup
+1. retire `/api/v1/operations/*`
+2. retire `/api/v1/observability/*`
+3. keep useful operational/telemetry service logic available to scripts/internal code where required
+4. remove obsolete `server.ts` imports caused by route retirement
+5. mark both route families RETIRED
+6. preserve `/api/v1/system/*` and `/api/v1/providers/*` read-only compatibility paths
+7. add focused retirement proof
+8. stop before tenant/SaaS cleanup
 
-Do not start B2D3B2, B2D3B3, Track C object storage, or workers in this slice.
+Do not start B2D3B2B, B2D3B3, Track C object storage, or workers in this slice.
 ---
 
 # Track A closure note
