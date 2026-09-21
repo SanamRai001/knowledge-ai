@@ -36,9 +36,7 @@ function identity(res: express.Response): RequestIdentity {
 }
 
 function actorLabel(value: RequestIdentity): string {
-  return value.source === 'API_KEY'
-    ? 'api-key:' + (value.apiKeyId || 'unknown')
-    : 'web:default';
+  return automationActorLabel(value);
 }
 
 function limitFrom(value: unknown, fallback: number): number {
@@ -70,6 +68,7 @@ const RISK_CLASSES: AutomationRiskClass[] = [
 
 const IDENTITY_SOURCES: RequestIdentity['source'][] = [
   'API_KEY',
+  'HUMAN_SESSION',
   'DEFAULT_WEB',
 ];
 
