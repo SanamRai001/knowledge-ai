@@ -275,3 +275,6 @@ jobs:
 
       - name: Production B2C1 core route cutover proof
         run: npm run check:production:b2c1-core-route-cutover
+
+      - name: Production B2C2 Insights and Company Knowledge proof
+        run: npm run check:production:b2c2-insights-company-knowledge
