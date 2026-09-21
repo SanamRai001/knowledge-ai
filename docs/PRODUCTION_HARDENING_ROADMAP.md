@@ -157,8 +157,8 @@ The implementation sequence is deliberately split into small slices:
 2. **B2B1 — Human Credential + Auth Session API** — COMPLETE, workflow `35527482968`
 3. **B2B2 — HUMAN_SESSION request identity + production fallback removal** — COMPLETE, workflow `35528053793`
 4. **B2C1 — Core browser route cutover: KB + Datasets + Query** — COMPLETE, workflow `35555336358`
-5. **B2C2 — Insights + Company Knowledge route cutover** — NEXT
-6. B2C3 — Actions + Watch + Integration + Automation route cutover
+5. **B2C2 — Insights + Company Knowledge route cutover** — COMPLETE, workflow `35556818820`
+6. **B2C3 — Actions + Watch + Integration + Automation route cutover** — NEXT
 7. B2D — Privileged authorization + Platform Management + legacy route quarantine
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
@@ -169,6 +169,8 @@ B2B2 evidence: `docs/PRODUCTION_B2B2_REQUEST_IDENTITY.md`.
 
 B2C1 evidence: `docs/PRODUCTION_B2C1_CORE_ROUTE_CUTOVER.md`.
 
+B2C2 evidence: `docs/PRODUCTION_B2C2_INSIGHTS_COMPANY_KNOWLEDGE.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -176,6 +178,8 @@ B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origi
 B2B2 added distinct HUMAN_SESSION request identity, preserved API_KEY as a separate machine credential class, made DEFAULT_WEB explicit/non-production-only, and removed implicit production `acc_default` fallback from the identity boundary.
 
 B2C1 migrated KB, Datasets, and Query to the human-aware application identity middleware while preserving API-key behavior and adding same-origin/CSRF protection for HUMAN_SESSION mutations.
+
+B2C2 migrated Insights and Company Knowledge to the same human-aware application identity middleware while preserving machine API-key behavior and tenant isolation.
 
 ## Security rules
 
@@ -605,21 +609,23 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2C2 — Insights + Company Knowledge Route Cutover**
+**Production Hardening B2C3 — Actions + Watch + Integrations + Automation Route Cutover**
 
-Keep this slice limited to two route families.
+Keep this slice limited to the remaining normal product route families.
 
-1. migrate `/api/insights` to `applicationIdentityMiddleware`
-2. migrate `/api/company-knowledge` to `applicationIdentityMiddleware`
-3. preserve intentional API-key behavior
-4. accept HUMAN_SESSION account scope
-5. enforce same-origin + CSRF for HUMAN_SESSION unsafe methods
-6. preserve Discovery / Company Knowledge tenant isolation
-7. reject missing production identity
-8. add focused HTTP tests for human session, API key, missing identity, spoofing, and revoked sessions
-9. do not migrate other route families yet
+1. migrate `/api/actions` to `applicationIdentityMiddleware`
+2. migrate `/api/watch` to `applicationIdentityMiddleware`
+3. migrate `/api/integrations` to `applicationIdentityMiddleware`
+4. migrate `/api/automation` to `applicationIdentityMiddleware`
+5. preserve intentional API-key behavior
+6. accept HUMAN_SESSION account scope
+7. enforce same-origin + CSRF for HUMAN_SESSION unsafe methods
+8. preserve tenant isolation
+9. reject missing production identity
+10. add focused route-cutover coverage
+11. avoid privileged-role redesign in this slice
 
-Do not start Actions, Watch, Integrations, Automation, Platform Management, B2D authorization cleanup, object storage, or workers in this slice.
+Do not start Platform Management, B2D privileged authorization cleanup, legacy route quarantine, object storage, or workers in this slice.
 
 ---
 
