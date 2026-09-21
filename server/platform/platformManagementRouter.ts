@@ -1,14 +1,10 @@
 import express from 'express';
 import { apiKeyStore } from '../apiKeyStore.js';
-import {
-  RequestIdentity,
-  RequestIdentityError,
-  resolveRequestIdentity,
-} from '../requestIdentity.js';
+import { apiKeyRuntimeService } from '../apiKeyRuntimeService.js';
+import type { RequestIdentity } from '../requestIdentity.js';
+import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
+import { requireOwnerOrAdmin } from '../identity/privilegedAuthorization.js';
 import { PLATFORM_SCOPES } from './platformApiManifest.js';
-
-const INTERNAL_DEVELOPER_MANAGE_SCOPE =
-  'platform-internal:developer:manage';
 
 const ALLOWED_PLATFORM_SCOPES = new Set(
   Object.values(PLATFORM_SCOPES)
@@ -16,43 +12,8 @@ const ALLOWED_PLATFORM_SCOPES = new Set(
 
 export const platformManagementRouter = express.Router();
 
-platformManagementRouter.use((req, res, next) => {
-  try {
-    const identity = resolveRequestIdentity(req);
-    res.locals.requestIdentity = identity;
-
-    if (
-      identity.source === 'API_KEY' &&
-      identity.apiKeyId
-    ) {
-      const key = apiKeyStore.getApiKeyById(identity.apiKeyId);
-      if (
-        !key ||
-        !key.scopes.includes(INTERNAL_DEVELOPER_MANAGE_SCOPE)
-      ) {
-        res.status(403).json({
-          error:
-            'Developer key management requires the internal developer-management capability.',
-          code: 'DEVELOPER_MANAGEMENT_FORBIDDEN',
-        });
-        return;
-      }
-    }
-
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({
-      error: 'Failed to resolve developer management identity.',
-    });
-  }
-});
+platformManagementRouter.use(applicationIdentityMiddleware);
+platformManagementRouter.use(requireOwnerOrAdmin);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
@@ -89,14 +50,24 @@ function normalizePlatformScopes(value: unknown): string[] {
   return normalized;
 }
 
-platformManagementRouter.get('/keys', (_req, res) => {
-  const { accountId } = identity(res);
-  res.json({
-    keys: apiKeyStore.listApiKeyMetadata(accountId),
-  });
+platformManagementRouter.get('/keys', async (_req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json({
+      keys: await apiKeyRuntimeService.listApiKeyMetadata(
+        accountId
+      ),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error:
+        error?.message || 'Could not list Platform API keys.',
+      code: 'PLATFORM_KEY_LIST_FAILED',
+    });
+  }
 });
 
-platformManagementRouter.post('/keys', (req, res) => {
+platformManagementRouter.post('/keys', async (req, res) => {
   try {
     const { accountId } = identity(res);
     const scopes = normalizePlatformScopes(req.body?.scopes);
@@ -108,7 +79,7 @@ platformManagementRouter.post('/keys', (req, res) => {
         ? req.body.name.trim().slice(0, 160)
         : 'Platform API Key';
 
-    const created = apiKeyStore.createApiKey({
+    const created = await apiKeyRuntimeService.createApiKey({
       name,
       accountId,
       environment,
@@ -130,31 +101,48 @@ platformManagementRouter.post('/keys', (req, res) => {
   }
 });
 
-platformManagementRouter.delete('/keys/:id', (req, res) => {
-  const { accountId } = identity(res);
-  const revoked = apiKeyStore.revokeApiKey(
-    req.params.id,
-    accountId
-  );
+platformManagementRouter.delete('/keys/:id', async (req, res) => {
+  try {
+    const { accountId } = identity(res);
+    const revoked = await apiKeyRuntimeService.revokeApiKey(
+      req.params.id,
+      accountId
+    );
 
-  if (!revoked) {
-    res.status(404).json({
-      error: 'API key not found in the current account scope.',
-      code: 'PLATFORM_KEY_NOT_FOUND',
+    if (!revoked) {
+      res.status(404).json({
+        error: 'API key not found in the current account scope.',
+        code: 'PLATFORM_KEY_NOT_FOUND',
+      });
+      return;
+    }
+
+    res.json({
+      message: 'API key revoked.',
+      keys: await apiKeyRuntimeService.listApiKeyMetadata(
+        accountId
+      ),
     });
-    return;
+  } catch (error: any) {
+    res.status(500).json({
+      error:
+        error?.message || 'Could not revoke Platform API key.',
+      code: 'PLATFORM_KEY_REVOKE_FAILED',
+    });
   }
-
-  res.json({
-    message: 'API key revoked.',
-    keys: apiKeyStore.listApiKeyMetadata(accountId),
-  });
 });
 
-platformManagementRouter.get('/usage', (_req, res) => {
-  const { accountId } = identity(res);
-  res.json(apiKeyStore.getUsageStats(accountId));
+platformManagementRouter.get('/usage', async (_req, res) => {
+  try {
+    const { accountId } = identity(res);
+    res.json(
+      await apiKeyRuntimeService.getUsageStats(accountId)
+    );
+  } catch (error: any) {
+    res.status(500).json({
+      error:
+        error?.message || 'Could not load Platform API usage.',
+      code: 'PLATFORM_USAGE_LOAD_FAILED',
+    });
+  }
 });
-
-export const PLATFORM_INTERNAL_DEVELOPER_MANAGE_SCOPE =
-  INTERNAL_DEVELOPER_MANAGE_SCOPE;
