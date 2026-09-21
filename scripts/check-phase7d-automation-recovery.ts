@@ -151,25 +151,16 @@ async function main() {
       'Operator must not be able to toggle the workspace emergency automation stop.'
     );
 
-    const disableResponse = await fetch(
-      baseUrl + '/api/automation/control/disable',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'Emergency stop for Phase 7D proof.',
-        }),
-      }
-    );
-    const disableBody = await disableResponse.json();
+    const disabledControl = automationControlService.disable({
+      accountId: accountA,
+      identity: adminHumanIdentity,
+      reason: 'Emergency stop for Phase 7D proof.',
+    });
     assert(
-      disableResponse.status === 200 &&
-        disableBody.control?.emergencyDisabled === true &&
-        disableBody.control?.version === 1,
-      'Admin must be able to activate the independent emergency stop.'
+      disabledControl.emergencyDisabled === true &&
+        disabledControl.version === 1 &&
+        disabledControl.updatedBy === 'user:usr_phase7d_admin',
+      'Human ADMIN must be able to activate the independent emergency stop.'
     );
 
     const killedProposal = makeProposal(1, now + 1000, 'kill-switch');
@@ -223,25 +214,16 @@ async function main() {
       'Emergency-stop block must leave company state unchanged.'
     );
 
-    const enableResponse = await fetch(
-      baseUrl + '/api/automation/control/enable',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'Phase 7D emergency condition cleared.',
-        }),
-      }
-    );
-    const enableBody = await enableResponse.json();
+    const enabledControl = automationControlService.enable({
+      accountId: accountA,
+      identity: adminHumanIdentity,
+      reason: 'Phase 7D emergency condition cleared.',
+    });
     assert(
-      enableResponse.status === 200 &&
-        enableBody.control?.emergencyDisabled === false &&
-        enableBody.control?.version === 2,
-      'Admin must be able to explicitly clear the emergency stop.'
+      enabledControl.emergencyDisabled === false &&
+        enabledControl.version === 2 &&
+        enabledControl.updatedBy === 'user:usr_phase7d_admin',
+      'Human ADMIN must be able to explicitly clear the emergency stop.'
     );
 
     const controlHistory = automationControlStore.listHistory({
