@@ -681,9 +681,13 @@ async function main() {
         headers: machineHeaders,
       }
     );
+    const machineIntegrationPauseBody =
+      await readJson(machineIntegrationPause);
     assert(
-      machineIntegrationPause.status === 200,
-      'API_KEY Integration mutation must not require browser CSRF.'
+      machineIntegrationPause.status === 403 &&
+        machineIntegrationPauseBody?.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API_KEY may read Integration state but must not administer connection lifecycle.'
     );
 
     const machineAutomation = await fetch(
