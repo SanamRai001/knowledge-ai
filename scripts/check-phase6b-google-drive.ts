@@ -427,7 +427,10 @@ async function main() {
         callbackBody.connection.provider === 'GOOGLE_DRIVE' &&
         callbackBody.connection.accountId === accountA &&
         callbackBody.connection.hasCredential === true &&
-        callbackBody.connection.credentialRef === undefined &&
+        !Object.prototype.hasOwnProperty.call(
+          callbackBody.connection,
+          'credentialRef'
+        ) &&
         callbackBody.scope ===
           'https://www.googleapis.com/auth/drive.file',
       'OAuth callback must bind the connection to the state account and expose only safe connection metadata.'
