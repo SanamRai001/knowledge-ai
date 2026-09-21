@@ -160,9 +160,10 @@ The implementation sequence is deliberately split into small slices:
 5. **B2C2 — Insights + Company Knowledge route cutover** — COMPLETE, workflow `35556818820`
 6. **B2C3 — Actions + Watch + Integration + Automation route cutover** — COMPLETE, workflow `35557668826`
 7. **B2D1 — Privileged Human Authorization Foundation + Platform Management** — COMPLETE, implementation validation `35609479920`
-8. **B2D2A — Legacy Developer-Key Route Closure** — NEXT
-9. B2D2B — Privileged policy/integration authorization + API-key role separation
-10. B2D3 — Legacy/prototype route quarantine
+8. **B2D2A — Legacy Developer-Key Route Closure** — COMPLETE, workflow `35610867425`
+9. **B2D2B1 — Automation Privileged Authorization + API-key Role Separation** — NEXT
+10. B2D2B2 — Integration Management Privileged Authorization
+11. B2D3 — Legacy/prototype route quarantine
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -178,6 +179,8 @@ B2C3 evidence: `docs/PRODUCTION_B2C3_PRODUCT_ROUTE_CUTOVER.md`.
 
 B2D1 evidence: `docs/PRODUCTION_B2D1_PRIVILEGED_PLATFORM_MANAGEMENT.md`.
 
+B2D2A evidence: `docs/PRODUCTION_B2D2A_LEGACY_DEVELOPER_ROUTE_CLOSURE.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -191,6 +194,8 @@ B2C2 migrated Insights and Company Knowledge to the same human-aware application
 B2C3 migrated Actions, Watch, Integrations, and Automation to the same boundary, added HUMAN_SESSION Automation actor attribution, and completed normal product-route browser identity cutover.
 
 B2D1 added reusable HUMAN_SESSION OWNER/ADMIN authorization, made Platform Management human-admin-only, moved key management to PostgreSQL-authoritative runtime services, and preserved `/api/platform/v1` as an API-key-only machine boundary.
+
+B2D2A retired the legacy `/api/v1/developer/*` key-management routes with explicit 410 responses, removed hard-coded `acc_default` administration, and closed unauthenticated arbitrary-scope key creation.
 
 ## Security rules
 
@@ -620,22 +625,19 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D2A — Legacy Developer-Key Route Closure**
+**Production Hardening B2D2B1 — Automation Privileged Authorization + API-Key Role Separation**
 
-Keep this slice limited to the legacy developer-key routes in `server.ts`.
+Keep this slice limited to Automation privileged authorization semantics.
 
-1. close `GET /api/v1/developer/keys`
-2. close `POST /api/v1/developer/keys`
-3. close `DELETE /api/v1/developer/keys/:id`
-4. close `GET /api/v1/developer/usage`
-5. eliminate hard-coded `acc_default` developer administration
-6. prevent unauthenticated arbitrary-scope key creation
-7. preserve modern `/api/platform-management` OWNER/ADMIN human control plane
-8. preserve stable `/api/platform/v1` API-key-only behavior
-9. add focused security/regression proof
-10. stop before Automation policy, Integration management, API-key role-scope cleanup, and broad legacy-route quarantine
+1. require HUMAN_SESSION OWNER/ADMIN for Automation policy administration
+2. stop mapping API-key `role:owner`, `role:admin`, and `role:approver` scopes into human-like Automation roles
+3. preserve legitimate machine Automation behavior as SERVICE where intended
+4. preserve tenant isolation
+5. preserve existing approval/execution safety invariants
+6. add focused OWNER/ADMIN/MEMBER/API_KEY authorization coverage
+7. stop before Integration-management privilege cleanup
 
-Do not start B2D2B, B2D3, Track C object storage, or workers in this slice.
+Do not start B2D2B2, B2D3, Track C object storage, or workers in this slice.
 ---
 
 # Track A closure note
