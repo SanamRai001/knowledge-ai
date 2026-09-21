@@ -202,8 +202,8 @@ async function main() {
       allowedEval.status === 200 &&
         allowedEvalBody.evaluation?.decision ===
           'ALLOW_AUTO_EXECUTE' &&
-        allowedEvalBody.evaluation?.actorRole === 'OPERATOR',
-      'Allowed operator + target + low-risk thresholds must remain eligible for future 7C auto-execution.'
+        allowedEvalBody.evaluation?.actorRole === 'SERVICE',
+      'API-key role:operator must remain a SERVICE actor while satisfying explicitly allowed machine policy constraints.'
     );
 
     const legacyServiceEval = await fetch(
@@ -219,12 +219,10 @@ async function main() {
     );
     const legacyServiceBody = await legacyServiceEval.json();
     assert(
-      legacyServiceBody.evaluation?.decision === 'DENY' &&
-        legacyServiceBody.evaluation?.actorRole === 'SERVICE' &&
-        legacyServiceBody.evaluation?.reasonCodes?.includes(
-          'ACTOR_ROLE_NOT_ALLOWED'
-        ),
-      'Authenticated legacy API keys without an explicit role must resolve to SERVICE and fail role-constrained automation.'
+      legacyServiceBody.evaluation?.decision ===
+        'ALLOW_AUTO_EXECUTE' &&
+        legacyServiceBody.evaluation?.actorRole === 'SERVICE',
+      'Plain and role-tagged API keys must both resolve to SERVICE when machine Automation is explicitly allowed.'
     );
 
     const wrongTargetProposal = createProposal({
@@ -335,9 +333,9 @@ async function main() {
       requestResponse.status === 201 &&
         typeof approvalId === 'string' &&
         requestBody.approval.status === 'PENDING' &&
-        requestBody.approval.requestedByRole === 'OPERATOR' &&
-        requestBody.approval.eligibleRoles.includes('ADMIN') &&
-        requestBody.approval.eligibleRoles.includes('APPROVER') &&
+        requestBody.approval.requestedByRole === 'SERVICE' &&
+        requestBody.approval.eligibleRoles.length === 1 &&
+        requestBody.approval.eligibleRoles[0] === 'ADMIN' &&
         requestBody.approval.decisionReasonCodes.includes(
           'QUANTITY_EXCEEDS_POLICY'
         ),
