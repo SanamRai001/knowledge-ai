@@ -136,9 +136,9 @@ export const legacyRouteInventory:
     {
       id: 'prototype-mediator',
       prefix: '/api/v1/mediator',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
-        'Mediator execution, benchmarking, metrics, and adaptive orchestration are prototype/internal research surfaces.',
+        'Retired by B2D3B3A. Multi-agent orchestration, planning, verification, and benchmark tooling remains internal rather than HTTP-exposed.',
     },
     {
       id: 'prototype-rag',
