@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -18,6 +19,8 @@ import {
 } from '../server/persistence/postgres.js';
 import { postgresAccountRepository } from '../server/persistence/postgresRepositories.js';
 import { runPostgresMigrations } from '../server/persistence/migrationRunner.js';
+import { humanIdentityFoundationService } from '../server/identity/humanIdentityFoundationService.js';
+import { AUTH_CSRF_COOKIE, AUTH_SESSION_COOKIE } from '../server/identity/authHttpSecurity.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -68,6 +71,22 @@ async function main() {
   await postgresAccountRepository.ensureAccount(accountA);
   await postgresAccountRepository.ensureAccount(accountB);
 
+  const adminUser = await humanIdentityFoundationService.createUser({
+    email: 'a7e-admin@example.com',
+    displayName: 'A7E Admin Human',
+  });
+  await humanIdentityFoundationService.upsertMembership({
+    accountId: accountA,
+    userId: adminUser.id,
+    role: 'ADMIN',
+  });
+  const adminSession = await humanIdentityFoundationService.createSession({
+    userId: adminUser.id,
+    selectedAccountId: accountA,
+  });
+  const adminCsrf = crypto.randomBytes(32).toString('base64url');
+  const adminCookie = AUTH_SESSION_COOKIE + '=' + encodeURIComponent(adminSession.secret) + '; ' + AUTH_CSRF_COOKIE + '=' + encodeURIComponent(adminCsrf);
+
   const legacyFiles = [
     'automation-policies.json',
     'automation-approvals.json',
@@ -102,12 +121,6 @@ async function main() {
     accountId: accountA,
     environment: 'test',
     scopes: ['automation:execute', 'role:operator'],
-  });
-  const approverKey = apiKeyStore.createApiKey({
-    name: 'A7E Approver',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:approve', 'role:approver'],
   });
   const foreignKey = apiKeyStore.createApiKey({
     name: 'A7E Foreign',
