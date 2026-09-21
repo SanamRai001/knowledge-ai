@@ -37,7 +37,7 @@ async function reset(): Promise<void> {
       users,
       api_usage,
       api_keys,
-      discovery_insight_occurrences,
+      discovery_analysis_run_insights,
       discovery_insights,
       discovery_analysis_runs,
       business_event_subjects,
