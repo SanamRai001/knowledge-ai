@@ -47,14 +47,16 @@ export class MicrosoftOneDriveOAuthError extends Error {
     | 'ONEDRIVE_OAUTH_CODE_MISSING'
     | 'ONEDRIVE_OAUTH_TOKEN_EXCHANGE_FAILED'
     | 'ONEDRIVE_OAUTH_REFRESH_TOKEN_MISSING'
-    | 'ONEDRIVE_OAUTH_SCOPE_INVALID';
+    | 'ONEDRIVE_OAUTH_SCOPE_INVALID'
+    | 'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH';
 
   constructor(
     code:
       | 'ONEDRIVE_OAUTH_CODE_MISSING'
       | 'ONEDRIVE_OAUTH_TOKEN_EXCHANGE_FAILED'
       | 'ONEDRIVE_OAUTH_REFRESH_TOKEN_MISSING'
-      | 'ONEDRIVE_OAUTH_SCOPE_INVALID',
+      | 'ONEDRIVE_OAUTH_SCOPE_INVALID'
+      | 'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH',
     statusCode: number,
     message: string
   ) {
@@ -149,6 +151,7 @@ export class MicrosoftOneDriveOAuthService {
   public async complete(params: {
     state: string;
     code: string;
+    expectedAccountId?: string;
   }): Promise<{
     connection: PublicIntegrationConnection;
     scopes: string[];
@@ -163,6 +166,16 @@ export class MicrosoftOneDriveOAuthService {
     }
 
     const attempt = this.stateStore.consume(params.state);
+    if (
+      params.expectedAccountId &&
+      attempt.accountId !== params.expectedAccountId
+    ) {
+      throw new MicrosoftOneDriveOAuthError(
+        'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH',
+        403,
+        'OneDrive OAuth state belongs to a different account.'
+      );
+    }
     const config = microsoftOneDriveServerConfig({
       requireRedirectUri: true,
     });
