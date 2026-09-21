@@ -463,10 +463,7 @@ async function main() {
         baseUrl + '/api/automation/runs/' + runId + '/feedback',
         {
           method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + adminKey.secret,
-            'Content-Type': 'application/json',
-          },
+          headers: adminMutationHeaders,
           body: JSON.stringify({
             feedback: 'CORRECT',
             note: 'A7E PostgreSQL runtime verified.',
@@ -489,7 +486,9 @@ async function main() {
         {
           method: 'POST',
           headers: {
-            Authorization: 'Bearer ' + approverKey.secret,
+            cookie: adminCookie,
+            origin: baseUrl,
+            'x-csrf-token': adminCsrf,
           },
         }
       )
@@ -614,7 +613,7 @@ async function main() {
 
   console.log('PRODUCTION_A7E_AUTOMATION_RUNTIME_CHECK_PASSED');
   console.log(
-    'PostgreSQL policy/revision, approval, emergency control, AutomationRun, low-risk auto-execution, idempotent replay, feedback, compensation, quality metrics, restart persistence, account isolation, and zero legacy Automation JSON mutation are verified.'
+    'PostgreSQL human-admin policy/revision, human approval and emergency control, SERVICE machine AutomationRun/evaluation/execution, idempotent replay, feedback, compensation, quality metrics, restart persistence, account isolation, and zero legacy Automation JSON mutation are verified.'
   );
 }
 
