@@ -122,14 +122,14 @@ export const legacyRouteInventory:
     {
       id: 'prototype-tenancy-admin',
       prefix: '/api/v1/tenants',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Prototype tenant/key/billing/quota/webhook administration predates the modern account identity and privileged authorization boundary.',
     },
     {
       id: 'prototype-saas',
       prefix: '/api/v1/saas',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'SaaS simulation/readiness endpoints are prototype infrastructure.',
     },
