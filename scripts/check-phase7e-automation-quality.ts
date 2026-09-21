@@ -64,8 +64,8 @@ async function main() {
       maxRiskClass: 'LOW',
       maxQuantity: 5,
       allowedIdentitySources: ['API_KEY'],
-      allowedActorRoles: ['OPERATOR'],
-      approvalRoles: ['OWNER', 'ADMIN', 'APPROVER'],
+      allowedActorRoles: ['SERVICE'],
+      approvalRoles: ['ADMIN'],
       allowedTargetEntityTypes: ['PRODUCT'],
     },
   });
@@ -92,7 +92,7 @@ async function main() {
     attemptCount: 1,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     executionId: 'exec-clean',
@@ -106,7 +106,7 @@ async function main() {
     attemptCount: 1,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     executionId: 'exec-false',
@@ -120,7 +120,7 @@ async function main() {
     attemptCount: 2,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     failureCategory: 'TECHNICAL',
@@ -136,7 +136,7 @@ async function main() {
     attemptCount: 0,
     maxAttempts: 0,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     failureCategory: 'POLICY',
@@ -152,7 +152,7 @@ async function main() {
     attemptCount: 1,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     executionId: 'exec-compensated',
@@ -168,7 +168,7 @@ async function main() {
     attemptCount: 1,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
     executionId: 'exec-recovery',
@@ -185,7 +185,7 @@ async function main() {
     attemptCount: 1,
     maxAttempts: 2,
     actor: 'api-key:phase7e',
-    actorRole: 'OPERATOR',
+    actorRole: 'SERVICE',
     policyId: policy.id,
     policyVersion: policy.version,
   });
@@ -213,8 +213,8 @@ async function main() {
     policyId: policy.id,
     policyVersion: policy.version,
     requestedBy: 'api-key:requester',
-    requestedByRole: 'OPERATOR',
-    eligibleRoles: ['ADMIN', 'APPROVER'],
+    requestedByRole: 'SERVICE',
+    eligibleRoles: ['ADMIN'],
     decisionReasonCodes: ['POLICY_REQUIRES_APPROVAL'],
     decisionReasons: ['Policy requires approval.'],
     expiresAt: now + 60 * 60 * 1000,
@@ -226,8 +226,8 @@ async function main() {
     policyId: policy.id,
     policyVersion: policy.version,
     requestedBy: 'api-key:requester',
-    requestedByRole: 'OPERATOR',
-    eligibleRoles: ['ADMIN', 'APPROVER'],
+    requestedByRole: 'SERVICE',
+    eligibleRoles: ['ADMIN'],
     decisionReasonCodes: ['POLICY_REQUIRES_APPROVAL'],
     decisionReasons: ['Policy requires approval.'],
     expiresAt: now + 60 * 60 * 1000,
@@ -236,7 +236,7 @@ async function main() {
     accountId: accountA,
     approvalId: approvalApproved.id,
     status: 'APPROVED',
-    resolvedBy: 'api-key:admin',
+    resolvedBy: 'user:phase7e-admin',
     resolvedByRole: 'ADMIN',
     now: now + 10,
   });
@@ -247,8 +247,8 @@ async function main() {
     policyId: policy.id,
     policyVersion: policy.version,
     requestedBy: 'api-key:requester',
-    requestedByRole: 'OPERATOR',
-    eligibleRoles: ['ADMIN', 'APPROVER'],
+    requestedByRole: 'SERVICE',
+    eligibleRoles: ['ADMIN'],
     decisionReasonCodes: ['POLICY_REQUIRES_APPROVAL'],
     decisionReasons: ['Policy requires approval.'],
     expiresAt: now + 60 * 60 * 1000,
@@ -257,7 +257,7 @@ async function main() {
     accountId: accountA,
     approvalId: approvalRejected.id,
     status: 'REJECTED',
-    resolvedBy: 'api-key:admin',
+    resolvedBy: 'user:phase7e-admin',
     resolvedByRole: 'ADMIN',
     now: now + 20,
   });
@@ -422,11 +422,14 @@ async function main() {
     const context = await contextResponse.json();
     assert(
       contextResponse.status === 200 &&
-        context.role === 'ADMIN' &&
-        context.capabilities.canControlEmergencyStop === true &&
-        context.capabilities.canResolveApprovals === true &&
-        context.capabilities.canCompensate === true,
-      'Automation UI capability context must reflect authenticated actor role.'
+        context.source === 'API_KEY' &&
+        context.role === 'SERVICE' &&
+        context.capabilities.canControlEmergencyStop === false &&
+        context.capabilities.canResolveApprovals === false &&
+        context.capabilities.canCompensate === false &&
+        context.capabilities.canExecuteAutomation === false &&
+        context.capabilities.canRecordFeedback === true,
+      'API-key role:admin scope must remain SERVICE in Automation capability context while non-privileged quality feedback remains available.'
     );
 
     const foreignFeedback = await fetch(
@@ -482,7 +485,7 @@ async function main() {
 
   console.log('PHASE_7E_AUTOMATION_QUALITY_CHECK_PASSED');
   console.log(
-    'Automation success/failure, policy blocking, approval escalation, compensation/recovery, human feedback, false-trigger rate, honest unavailable time-saved metric, dashboard enrichment, role context, and account isolation are verified.'
+    'Automation success/failure, policy blocking, approval escalation, compensation/recovery, human feedback, false-trigger rate, honest unavailable time-saved metric, dashboard enrichment, SERVICE machine-role context, API-key role-scope non-escalation, and account isolation are verified.'
   );
 }
 
