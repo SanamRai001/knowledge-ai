@@ -99,6 +99,12 @@ async function main() {
   );
 
   assert(
+    ui.includes('ka_csrf=') &&
+      ui.includes("'X-CSRF-Token': csrfToken()"),
+    'Developer key create/revoke mutations must send the browser CSRF token required by the privileged control plane.'
+  );
+
+  assert(
     management.includes('ALLOWED_PLATFORM_SCOPES') &&
       management.includes(
         'applicationIdentityMiddleware'
