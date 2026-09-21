@@ -278,3 +278,6 @@ jobs:
 
       - name: Production B2C2 Insights and Company Knowledge proof
         run: npm run check:production:b2c2-insights-company-knowledge
+
+      - name: Production B2C3 product route cutover proof
+        run: npm run check:production:b2c3-product-route-cutover
