@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3B3A — Mediator Route Retirement.**
+> **Continue with Production Hardening B2D3B3B — RAG + Cognitive Route Retirement or Migration.**
 
 Phases 0–8 are complete.
 
@@ -1075,6 +1075,7 @@ Track A relational milestones:
 - B2D3B1 Test / Stress / Evaluation / Audit Route Retirement — COMPLETE, workflow `35626642229`
 - B2D3B2A Operations + Observability Route Retirement — COMPLETE, workflow `35629641464`
 - B2D3B2B Tenant + SaaS Route Retirement — COMPLETE, workflow `35631363130`
+- B2D3B3A Mediator Route Retirement — COMPLETE, workflow `35635059024`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1108,6 +1109,8 @@ B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.m
 
 B2D3B2B evidence: `docs/PRODUCTION_B2D3B2B_TENANT_SAAS_RETIREMENT.md`.
 
+B2D3B3A evidence: `docs/PRODUCTION_B2D3B3A_MEDIATOR_ROUTE_RETIREMENT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1138,18 +1141,20 @@ B2D3B2A now removes the prototype operations/observability HTTP control surfaces
 
 B2D3B2B now removes the prototype tenant/SaaS HTTP administration layer entirely. Legacy tenant provisioning, API-key, billing, quota, governance, webhook, onboarding, and simulated-billing paths are RETIRED and cannot be reopened by compatibility mode. Supporting services remain internal, while modern HUMAN_SESSION OWNER/ADMIN Platform Management remains the authoritative key-admin boundary.
 
-Next, do **B2D3B3A only — Mediator Route Retirement**:
+B2D3B3A now removes all prototype mediator HTTP exposure. The mediator family is RETIRED and cannot be reopened by compatibility mode; reusable orchestration, planning, disagreement, verification, adaptive, and benchmark internals remain directly importable. Supported API-docs/provider/system dependencies under `server/mediator/` remain intact.
 
-1. inventory `/api/v1/mediator/*`
-2. identify mediator services still used by supported product/runtime code
-3. remove prototype mediator HTTP registration
-4. keep required mediator services available internally
-5. remove obsolete `server.ts` imports caused by route retirement
-6. mark the mediator family RETIRED
-7. preserve RAG/Cognitive/Phase 4 for later slices
-8. add focused retirement proof
-9. stop before RAG/Cognitive/Phase 4 cleanup
+Next, do **B2D3B3B only — RAG + Cognitive Route Retirement or Migration**:
 
-B2D3B3B will handle RAG/Cognitive. B2D3B3C will handle Phase 4.
+1. inventory every `/api/v1/rag/*` and `/api/v1/cognitive/*` endpoint
+2. identify RAG/Cognitive modules still used by supported product/runtime code
+3. distinguish internal benchmark/research HTTP surfaces from capabilities that need a supported migration path
+4. remove prototype HTTP registration that has no supported product contract
+5. keep required RAG/Cognitive internals available
+6. remove only obsolete `server.ts` imports
+7. update route dispositions according to the verified retirement/migration outcome
+8. preserve legacy `/api/phase4/*` for B2D3B3C
+9. add focused proof and stop before Phase 4 cleanup
 
-Do not start B2D3B3B, B2D3B3C, Track C object storage, or workers in the same slice.
+B2D3B3C will handle legacy Phase 4.
+
+Do not start B2D3B3C, Track C object storage, or workers in the same slice.

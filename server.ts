@@ -17,10 +17,6 @@ import { memoryStore } from './server/memoryStore.js';
 import { memoryRetrievalService } from './server/memoryRetrievalService.js';
 import { sandboxService } from './server/sandboxService.js';
 import { learningService } from './server/learningService.js';
-import { orchestrationEngine } from './server/mediator/orchestrationEngine.js';
-import { agentRegistry } from './server/mediator/agentRegistry.js';
-import { benchmarkRunner } from './server/mediator/benchmarkRunner.js';
-import { runMediatorPhase6Tests } from './server/mediator/mediatorPhase6Runner.js';
 import { runRag50GoldenBenchmark } from './server/ragBenchmarkRunner.js';
 import { runEightTurnConversationalSequence } from './server/ragConversationalTester.js';
 import { ragTelemetryStore } from './server/ragTelemetryStore.js';
@@ -28,13 +24,6 @@ import { apiManagementService } from './server/mediator/apiManagementService.js'
 import { realProviderAdapter } from './server/mediator/realProviderAdapter.js';
 import { systemReadinessService } from './server/mediator/systemReadinessService.js';
 import { getProductionLimitations } from './server/mediator/limitationsRegister.js';
-import { adaptiveOrchestrator } from './server/mediator/adaptiveOrchestrator.js';
-import { adaptiveBenchmarkEngine } from './server/mediator/adaptiveBenchmarkEngine.js';
-import { taskComplexityAnalyzer } from './server/mediator/taskComplexityAnalyzer.js';
-import { riskAssessmentEngine } from './server/mediator/riskAssessmentEngine.js';
-import { adaptiveStrategyPlanner } from './server/mediator/adaptiveStrategyPlanner.js';
-import { adaptiveDisagreementDetector } from './server/mediator/adaptiveDisagreementDetector.js';
-import { independentVerifier } from './server/mediator/independentVerifier.js';
 import { knowledgeCognitiveEngine } from './server/cognitiveEngine/knowledgeCognitiveEngine.js';
 import { runAurora24Benchmark, runMultilingualBenchmark } from './server/cognitiveEngine/benchmarks/auroraBenchmark.js';
 import { runGolden220Benchmark } from './server/cognitiveEngine/benchmarks/golden200Benchmark.js';
@@ -856,20 +845,9 @@ app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
 
 // B2D3B1: Phase 4 acceptance tests remain script-callable, not HTTP-exposed.
 
-// B2D3B1: /api/v1/tests/mediator-* HTTP test runners retired.
-// The separate mediator family is intentionally left for B2D3B3.
-app.post('/api/v1/mediator/tests/phase6', async (req, res) => {
-  try {
-    const results = await runMediatorPhase6Tests();
-    res.json({
-      results,
-      timestamp: Date.now(),
-    });
-  } catch (err: any) {
-    console.error('Mediator Phase 6 tests error:', err);
-    res.status(500).json({ error: err.message || 'Failed to run Mediator Phase 6 tests' });
-  }
-});
+// B2D3B3A: prototype mediator HTTP test/execution surface retired.
+// Mediator runners and orchestration services remain directly importable for
+// internal scripts, CI, and any later supported integration.
 
 // =========================================================================
 // PHASE 7: SYSTEM INTEGRATION, STRESS TESTING & PRODUCTION READINESS
@@ -1796,210 +1774,9 @@ app.patch('/api/phase4/ai-config', (req, res) => {
 // PHASE 5: MULTI-AGENT MEDIATOR & RELIABILITY ENDPOINTS
 // =========================================================================
 
-// List registered agents
-app.get('/api/v1/mediator/agents', (req, res) => {
-  try {
-    const agents = agentRegistry.listAgents();
-    res.json({ agents });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// List all orchestration runs
-app.get('/api/v1/mediator/runs', (req, res) => {
-  try {
-    const runs = orchestrationEngine.listRuns();
-    res.json({ runs });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get specific orchestration run with full event stream and telemetry
-app.get('/api/v1/mediator/runs/:runId', (req, res) => {
-  try {
-    const { runId } = req.params;
-    const run = orchestrationEngine.getRun(runId);
-    if (!run) return res.status(404).json({ error: 'Run not found' });
-    res.json({ run });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Execute task through multi-agent mediator
-app.post('/api/v1/mediator/execute', async (req, res) => {
-  try {
-    const { taskPrompt, subtaskPrompts, config, mode, faultMode, correlationGroup, customClaims, maxAgents, maxEscalationRounds, kbId } = req.body || {};
-    if (!taskPrompt) {
-      return res.status(400).json({ error: 'taskPrompt is required' });
-    }
-
-    if (mode === 'ADAPTIVE' || (!subtaskPrompts && mode !== 'FIXED')) {
-      const adaptiveResult = await adaptiveOrchestrator.executeRun({
-        taskPrompt,
-        orchestrationMode: mode || 'ADAPTIVE',
-        seed: config?.seed,
-        kbId,
-        faultMode,
-        customClaims,
-        maxAgents,
-        maxEscalationRounds,
-        timeoutMs: config?.globalTimeoutMs,
-        correlationGroup,
-      });
-      return res.json({
-        run: adaptiveResult.underlyingOrchestrationRun,
-        adaptiveResult,
-      });
-    }
-
-    const run = await orchestrationEngine.executeRun({
-      taskPrompt,
-      subtaskPrompts,
-      config,
-      kbId,
-    });
-    res.json({ run });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: Plan task topology & agent count without execution
-app.post('/api/v1/mediator/plan', (req, res) => {
-  try {
-    const { taskPrompt, mode } = req.body || {};
-    if (!taskPrompt) return res.status(400).json({ error: 'taskPrompt is required' });
-    const complexity = taskComplexityAnalyzer.analyze(taskPrompt);
-    const risk = riskAssessmentEngine.assess(taskPrompt, complexity);
-    const availableAgents = agentRegistry.listAgents();
-    const plan = adaptiveStrategyPlanner.plan(taskPrompt, complexity, risk, availableAgents, mode || 'ADAPTIVE');
-    res.json({ plan, complexity, risk });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: Analyze claims for contradictions and unsupported consensus
-app.post('/api/v1/mediator/disagreements/analyze', (req, res) => {
-  try {
-    const { claims } = req.body || {};
-    if (!claims || !Array.isArray(claims)) {
-      return res.status(400).json({ error: 'claims array is required' });
-    }
-    const result = adaptiveDisagreementDetector.analyzeDisagreements(claims);
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: Independent verification pass against authoritative grounding
-app.post('/api/v1/mediator/verify', async (req, res) => {
-  try {
-    const { claims, targetClaims, kbId } = req.body || {};
-    if (!claims || !Array.isArray(claims)) {
-      return res.status(400).json({ error: 'claims array is required' });
-    }
-    const result = await independentVerifier.verify(claims, targetClaims || [], kbId);
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: List adaptive runs
-app.get('/api/v1/mediator/adaptive/runs', (req, res) => {
-  try {
-    const runs = adaptiveOrchestrator.getAllRuns();
-    res.json({ runs });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: Get specific adaptive run
-app.get('/api/v1/mediator/adaptive/runs/:runId', (req, res) => {
-  try {
-    const { runId } = req.params;
-    const run = adaptiveOrchestrator.getRun(runId);
-    if (!run) return res.status(404).json({ error: 'Adaptive run not found' });
-    res.json({ adaptiveRun: run });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Phase 6: Comparative benchmark (FIXED_1, FIXED_4, FIXED_10, ADAPTIVE)
-app.post('/api/v1/mediator/benchmarks/compare', async (req, res) => {
-  try {
-    const { seed } = req.body || {};
-    const result = await adaptiveBenchmarkEngine.runComparativeBenchmark(seed ? parseInt(seed, 10) : 42);
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Cancel active orchestration run
-app.post('/api/v1/mediator/runs/:runId/cancel', (req, res) => {
-  try {
-    const { runId } = req.params;
-    const success = orchestrationEngine.cancelRun(runId);
-    if (!success) {
-      return res.status(400).json({ error: 'Run cannot be cancelled or was not found' });
-    }
-    res.json({ message: 'Run cancelled successfully', runId });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get aggregated reliability and quality metrics
-app.get('/api/v1/mediator/metrics', (req, res) => {
-  try {
-    const metrics = benchmarkRunner.getMetrics();
-    res.json({ metrics });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Benchmark: Parallel speedup
-app.post('/api/v1/mediator/benchmarks/parallelism', async (req, res) => {
-  try {
-    const { subtaskCount, delayMs } = req.body || {};
-    const result = await benchmarkRunner.runParallelSpeedupBenchmark(
-      subtaskCount ? parseInt(subtaskCount, 10) : 4,
-      delayMs ? parseInt(delayMs, 10) : 50
-    );
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Benchmark: Agent count scaling
-app.post('/api/v1/mediator/benchmarks/scaling', async (req, res) => {
-  try {
-    const result = await benchmarkRunner.runAgentCountExperiment();
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Benchmark: Majority wrong scenario
-app.post('/api/v1/mediator/benchmarks/majority-wrong', async (req, res) => {
-  try {
-    const result = await benchmarkRunner.runMajorityWrongBenchmark();
-    res.json({ result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// B2D3B3A: prototype /api/v1/mediator/* HTTP registration retired.
+// The underlying orchestration, planning, disagreement, verification, adaptive,
+// and benchmark modules remain internal and directly importable.
 
 // Phase 9.5 50-Question Golden RAG Acceptance Benchmark
 app.post('/api/v1/rag/benchmark/run', async (req, res) => {

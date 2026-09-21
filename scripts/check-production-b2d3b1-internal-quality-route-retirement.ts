@@ -118,16 +118,6 @@ async function main() {
     );
   }
 
-  assert(
-    serverSource.includes(
-      "import { runMediatorPhase6Tests }"
-    ) &&
-      serverSource.includes(
-        "app.post('/api/v1/mediator/tests/phase6'"
-      ),
-    'B2D3B1 must not accidentally remove the separate mediator-family Phase 6 route reserved for B2D3B3.'
-  );
-
   for (const prefix of [
     '/api/v1/tests',
     '/api/v1/stress',
@@ -230,7 +220,7 @@ async function main() {
     }
 
     const devOnly = await fetch(
-      baseUrl + '/api/v1/mediator/execute'
+      baseUrl + '/api/v1/rag/benchmark/run'
     );
     const devOnlyBody = await readJson(devOnly);
     assert(
