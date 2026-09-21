@@ -80,14 +80,14 @@ export const legacyRouteInventory:
     {
       id: 'prototype-test-harness',
       prefix: '/api/v1/tests',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Acceptance-test execution belongs in CI/development, not the production HTTP surface.',
     },
     {
       id: 'prototype-stress-harness',
       prefix: '/api/v1/stress',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Stress and state-machine audit harnesses are internal test tooling.',
     },
@@ -108,14 +108,14 @@ export const legacyRouteInventory:
     {
       id: 'prototype-evaluation',
       prefix: '/api/v1/eval',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Golden/human evaluation execution is internal quality tooling.',
     },
     {
       id: 'prototype-audit',
       prefix: '/api/v1/audit',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
         'Comprehensive audit execution is internal quality tooling.',
     },
@@ -210,7 +210,10 @@ export const legacyPrototypeRouteQuarantineMiddleware:
       return;
     }
 
-    if (isLegacyCompatibilityEnabled()) {
+    if (
+      family.disposition === 'DEVELOPMENT_ONLY' &&
+      isLegacyCompatibilityEnabled()
+    ) {
       next();
       return;
     }
