@@ -10,6 +10,7 @@ import { automationControlService } from '../server/automation/automationControl
 import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
 import { automationRunStore } from '../server/automation/automationRunStore.js';
+import { automationExecutionService } from '../server/automation/automationExecutionService.js';
 import type { RequestIdentity } from '../server/requestIdentity.js';
 import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowledgeStore.js';
 import { effectiveCompanyStateService } from '../server/companyKnowledge/effectiveCompanyStateService.js';
@@ -370,28 +371,23 @@ async function main() {
       validFrom: now + 4000,
     });
 
-    const changedCompensate = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        changedStateBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-        },
-      }
-    );
-    const changedCompensateBody =
-      await changedCompensate.json();
+    let changedCompensateError: any = null;
+    try {
+      automationExecutionService.compensate({
+        accountId: accountA,
+        runId: changedStateBody.run.id,
+        identity: adminHumanIdentity,
+      });
+    } catch (error: any) {
+      changedCompensateError = error;
+    }
 
     assert(
-      changedCompensate.status === 409 &&
-        changedCompensateBody.code ===
+      changedCompensateError?.code ===
           'AUTOMATION_COMPENSATION_STATE_CHANGED' &&
-        changedCompensateBody.runId ===
+        changedCompensateError?.runId ===
           changedStateBody.run.id,
-      'Compensation must refuse to blindly overwrite state changed after the automatic action.'
+      'Human-admin compensation must refuse to blindly overwrite state changed after the automatic action.'
     );
 
     const recoveryRequired = automationRunStore.require(
@@ -633,10 +629,15 @@ async function main() {
         },
       }
     );
+    const foreignCompensateBody =
+      await foreignCompensate.json();
     assert(
-      foreignCompensate.status === 404,
-      'Foreign account must not compensate another account automation run.'
+      foreignCompensate.status === 403 &&
+        foreignCompensateBody.code ===
+          'AUTOMATION_COMPENSATION_NOT_ALLOWED',
+      'Foreign role:admin API key must remain SERVICE and cannot gain compensation authority.'
     );
+
   } finally {
     await new Promise<void>((resolve) =>
       server.close(() => resolve())
@@ -645,7 +646,7 @@ async function main() {
 
   console.log('PHASE_7D_AUTOMATION_RECOVERY_CHECK_PASSED');
   console.log(
-    'Emergency kill switch, control history, durable AutomationRun outcomes, bounded technical retry, non-retryable stale failures, audited compensation, changed-state compensation refusal, idempotent recovery, and account isolation are verified.'
+    'Human-admin emergency control and compensation, SERVICE machine execution, control history, durable AutomationRun outcomes, bounded technical retry, non-retryable stale failures, changed-state compensation refusal, idempotent recovery, API-key role-scope non-escalation, and account isolation are verified.'
   );
 }
 
