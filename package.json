@@ -78,7 +78,8 @@
     "check:production:b2c3-product-route-cutover": "tsx scripts/check-production-b2c3-product-route-cutover.ts",
     "check:production:b2d1-privileged-platform-management": "tsx scripts/check-production-b2d1-privileged-platform-management.ts",
     "check:production:b2d2a-legacy-developer-route-closure": "tsx scripts/check-production-b2d2a-legacy-developer-route-closure.ts",
-    "check:production:b2d2b1-automation-privileged-auth": "tsx scripts/check-production-b2d2b1-automation-privileged-auth.ts"
+    "check:production:b2d2b1-automation-privileged-auth": "tsx scripts/check-production-b2d2b1-automation-privileged-auth.ts",
+    "check:production:b2d2b2-integration-privileged-auth": "tsx scripts/check-production-b2d2b2-integration-privileged-auth.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
