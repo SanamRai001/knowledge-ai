@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3B2B — Tenant + SaaS Route Retirement.**
+> **Continue with Production Hardening B2D3B3A — Mediator Route Retirement.**
 
 Phases 0–8 are complete.
 
@@ -1074,6 +1074,7 @@ Track A relational milestones:
 - B2D3A Legacy/Prototype Route Quarantine Foundation — COMPLETE, workflow `35623669505`
 - B2D3B1 Test / Stress / Evaluation / Audit Route Retirement — COMPLETE, workflow `35626642229`
 - B2D3B2A Operations + Observability Route Retirement — COMPLETE, workflow `35629641464`
+- B2D3B2B Tenant + SaaS Route Retirement — COMPLETE, workflow `35631363130`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1105,6 +1106,8 @@ B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
 
 B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
 
+B2D3B2B evidence: `docs/PRODUCTION_B2D3B2B_TENANT_SAAS_RETIREMENT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1133,18 +1136,20 @@ B2D3B1 now removes the legacy test/stress/eval/audit HTTP execution routes entir
 
 B2D3B2A now removes the prototype operations/observability HTTP control surfaces entirely while keeping operational and telemetry services directly importable. Both families are RETIRED and cannot be reopened by compatibility mode. Read-only `/api/v1/system/*` and `/api/v1/providers/*` compatibility remains intact.
 
-Next, do **B2D3B2B only — Tenant + SaaS Route Retirement**:
+B2D3B2B now removes the prototype tenant/SaaS HTTP administration layer entirely. Legacy tenant provisioning, API-key, billing, quota, governance, webhook, onboarding, and simulated-billing paths are RETIRED and cannot be reopened by compatibility mode. Supporting services remain internal, while modern HUMAN_SESSION OWNER/ADMIN Platform Management remains the authoritative key-admin boundary.
 
-1. remove `/api/v1/tenants/*` server registration
-2. remove `/api/v1/saas/*` server registration
-3. keep useful tenancy/readiness service logic available outside HTTP where needed
-4. remove obsolete `server.ts` imports
-5. mark both families RETIRED
-6. close legacy tenant/key/billing/quota/webhook administration paths
-7. preserve modern account/membership/Platform Management boundaries
+Next, do **B2D3B3A only — Mediator Route Retirement**:
+
+1. inventory `/api/v1/mediator/*`
+2. identify mediator services still used by supported product/runtime code
+3. remove prototype mediator HTTP registration
+4. keep required mediator services available internally
+5. remove obsolete `server.ts` imports caused by route retirement
+6. mark the mediator family RETIRED
+7. preserve RAG/Cognitive/Phase 4 for later slices
 8. add focused retirement proof
-9. stop before mediator/RAG/cognitive/Phase 4 cleanup
+9. stop before RAG/Cognitive/Phase 4 cleanup
 
-B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
+B2D3B3B will handle RAG/Cognitive. B2D3B3C will handle Phase 4.
 
-Do not start B2D3B3, Track C object storage, or workers in the same slice.
+Do not start B2D3B3B, B2D3B3C, Track C object storage, or workers in the same slice.

@@ -181,6 +181,9 @@ jobs:
       - name: Production B2D3B2A operations observability retirement proof
         run: npm run check:production:b2d3b2a-operations-observability-retirement
 
+      - name: Production B2D3B2B tenant SaaS retirement proof
+        run: npm run check:production:b2d3b2b-tenant-saas-retirement
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 

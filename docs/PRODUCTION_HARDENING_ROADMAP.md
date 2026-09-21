@@ -166,8 +166,10 @@ The implementation sequence is deliberately split into small slices:
 11. **B2D3A — Legacy/Prototype Route Quarantine Foundation** — COMPLETE, workflow `35623669505`
 12. **B2D3B1 — Test / Stress / Evaluation / Audit Route Retirement** — COMPLETE, workflow `35626642229`
 13. **B2D3B2A — Operations + Observability Route Retirement** — COMPLETE, workflow `35629641464`
-14. **B2D3B2B — Tenant + SaaS Route Retirement** — NEXT
-15. B2D3B3 — Mediator / RAG / Cognitive / Phase 4 Route Retirement or Migration
+14. **B2D3B2B — Tenant + SaaS Route Retirement** — COMPLETE, workflow `35631363130`
+15. **B2D3B3A — Mediator Route Retirement** — NEXT
+16. B2D3B3B — RAG + Cognitive Route Retirement or Migration
+17. B2D3B3C — Phase 4 Route Retirement or Migration
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -195,7 +197,7 @@ B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
 
 B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
 
-B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
+B2D3B2B evidence: `docs/PRODUCTION_B2D3B2B_TENANT_SAAS_RETIREMENT.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -223,7 +225,7 @@ B2D3B1 removed test/stress/eval/audit HTTP execution, retained the underlying qu
 
 B2D3B2A removed prototype operations/observability HTTP exposure, retained reusable operational/telemetry services for internal use, permanently retired both route families, and preserved system/provider read-only compatibility.
 
-B2D3B2A removed prototype operations/observability HTTP exposure, retained reusable operational/telemetry services for internal use, permanently retired both route families, and preserved system/provider read-only compatibility.
+B2D3B2B removed legacy tenant/SaaS HTTP administration, closed prototype tenant key/billing/quota/governance/webhook paths, retained the supporting services internally, and preserved modern Platform Management as the privileged key-admin boundary.
 
 ## Security rules
 
@@ -653,21 +655,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D3B2B — Tenant + SaaS Route Retirement**
+**Production Hardening B2D3B3A — Mediator Route Retirement**
 
-Keep this slice limited to prototype tenant and SaaS HTTP families.
+Keep this slice limited to the prototype mediator HTTP family.
 
-1. retire `/api/v1/tenants/*`
-2. retire `/api/v1/saas/*`
-3. keep useful tenancy/readiness service logic available outside HTTP where needed
-4. remove obsolete `server.ts` imports
-5. mark both route families RETIRED
-6. close legacy tenant/key/billing/quota/webhook administration paths
-7. preserve modern account/membership/Platform Management boundaries
+1. inventory `/api/v1/mediator/*`
+2. identify mediator services still used by supported product/runtime code
+3. retire prototype mediator HTTP registration
+4. keep required mediator services available internally
+5. remove obsolete `server.ts` imports caused by HTTP retirement
+6. mark the mediator family RETIRED
+7. preserve RAG, Cognitive, and Phase 4 route families for later slices
 8. add focused retirement proof
-9. stop before mediator/RAG/cognitive/Phase 4 cleanup
+9. stop before RAG/Cognitive/Phase 4 cleanup
 
-Do not start B2D3B3, Track C object storage, or workers in this slice.
+Do not start B2D3B3B, B2D3B3C, Track C object storage, or workers in this slice.
 ---
 
 # Track A closure note
