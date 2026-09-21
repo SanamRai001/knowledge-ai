@@ -148,6 +148,14 @@ async function main() {
     }
     const baseUrl = 'http://127.0.0.1:' + address.port;
 
+    process.env.KNOWLEDGE_AI_PUBLIC_ORIGIN = baseUrl;
+    const adminMutationHeaders = {
+      cookie: adminCookie,
+      origin: baseUrl,
+      'x-csrf-token': adminCsrf,
+      'Content-Type': 'application/json',
+    };
+
     const projected = await json(
       await fetch(baseUrl + '/api/company-knowledge/project/dataset', {
         method: 'POST',
