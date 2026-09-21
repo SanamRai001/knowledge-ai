@@ -4,6 +4,7 @@ import {
   RequestIdentityError,
 } from '../requestIdentity.js';
 import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
+import { requireOwnerOrAdmin } from '../identity/privilegedAuthorization.js';
 import {
   IntegrationAccessError,
   IntegrationStateError,
@@ -84,6 +85,7 @@ function handleError(res: express.Response, error: any): void {
 
 integrationRouter.post(
   '/onedrive/oauth/start',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       const { accountId } = identity(res);
@@ -107,6 +109,7 @@ integrationRouter.post(
 
 integrationRouter.get(
   '/onedrive/oauth/callback',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       if (
@@ -145,6 +148,7 @@ integrationRouter.get(
             typeof req.query.code === 'string'
               ? req.query.code
               : '',
+          expectedAccountId: identity(res).accountId,
         });
       if (wantsHtml(req)) {
         res.redirect(
@@ -182,6 +186,7 @@ integrationRouter.get(
 
 integrationRouter.post(
   '/onedrive/connections/:id/disconnect',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       const { accountId } = identity(res);
@@ -199,6 +204,7 @@ integrationRouter.post(
 
 integrationRouter.post(
   '/google-drive/oauth/start',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       const { accountId } = identity(res);
@@ -222,6 +228,7 @@ integrationRouter.post(
 
 integrationRouter.get(
   '/google-drive/oauth/callback',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       if (
@@ -262,6 +269,7 @@ integrationRouter.get(
       const result = await googleDriveOAuthService.complete({
         state,
         code,
+        expectedAccountId: identity(res).accountId,
       });
       if (wantsHtml(req)) {
         res.redirect(
@@ -298,6 +306,7 @@ integrationRouter.get(
 
 integrationRouter.post(
   '/google-drive/connections/:id/disconnect',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       const { accountId } = identity(res);
@@ -395,6 +404,7 @@ integrationRouter.post('/connections/:id/sync', async (req, res) => {
 
 integrationRouter.post(
   '/connections/:id/reset-cursor',
+  requireOwnerOrAdmin,
   async (req, res) => {
     try {
       const { accountId } = identity(res);
@@ -410,7 +420,10 @@ integrationRouter.post(
   }
 );
 
-integrationRouter.post('/connections/:id/pause', async (req, res) => {
+integrationRouter.post(
+  '/connections/:id/pause',
+  requireOwnerOrAdmin,
+  async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
@@ -422,9 +435,13 @@ integrationRouter.post('/connections/:id/pause', async (req, res) => {
   } catch (error) {
     handleError(res, error);
   }
-});
+  }
+);
 
-integrationRouter.post('/connections/:id/resume', async (req, res) => {
+integrationRouter.post(
+  '/connections/:id/resume',
+  requireOwnerOrAdmin,
+  async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
@@ -436,9 +453,13 @@ integrationRouter.post('/connections/:id/resume', async (req, res) => {
   } catch (error) {
     handleError(res, error);
   }
-});
+  }
+);
 
-integrationRouter.post('/connections/:id/revoke', async (req, res) => {
+integrationRouter.post(
+  '/connections/:id/revoke',
+  requireOwnerOrAdmin,
+  async (req, res) => {
   try {
     const { accountId } = identity(res);
     res.json({
@@ -450,4 +471,5 @@ integrationRouter.post('/connections/:id/revoke', async (req, res) => {
   } catch (error) {
     handleError(res, error);
   }
-});
+  }
+);
