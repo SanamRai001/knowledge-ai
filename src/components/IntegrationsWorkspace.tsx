@@ -50,6 +50,16 @@ function when(value?: number): string {
   return new Date(value).toLocaleString();
 }
 
+function csrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const entry = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith('ka_csrf='));
+  if (!entry) return '';
+  return decodeURIComponent(entry.slice('ka_csrf='.length));
+}
+
 function providerName(provider: string): string {
   if (provider === 'GOOGLE_DRIVE') return 'Google Drive';
   if (provider === 'MICROSOFT_ONEDRIVE') return 'Microsoft OneDrive';
@@ -256,7 +266,10 @@ export const IntegrationsWorkspace: React.FC = () => {
 
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken(),
+        },
         body: JSON.stringify({
           displayName:
             provider === 'GOOGLE_DRIVE'
@@ -293,7 +306,12 @@ export const IntegrationsWorkspace: React.FC = () => {
     try {
       const response = await fetch(
         '/api/integrations/connections/' + connection.id + '/' + action,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: {
+            'X-CSRF-Token': csrfToken(),
+          },
+        }
       );
       const body = await response.json();
 
@@ -342,7 +360,12 @@ export const IntegrationsWorkspace: React.FC = () => {
             connection.id +
             '/disconnect';
 
-      const response = await fetch(endpoint, { method: 'POST' });
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken(),
+        },
+      });
       const body = await response.json();
 
       if (!response.ok) {
