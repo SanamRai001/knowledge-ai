@@ -419,24 +419,13 @@ async function main() {
       'Integration failure state must be read back from PostgreSQL.'
     );
 
-    const resumed = await json(
-      await fetch(
-        baseUrl +
-          '/api/integrations/connections/' +
-          encodeURIComponent(connection.id) +
-          '/resume',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + keyA.secret,
-          },
-        }
-      )
+    const resumed = await reconstructed.resume(
+      accountA,
+      connection.id
     );
     assert(
-      resumed.response.status === 200 &&
-        resumed.body.connection?.status === 'ACTIVE' &&
-        resumed.body.connection?.attentionReason === undefined,
+      resumed.status === 'ACTIVE' &&
+        resumed.attentionReason === undefined,
       'Recoverable SYNC_FAILED connection must resume through PostgreSQL runtime.'
     );
 
@@ -456,7 +445,7 @@ async function main() {
 
   console.log('PRODUCTION_A7B_INTEGRATION_RUNTIME_CHECK_PASSED');
   console.log(
-    'PostgreSQL-selected Integration HTTP reads/syncs, transactional checkpoints, external import provenance, account isolation, pool/service reconstruction, same-Dataset versioning, atomic leases, failure/resume state, and zero integrations.json mutation are verified.'
+    'PostgreSQL-selected Integration HTTP reads/syncs, transactional checkpoints, external import provenance, account isolation, pool/service reconstruction, same-Dataset versioning, atomic leases, runtime failure/resume state, and zero integrations.json mutation are verified.'
   );
 }
 
