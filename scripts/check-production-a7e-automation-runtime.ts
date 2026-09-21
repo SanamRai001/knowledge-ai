@@ -287,10 +287,7 @@ async function main() {
     const autoPolicy = await json(
       await fetch(baseUrl + '/api/automation/policy', {
         method: 'PUT',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
+        headers: adminMutationHeaders,
         body: JSON.stringify({
           enabled: true,
           mode: 'AUTO_EXECUTE_LOW_RISK',
@@ -298,8 +295,8 @@ async function main() {
           maxRiskClass: 'LOW',
           maxQuantity: 5,
           allowedIdentitySources: ['API_KEY'],
-          allowedActorRoles: ['OPERATOR'],
-          approvalRoles: ['ADMIN', 'APPROVER'],
+          allowedActorRoles: ['SERVICE'],
+          approvalRoles: ['ADMIN'],
           allowedTargetEntityTypes: ['PRODUCT'],
           allowedTargetEntityIds: [productId],
         }),
@@ -314,10 +311,7 @@ async function main() {
     const disabled = await json(
       await fetch(baseUrl + '/api/automation/control/disable', {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
+        headers: adminMutationHeaders,
         body: JSON.stringify({
           reason: 'A7E emergency-stop verification.',
         }),
@@ -379,10 +373,7 @@ async function main() {
     const enabled = await json(
       await fetch(baseUrl + '/api/automation/control/enable', {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
+        headers: adminMutationHeaders,
         body: JSON.stringify({ reason: 'A7E resume verification.' }),
       })
     );
