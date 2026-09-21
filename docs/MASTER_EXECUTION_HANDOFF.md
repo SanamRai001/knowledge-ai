@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3B2A — Operations + Observability Route Retirement.**
+> **Continue with Production Hardening B2D3B2B — Tenant + SaaS Route Retirement.**
 
 Phases 0–8 are complete.
 
@@ -1073,6 +1073,7 @@ Track A relational milestones:
 - B2D2B2 Integration Management Privileged Authorization — COMPLETE, workflow `35620617850`
 - B2D3A Legacy/Prototype Route Quarantine Foundation — COMPLETE, workflow `35623669505`
 - B2D3B1 Test / Stress / Evaluation / Audit Route Retirement — COMPLETE, workflow `35626642229`
+- B2D3B2A Operations + Observability Route Retirement — COMPLETE, workflow `35629641464`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1102,6 +1103,8 @@ B2D3A evidence: `docs/PRODUCTION_B2D3A_ROUTE_QUARANTINE.md`.
 
 B2D3B1 evidence: `docs/PRODUCTION_B2D3B1_INTERNAL_QUALITY_ROUTE_RETIREMENT.md`.
 
+B2D3B2A evidence: `docs/PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1128,17 +1131,20 @@ B2D3A now inventories the remaining legacy/prototype HTTP families and enforces 
 
 B2D3B1 now removes the legacy test/stress/eval/audit HTTP execution routes entirely while keeping their underlying runners/services available for CLI/CI. These families are now RETIRED and cannot be reopened by the non-production compatibility flag.
 
-Next, do **B2D3B2A only — Operations + Observability Route Retirement**:
+B2D3B2A now removes the prototype operations/observability HTTP control surfaces entirely while keeping operational and telemetry services directly importable. Both families are RETIRED and cannot be reopened by compatibility mode. Read-only `/api/v1/system/*` and `/api/v1/providers/*` compatibility remains intact.
 
-1. remove `/api/v1/operations/*` server registration
-2. remove `/api/v1/observability/*` server registration
-3. keep useful operational/telemetry services available outside HTTP where needed
+Next, do **B2D3B2B only — Tenant + SaaS Route Retirement**:
+
+1. remove `/api/v1/tenants/*` server registration
+2. remove `/api/v1/saas/*` server registration
+3. keep useful tenancy/readiness service logic available outside HTTP where needed
 4. remove obsolete `server.ts` imports
 5. mark both families RETIRED
-6. preserve `/api/v1/system/*` and `/api/v1/providers/*` read-only compatibility
-7. add focused retirement proof
-8. stop before tenant/SaaS cleanup
+6. close legacy tenant/key/billing/quota/webhook administration paths
+7. preserve modern account/membership/Platform Management boundaries
+8. add focused retirement proof
+9. stop before mediator/RAG/cognitive/Phase 4 cleanup
 
-B2D3B2B will handle tenant/SaaS. B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
+B2D3B3 will handle mediator/RAG/cognitive/Phase 4.
 
-Do not start B2D3B2B, B2D3B3, Track C object storage, or workers in the same slice.
+Do not start B2D3B3, Track C object storage, or workers in the same slice.
