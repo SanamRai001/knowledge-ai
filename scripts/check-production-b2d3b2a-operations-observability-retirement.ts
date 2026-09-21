@@ -205,14 +205,14 @@ async function main() {
     }
 
     const devOnly = await fetch(
-      baseUrl + '/api/v1/mediator/execute'
+      baseUrl + '/api/v1/rag/benchmark/run'
     );
     const devOnlyBody = await readJson(devOnly);
     assert(
       devOnly.status === 200 &&
         devOnlyBody?.source ===
           'post-quarantine-handler',
-      'B2D3B2A must preserve explicit non-production compatibility for later DEVELOPMENT_ONLY mediator/Phase 4 groups.'
+      'B2D3B2A must preserve explicit non-production compatibility for later DEVELOPMENT_ONLY RAG/Cognitive/Phase 4 groups.'
     );
   } finally {
     await new Promise<void>((resolve, reject) => {
@@ -242,7 +242,7 @@ async function main() {
     'PRODUCTION_B2D3B2A_OPERATIONS_OBSERVABILITY_RETIREMENT_CHECK_PASSED'
   );
   console.log(
-    'Operations and observability HTTP registrations are removed, both route families are permanently retired, operational/telemetry services remain directly callable, system/provider read-only compatibility remains registered, and later DEVELOPMENT_ONLY mediator/Phase 4 compatibility remains untouched.'
+    'Operations and observability HTTP registrations are removed, both route families are permanently retired, operational/telemetry services remain directly callable, system/provider read-only compatibility remains registered, and later DEVELOPMENT_ONLY RAG/Cognitive/Phase 4 compatibility remains untouched.'
   );
 }
 
