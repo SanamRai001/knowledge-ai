@@ -284,29 +284,20 @@ async function main() {
       'Automatic receipt must update stock before compensation.'
     );
 
-    const compensateResponse = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        autoBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + approverKey.secret,
-        },
-      }
-    );
-    const compensateBody = await compensateResponse.json();
+    const compensateBody = automationExecutionService.compensate({
+      accountId: accountA,
+      runId: autoBody.run.id,
+      identity: adminHumanIdentity,
+    });
 
     assert(
-      compensateResponse.status === 200 &&
-        compensateBody.replayed === false &&
+      compensateBody.replayed === false &&
         compensateBody.run?.status === 'COMPENSATED' &&
         compensateBody.compensationExecution?.executionMode ===
           'AUTOMATION_COMPENSATION' &&
         compensateBody.compensationExecution?.authorizedByRole ===
-          'APPROVER',
-      'Eligible approver must be able to run the explicit audited compensation path.'
+          'ADMIN',
+      'Human ADMIN must be able to run the explicit audited compensation path.'
     );
 
     const restored = effectiveCompanyStateService.resolve(
@@ -322,27 +313,19 @@ async function main() {
       'Compensation must restore prior stock through explicit compensating provenance.'
     );
 
-    const compensationReplay = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        autoBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-        },
-      }
-    );
     const compensationReplayBody =
-      await compensationReplay.json();
+      automationExecutionService.compensate({
+        accountId: accountA,
+        runId: autoBody.run.id,
+        identity: adminHumanIdentity,
+      });
     assert(
-      compensationReplay.status === 200 &&
-        compensationReplayBody.replayed === true &&
+      compensationReplayBody.replayed === true &&
         compensationReplayBody.compensationExecution?.id ===
           compensateBody.compensationExecution.id,
-      'Repeated compensation request must replay idempotently.'
+      'Repeated human-admin compensation request must replay idempotently.'
     );
+
 
     // Compensation refuses to erase later company state.
     const changedStateProposal = makeProposal(
