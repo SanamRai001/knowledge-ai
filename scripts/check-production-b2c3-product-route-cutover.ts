@@ -716,9 +716,13 @@ async function main() {
           body: '{}',
         }
       );
+    const machineAutomationMutationBody =
+      await readJson(machineAutomationMutation);
     assert(
-      machineAutomationMutation.status === 400,
-      'API_KEY Automation mutation must reach application validation without browser CSRF.'
+      machineAutomationMutation.status === 403 &&
+        machineAutomationMutationBody?.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API_KEY must remain able to read Automation state but must not administer Automation policy.'
     );
 
     await humanIdentityFoundationService.revokeSession(

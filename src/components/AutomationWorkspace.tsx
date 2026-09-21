@@ -214,6 +214,16 @@ function pretty(value?: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function csrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const entry = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith('ka_csrf='));
+  if (!entry) return '';
+  return decodeURIComponent(entry.slice('ka_csrf='.length));
+}
+
 function runTone(status: AutomationRunStatus): string {
   if (status === 'SUCCEEDED') {
     return 'border-emerald-200 bg-emerald-50 text-emerald-800';
@@ -322,7 +332,10 @@ export const AutomationWorkspace: React.FC = () => {
         '/api/automation/control/' + action,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          },
           body: JSON.stringify({
             reason:
               action === 'disable'
@@ -362,7 +375,10 @@ export const AutomationWorkspace: React.FC = () => {
         '/api/automation/approvals/' + approvalId + '/' + action,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          },
           body: JSON.stringify({
             note:
               action === 'approve'
@@ -396,7 +412,12 @@ export const AutomationWorkspace: React.FC = () => {
     try {
       const response = await fetch(
         '/api/automation/runs/' + runId + '/compensate',
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: {
+            'X-CSRF-Token': csrfToken(),
+          },
+        }
       );
       const body = await response.json();
       if (!response.ok) {
@@ -429,7 +450,10 @@ export const AutomationWorkspace: React.FC = () => {
         '/api/automation/runs/' + runId + '/feedback',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          },
           body: JSON.stringify({ feedback }),
         }
       );

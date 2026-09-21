@@ -6,9 +6,12 @@ import {
 import { actionProposalService } from '../server/actions/actionProposalService.js';
 import { actionStore } from '../server/actions/actionStore.js';
 import { automationControlStore } from '../server/automation/automationControlStore.js';
+import { automationControlService } from '../server/automation/automationControlService.js';
 import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
 import { automationRunStore } from '../server/automation/automationRunStore.js';
+import { automationExecutionService } from '../server/automation/automationExecutionService.js';
+import type { RequestIdentity } from '../server/requestIdentity.js';
 import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowledgeStore.js';
 import { effectiveCompanyStateService } from '../server/companyKnowledge/effectiveCompanyStateService.js';
 import { SOURCE_AUTHORITIES } from '../server/companyKnowledge/sourceAuthority.js';
@@ -54,18 +57,6 @@ async function main() {
     validFrom: now,
   });
 
-  const adminKey = apiKeyStore.createApiKey({
-    name: 'Phase 7D Admin',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:admin', 'role:admin'],
-  });
-  const approverKey = apiKeyStore.createApiKey({
-    name: 'Phase 7D Approver',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:approve', 'role:approver'],
-  });
   const operatorKey = apiKeyStore.createApiKey({
     name: 'Phase 7D Operator',
     accountId: accountA,
@@ -79,6 +70,15 @@ async function main() {
     scopes: ['automation:admin', 'role:admin'],
   });
 
+  const adminHumanIdentity: RequestIdentity = {
+    accountId: accountA,
+    source: 'HUMAN_SESSION',
+    authenticated: true,
+    userId: 'usr_phase7d_admin',
+    membershipRole: 'ADMIN',
+    sessionId: 'sess_phase7d_admin',
+  };
+
   automationPolicyStore.upsertPolicy({
     accountId: accountA,
     actor: 'test:phase7d',
@@ -89,8 +89,8 @@ async function main() {
       maxRiskClass: 'LOW',
       maxQuantity: 5,
       allowedIdentitySources: ['API_KEY'],
-      allowedActorRoles: ['OPERATOR'],
-      approvalRoles: ['ADMIN', 'APPROVER'],
+      allowedActorRoles: ['SERVICE'],
+      approvalRoles: ['ADMIN'],
       allowedTargetEntityTypes: ['PRODUCT'],
       allowedTargetEntityIds: [product.id],
     },
@@ -152,25 +152,16 @@ async function main() {
       'Operator must not be able to toggle the workspace emergency automation stop.'
     );
 
-    const disableResponse = await fetch(
-      baseUrl + '/api/automation/control/disable',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'Emergency stop for Phase 7D proof.',
-        }),
-      }
-    );
-    const disableBody = await disableResponse.json();
+    const disabledControl = automationControlService.disable({
+      accountId: accountA,
+      identity: adminHumanIdentity,
+      reason: 'Emergency stop for Phase 7D proof.',
+    });
     assert(
-      disableResponse.status === 200 &&
-        disableBody.control?.emergencyDisabled === true &&
-        disableBody.control?.version === 1,
-      'Admin must be able to activate the independent emergency stop.'
+      disabledControl.emergencyDisabled === true &&
+        disabledControl.version === 1 &&
+        disabledControl.updatedBy === 'user:usr_phase7d_admin',
+      'Human ADMIN must be able to activate the independent emergency stop.'
     );
 
     const killedProposal = makeProposal(1, now + 1000, 'kill-switch');
@@ -224,25 +215,16 @@ async function main() {
       'Emergency-stop block must leave company state unchanged.'
     );
 
-    const enableResponse = await fetch(
-      baseUrl + '/api/automation/control/enable',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'Phase 7D emergency condition cleared.',
-        }),
-      }
-    );
-    const enableBody = await enableResponse.json();
+    const enabledControl = automationControlService.enable({
+      accountId: accountA,
+      identity: adminHumanIdentity,
+      reason: 'Phase 7D emergency condition cleared.',
+    });
     assert(
-      enableResponse.status === 200 &&
-        enableBody.control?.emergencyDisabled === false &&
-        enableBody.control?.version === 2,
-      'Admin must be able to explicitly clear the emergency stop.'
+      enabledControl.emergencyDisabled === false &&
+        enabledControl.version === 2 &&
+        enabledControl.updatedBy === 'user:usr_phase7d_admin',
+      'Human ADMIN must be able to explicitly clear the emergency stop.'
     );
 
     const controlHistory = automationControlStore.listHistory({
@@ -303,29 +285,20 @@ async function main() {
       'Automatic receipt must update stock before compensation.'
     );
 
-    const compensateResponse = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        autoBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + approverKey.secret,
-        },
-      }
-    );
-    const compensateBody = await compensateResponse.json();
+    const compensateBody = automationExecutionService.compensate({
+      accountId: accountA,
+      runId: autoBody.run.id,
+      identity: adminHumanIdentity,
+    });
 
     assert(
-      compensateResponse.status === 200 &&
-        compensateBody.replayed === false &&
+      compensateBody.replayed === false &&
         compensateBody.run?.status === 'COMPENSATED' &&
         compensateBody.compensationExecution?.executionMode ===
           'AUTOMATION_COMPENSATION' &&
         compensateBody.compensationExecution?.authorizedByRole ===
-          'APPROVER',
-      'Eligible approver must be able to run the explicit audited compensation path.'
+          'ADMIN',
+      'Human ADMIN must be able to run the explicit audited compensation path.'
     );
 
     const restored = effectiveCompanyStateService.resolve(
@@ -341,27 +314,19 @@ async function main() {
       'Compensation must restore prior stock through explicit compensating provenance.'
     );
 
-    const compensationReplay = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        autoBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-        },
-      }
-    );
     const compensationReplayBody =
-      await compensationReplay.json();
+      automationExecutionService.compensate({
+        accountId: accountA,
+        runId: autoBody.run.id,
+        identity: adminHumanIdentity,
+      });
     assert(
-      compensationReplay.status === 200 &&
-        compensationReplayBody.replayed === true &&
+      compensationReplayBody.replayed === true &&
         compensationReplayBody.compensationExecution?.id ===
           compensateBody.compensationExecution.id,
-      'Repeated compensation request must replay idempotently.'
+      'Repeated human-admin compensation request must replay idempotently.'
     );
+
 
     // Compensation refuses to erase later company state.
     const changedStateProposal = makeProposal(
@@ -406,28 +371,23 @@ async function main() {
       validFrom: now + 4000,
     });
 
-    const changedCompensate = await fetch(
-      baseUrl +
-        '/api/automation/runs/' +
-        changedStateBody.run.id +
-        '/compensate',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-        },
-      }
-    );
-    const changedCompensateBody =
-      await changedCompensate.json();
+    let changedCompensateError: any = null;
+    try {
+      automationExecutionService.compensate({
+        accountId: accountA,
+        runId: changedStateBody.run.id,
+        identity: adminHumanIdentity,
+      });
+    } catch (error: any) {
+      changedCompensateError = error;
+    }
 
     assert(
-      changedCompensate.status === 409 &&
-        changedCompensateBody.code ===
+      changedCompensateError?.code ===
           'AUTOMATION_COMPENSATION_STATE_CHANGED' &&
-        changedCompensateBody.runId ===
+        changedCompensateError?.runId ===
           changedStateBody.run.id,
-      'Compensation must refuse to blindly overwrite state changed after the automatic action.'
+      'Human-admin compensation must refuse to blindly overwrite state changed after the automatic action.'
     );
 
     const recoveryRequired = automationRunStore.require(
@@ -669,10 +629,15 @@ async function main() {
         },
       }
     );
+    const foreignCompensateBody =
+      await foreignCompensate.json();
     assert(
-      foreignCompensate.status === 404,
-      'Foreign account must not compensate another account automation run.'
+      foreignCompensate.status === 403 &&
+        foreignCompensateBody.code ===
+          'AUTOMATION_COMPENSATION_NOT_ALLOWED',
+      'Foreign role:admin API key must remain SERVICE and cannot gain compensation authority.'
     );
+
   } finally {
     await new Promise<void>((resolve) =>
       server.close(() => resolve())
@@ -681,7 +646,7 @@ async function main() {
 
   console.log('PHASE_7D_AUTOMATION_RECOVERY_CHECK_PASSED');
   console.log(
-    'Emergency kill switch, control history, durable AutomationRun outcomes, bounded technical retry, non-retryable stale failures, audited compensation, changed-state compensation refusal, idempotent recovery, and account isolation are verified.'
+    'Human-admin emergency control and compensation, SERVICE machine execution, control history, durable AutomationRun outcomes, bounded technical retry, non-retryable stale failures, changed-state compensation refusal, idempotent recovery, API-key role-scope non-escalation, and account isolation are verified.'
   );
 }
 

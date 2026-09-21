@@ -446,11 +446,29 @@ async function main() {
     );
     const policyBody = await policyResponse.json();
     assert(
-      policyResponse.status === 201 &&
-        policyBody.policy?.accountId === httpAccountA &&
-        policyBody.policy?.version === 1 &&
-        String(policyBody.policy?.createdBy).startsWith('api-key:'),
-      'HTTP policy write must bind to authenticated account identity and record the actor.'
+      policyResponse.status === 403 &&
+        policyBody.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API keys must not administer Automation policy.'
+    );
+
+    const seededHttpPolicy =
+      automationPolicyStore.upsertPolicy({
+        accountId: httpAccountA,
+        actor: 'test:phase7a:http-admin',
+        policy: {
+          enabled: true,
+          mode: 'AUTO_EXECUTE_LOW_RISK',
+          allowedActionIntents: ['RECEIVE_INVENTORY'],
+          maxRiskClass: 'LOW',
+          maxQuantity: 5,
+          allowedIdentitySources: ['API_KEY'],
+          allowedActorRoles: ['SERVICE'],
+        },
+      });
+    assert(
+      seededHttpPolicy.version === 1,
+      'HTTP evaluator fixture must start at policy version 1.'
     );
 
     const ownEvaluation = await fetch(
@@ -540,10 +558,28 @@ async function main() {
     );
     const updateBody = await updateResponse.json();
     assert(
-      updateResponse.status === 200 &&
-        updateBody.policy?.version === 2 &&
-        updateBody.policy?.enabled === false,
-      'Policy update must create a new version instead of overwriting version history.'
+      updateResponse.status === 403 &&
+        updateBody.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API keys must remain forbidden from Automation policy updates.'
+    );
+
+    const seededHttpPolicyV2 =
+      automationPolicyStore.upsertPolicy({
+        accountId: httpAccountA,
+        actor: 'test:phase7a:http-admin',
+        policy: {
+          enabled: false,
+          mode: 'SUGGEST_ONLY',
+          allowedActionIntents: [],
+          maxRiskClass: 'LOW',
+          allowedIdentitySources: ['API_KEY'],
+          allowedActorRoles: ['SERVICE'],
+        },
+      });
+    assert(
+      seededHttpPolicyV2.version === 2,
+      'Direct evaluator fixture update must retain version history.'
     );
 
     const ownHistory = await fetch(
@@ -576,7 +612,7 @@ async function main() {
 
   console.log('PHASE_7A_AUTOMATION_POLICY_CHECK_PASSED');
   console.log(
-    'Conservative defaults, versioned policy history, prompt-injection resistance, low-risk allow, quantity escalation, financial/workflow approval routing, unsupported-action denial, identity-source constraints, proposal readiness, action allowlists, API actor attribution, and account isolation are verified.'
+    'Conservative defaults, versioned policy history, prompt-injection resistance, low-risk allow, quantity escalation, financial/workflow approval routing, unsupported-action denial, identity-source constraints, SERVICE machine actors, privileged human-only policy administration, proposal readiness, action allowlists, and account isolation are verified.'
   );
 }
 

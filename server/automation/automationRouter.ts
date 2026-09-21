@@ -4,6 +4,7 @@ import {
   RequestIdentityError,
 } from '../requestIdentity.js';
 import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
+import { requireOwnerOrAdmin } from '../identity/privilegedAuthorization.js';
 import { ActionAccessError } from '../actions/actionStore.js';
 import { ActionExecutionError } from '../actions/actionExecutionService.js';
 import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
@@ -324,7 +325,10 @@ automationRouter.get('/policy', async (_req, res) => {
   }
 });
 
-automationRouter.put('/policy', async (req, res) => {
+automationRouter.put(
+  '/policy',
+  requireOwnerOrAdmin,
+  async (req, res) => {
   try {
     const requestIdentity = identity(res);
     const mode =
@@ -417,7 +421,8 @@ automationRouter.put('/policy', async (req, res) => {
   } catch (error) {
     handleError(res, error);
   }
-});
+  }
+);
 
 automationRouter.get('/policy/history', async (req, res) => {
   try {

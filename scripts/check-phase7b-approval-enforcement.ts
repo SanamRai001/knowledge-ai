@@ -3,6 +3,8 @@ import { apiKeyStore } from '../server/apiKeyStore.js';
 import { actionStore } from '../server/actions/actionStore.js';
 import type { ActionProposal } from '../server/actions/types.js';
 import { automationApprovalStore } from '../server/automation/automationApprovalStore.js';
+import { automationApprovalService } from '../server/automation/automationApprovalService.js';
+import type { RequestIdentity } from '../server/requestIdentity.js';
 import { automationPolicyEvaluator } from '../server/automation/automationPolicyEvaluator.js';
 import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
@@ -123,8 +125,8 @@ async function main() {
           maxAmount: 1000,
           maxQuantity: 10,
           allowedIdentitySources: ['API_KEY'],
-          allowedActorRoles: ['OPERATOR'],
-          approvalRoles: ['ADMIN', 'APPROVER'],
+          allowedActorRoles: ['SERVICE'],
+          approvalRoles: ['ADMIN'],
           allowedTargetEntityTypes: ['PRODUCT'],
           allowedTargetEntityIds: ['ent_phase7b_allowed'],
         }),
@@ -133,14 +135,48 @@ async function main() {
     const policyBody = await policyResponse.json();
 
     assert(
-      policyResponse.status === 201 &&
-        policyBody.policy?.allowedActorRoles?.[0] === 'OPERATOR' &&
-        policyBody.policy?.approvalRoles?.includes('APPROVER') &&
-        policyBody.policy?.allowedTargetEntityTypes?.[0] === 'PRODUCT' &&
-        policyBody.policy?.allowedTargetEntityIds?.[0] ===
-          'ent_phase7b_allowed',
-      '7B policy API must persist role, approval-role, entity-type, and entity-ID constraints.'
+      policyResponse.status === 403 &&
+        policyBody.code ===
+          'PRIVILEGED_HUMAN_SESSION_REQUIRED',
+      'API-key role:admin must not administer Automation policy.'
     );
+
+    const seededPolicy = automationPolicyStore.upsertPolicy({
+      accountId: accountA,
+      actor: 'user:phase7b-admin-fixture',
+      policy: {
+        enabled: true,
+        mode: 'AUTO_EXECUTE_LOW_RISK',
+        allowedActionIntents: ['RECEIVE_INVENTORY'],
+        maxRiskClass: 'LOW',
+        maxAmount: 1000,
+        maxQuantity: 10,
+        allowedIdentitySources: ['API_KEY'],
+        allowedActorRoles: ['SERVICE'],
+        approvalRoles: ['ADMIN'],
+        allowedTargetEntityTypes: ['PRODUCT'],
+        allowedTargetEntityIds: ['ent_phase7b_allowed'],
+      },
+    });
+
+    assert(
+      seededPolicy.version === 1 &&
+        seededPolicy.allowedActorRoles?.[0] === 'SERVICE' &&
+        seededPolicy.approvalRoles?.[0] === 'ADMIN' &&
+        seededPolicy.allowedTargetEntityTypes?.[0] === 'PRODUCT' &&
+        seededPolicy.allowedTargetEntityIds?.[0] ===
+          'ent_phase7b_allowed',
+      '7B policy fixture must persist SERVICE-machine, human-admin approval, entity-type, and entity-ID constraints.'
+    );
+
+    const adminHumanIdentity: RequestIdentity = {
+      accountId: accountA,
+      source: 'HUMAN_SESSION',
+      authenticated: true,
+      userId: 'usr_phase7b_admin',
+      membershipRole: 'ADMIN',
+      sessionId: 'sess_phase7b_admin',
+    };
 
     const allowedProposal = createProposal({
       accountId: accountA,
@@ -166,8 +202,8 @@ async function main() {
       allowedEval.status === 200 &&
         allowedEvalBody.evaluation?.decision ===
           'ALLOW_AUTO_EXECUTE' &&
-        allowedEvalBody.evaluation?.actorRole === 'OPERATOR',
-      'Allowed operator + target + low-risk thresholds must remain eligible for future 7C auto-execution.'
+        allowedEvalBody.evaluation?.actorRole === 'SERVICE',
+      'API-key role:operator must remain a SERVICE actor while satisfying explicitly allowed machine policy constraints.'
     );
 
     const legacyServiceEval = await fetch(
@@ -183,12 +219,10 @@ async function main() {
     );
     const legacyServiceBody = await legacyServiceEval.json();
     assert(
-      legacyServiceBody.evaluation?.decision === 'DENY' &&
-        legacyServiceBody.evaluation?.actorRole === 'SERVICE' &&
-        legacyServiceBody.evaluation?.reasonCodes?.includes(
-          'ACTOR_ROLE_NOT_ALLOWED'
-        ),
-      'Authenticated legacy API keys without an explicit role must resolve to SERVICE and fail role-constrained automation.'
+      legacyServiceBody.evaluation?.decision ===
+        'ALLOW_AUTO_EXECUTE' &&
+        legacyServiceBody.evaluation?.actorRole === 'SERVICE',
+      'Plain and role-tagged API keys must both resolve to SERVICE when machine Automation is explicitly allowed.'
     );
 
     const wrongTargetProposal = createProposal({
@@ -299,9 +333,9 @@ async function main() {
       requestResponse.status === 201 &&
         typeof approvalId === 'string' &&
         requestBody.approval.status === 'PENDING' &&
-        requestBody.approval.requestedByRole === 'OPERATOR' &&
-        requestBody.approval.eligibleRoles.includes('ADMIN') &&
-        requestBody.approval.eligibleRoles.includes('APPROVER') &&
+        requestBody.approval.requestedByRole === 'SERVICE' &&
+        requestBody.approval.eligibleRoles.length === 1 &&
+        requestBody.approval.eligibleRoles[0] === 'ADMIN' &&
         requestBody.approval.decisionReasonCodes.includes(
           'QUANTITY_EXCEEDS_POLICY'
         ),
@@ -375,14 +409,14 @@ async function main() {
         mode: 'SUGGEST_ONLY',
         allowedActionIntents: [],
         allowedIdentitySources: ['API_KEY'],
-        allowedActorRoles: ['ADMIN'],
+        allowedActorRoles: ['SERVICE'],
         approvalRoles: ['OWNER'],
         allowedTargetEntityTypes: ['PRODUCT'],
         allowedTargetEntityIds: ['ent_phase7b_allowed'],
       },
     });
 
-    const approveResponse = await fetch(
+    const scopedApproverAttempt = await fetch(
       baseUrl +
         '/api/automation/approvals/' +
         approvalId +
@@ -394,20 +428,30 @@ async function main() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          note: 'Reviewed quantity exception.',
+          note: 'Attempted API-key role:approver escalation.',
         }),
       }
     );
-    const approveBody = await approveResponse.json();
+    assert(
+      scopedApproverAttempt.status === 403,
+      'API-key role:approver must remain SERVICE and cannot resolve a human-admin approval.'
+    );
+
+    const approved = automationApprovalService.approve({
+      accountId: accountA,
+      approvalId,
+      identity: adminHumanIdentity,
+      note: 'Reviewed quantity exception.',
+    });
 
     assert(
-      approveResponse.status === 200 &&
-        approveBody.approval?.status === 'APPROVED' &&
-        approveBody.approval?.resolvedByRole === 'APPROVER' &&
-        approveBody.approval?.policyVersion ===
+      approved.status === 'APPROVED' &&
+        approved.resolvedByRole === 'ADMIN' &&
+        approved.resolvedBy === 'user:usr_phase7b_admin' &&
+        approved.policyVersion ===
           requestBody.approval.policyVersion &&
-        approveBody.approval?.eligibleRoles.includes('APPROVER'),
-      'Approval must resolve against the immutable escalation snapshot rather than silently inheriting later policy edits.'
+        approved.eligibleRoles.includes('ADMIN'),
+      'Approval must resolve through an eligible human ADMIN against the immutable escalation snapshot rather than inheriting later policy edits.'
     );
 
     assert(
@@ -432,7 +476,7 @@ async function main() {
         maxRiskClass: 'LOW',
         maxQuantity: 10,
         allowedIdentitySources: ['API_KEY'],
-        allowedActorRoles: ['OPERATOR'],
+        allowedActorRoles: ['SERVICE'],
         approvalRoles: ['ADMIN'],
         allowedTargetEntityTypes: ['PRODUCT'],
         allowedTargetEntityIds: ['ent_phase7b_allowed'],
@@ -468,7 +512,7 @@ async function main() {
       'REQUIRE_APPROVAL mode must create an explicit role-bound escalation.'
     );
 
-    const rejectResponse = await fetch(
+    const scopedAdminRejectAttempt = await fetch(
       baseUrl +
         '/api/automation/approvals/' +
         rejectRequestBody.approval.id +
@@ -479,15 +523,27 @@ async function main() {
           Authorization: 'Bearer ' + adminKey.secret,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ note: 'Not approved for automation.' }),
+        body: JSON.stringify({
+          note: 'Attempted API-key role:admin rejection.',
+        }),
       }
     );
-    const rejectBody = await rejectResponse.json();
     assert(
-      rejectResponse.status === 200 &&
-        rejectBody.approval?.status === 'REJECTED' &&
-        rejectBody.approval?.resolvedByRole === 'ADMIN',
-      'Eligible admin must be able to explicitly reject an escalation.'
+      scopedAdminRejectAttempt.status === 403,
+      'API-key role:admin must remain SERVICE and cannot resolve a human-admin approval.'
+    );
+
+    const rejected = automationApprovalService.reject({
+      accountId: accountA,
+      approvalId: rejectRequestBody.approval.id,
+      identity: adminHumanIdentity,
+      note: 'Not approved for automation.',
+    });
+    assert(
+      rejected.status === 'REJECTED' &&
+        rejected.resolvedByRole === 'ADMIN' &&
+        rejected.resolvedBy === 'user:usr_phase7b_admin',
+      'Eligible human ADMIN must be able to explicitly reject an escalation.'
     );
 
     const pendingList = automationApprovalStore.list({
@@ -528,7 +584,7 @@ async function main() {
 
   console.log('PHASE_7B_APPROVAL_ENFORCEMENT_CHECK_PASSED');
   console.log(
-    'Actor-role constraints, target entity/type allowlists, amount/quantity escalation, immutable approval snapshots, idempotent escalation, role-gated approve/reject, account isolation, and no-execution-on-approval are verified.'
+    'SERVICE machine-role constraints, target entity/type allowlists, amount/quantity escalation, immutable approval snapshots, idempotent escalation, human-admin approve/reject, API-key role-scope non-escalation, account isolation, and no-execution-on-approval are verified.'
   );
 }
 

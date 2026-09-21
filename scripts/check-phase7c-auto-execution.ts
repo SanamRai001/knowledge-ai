@@ -4,6 +4,7 @@ import { actionProposalService } from '../server/actions/actionProposalService.j
 import { actionStore } from '../server/actions/actionStore.js';
 import type { ActionIntent } from '../server/actions/types.js';
 import { automationRouter } from '../server/automation/automationRouter.js';
+import { automationPolicyStore } from '../server/automation/automationPolicyStore.js';
 import { companyKnowledgeStore } from '../server/companyKnowledge/companyKnowledgeStore.js';
 import { effectiveCompanyStateService } from '../server/companyKnowledge/effectiveCompanyStateService.js';
 import { SOURCE_AUTHORITIES } from '../server/companyKnowledge/sourceAuthority.js';
@@ -68,12 +69,6 @@ async function main() {
     validFrom: now,
   });
 
-  const adminKey = apiKeyStore.createApiKey({
-    name: 'Phase 7C Admin',
-    accountId: accountA,
-    environment: 'test',
-    scopes: ['automation:admin', 'role:admin'],
-  });
   const operatorKey = apiKeyStore.createApiKey({
     name: 'Phase 7C Operator',
     accountId: accountA,
@@ -108,35 +103,22 @@ async function main() {
       enabled: boolean;
       maxQuantity: number;
     }) => {
-      const response = await fetch(
-        baseUrl + '/api/automation/policy',
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: 'Bearer ' + adminKey.secret,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            enabled: params.enabled,
-            mode: 'AUTO_EXECUTE_LOW_RISK',
-            allowedActionIntents: ['RECEIVE_INVENTORY'],
-            maxRiskClass: 'LOW',
-            maxQuantity: params.maxQuantity,
-            allowedIdentitySources: ['API_KEY'],
-            allowedActorRoles: ['OPERATOR'],
-            approvalRoles: ['ADMIN'],
-            allowedTargetEntityTypes: ['PRODUCT'],
-            allowedTargetEntityIds: [product.id],
-          }),
-        }
-      );
-      const body = await response.json();
-      assert(
-        response.ok,
-        'Phase 7C policy update failed: ' +
-          JSON.stringify(body)
-      );
-      return body.policy;
+      return automationPolicyStore.upsertPolicy({
+        accountId: accountA,
+        actor: 'user:phase7c-admin-fixture',
+        policy: {
+          enabled: params.enabled,
+          mode: 'AUTO_EXECUTE_LOW_RISK',
+          allowedActionIntents: ['RECEIVE_INVENTORY'],
+          maxRiskClass: 'LOW',
+          maxQuantity: params.maxQuantity,
+          allowedIdentitySources: ['API_KEY'],
+          allowedActorRoles: ['SERVICE'],
+          approvalRoles: ['ADMIN'],
+          allowedTargetEntityTypes: ['PRODUCT'],
+          allowedTargetEntityIds: [product.id],
+        },
+      });
     };
 
     const policyV1 = await writePolicy({
@@ -184,14 +166,14 @@ async function main() {
           'ALLOW_AUTO_EXECUTE' &&
         executionBody.execution?.executionMode ===
           'AUTOMATION_POLICY' &&
-        executionBody.execution?.authorizedByRole === 'OPERATOR' &&
+        executionBody.execution?.authorizedByRole === 'SERVICE' &&
         executionBody.execution?.automationPolicyId === policyV1.id &&
         executionBody.execution?.automationPolicyVersion ===
           policyV1.version &&
         String(executionBody.execution?.authorizedBy).startsWith(
           'api-key:'
         ),
-      'Eligible inventory receipt must execute through the policy-authorized Phase 4 path with explicit audit metadata.'
+      'Eligible SERVICE-machine inventory receipt must execute through the human-authored policy-authorized Phase 4 path with explicit audit metadata.'
     );
 
     const stockAfterExecution =
@@ -511,7 +493,7 @@ async function main() {
 
   console.log('PHASE_7C_AUTO_EXECUTION_CHECK_PASSED');
   console.log(
-    'RECEIVE_INVENTORY-only automatic execution, last-moment policy re-evaluation, Phase 4 write-path reuse, execution authorization metadata, stale-state protection, idempotent replay, unsupported-intent denial, and account isolation are verified.'
+    'RECEIVE_INVENTORY-only SERVICE machine execution, human-authored policy re-evaluation, Phase 4 write-path reuse, execution authorization metadata, stale-state protection, idempotent replay, unsupported-intent denial, and account isolation are verified.'
   );
 }
 
