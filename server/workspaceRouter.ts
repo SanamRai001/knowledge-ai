@@ -9,8 +9,8 @@ import { specializedAIService, SpecializedAIError } from './specializedAIService
 import {
   RequestIdentity,
   RequestIdentityError,
-  resolveRequestIdentity,
 } from './requestIdentity.js';
+import { applicationIdentityMiddleware } from './requestIdentityMiddleware.js';
 import { WorkspaceAccessError } from './workspaceAccessService.js';
 import {
   WorkspaceRuntimeError,
@@ -42,21 +42,7 @@ const upload = multer({
   },
 });
 
-workspaceRouter.use((req, res, next) => {
-  try {
-    res.locals.requestIdentity = resolveRequestIdentity(req);
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({ error: 'Failed to resolve request identity.' });
-  }
-});
+workspaceRouter.use(applicationIdentityMiddleware);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
