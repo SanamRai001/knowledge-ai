@@ -185,10 +185,7 @@ async function main() {
     const requireApprovalPolicy = await json(
       await fetch(baseUrl + '/api/automation/policy', {
         method: 'PUT',
-        headers: {
-          Authorization: 'Bearer ' + adminKey.secret,
-          'Content-Type': 'application/json',
-        },
+        headers: adminMutationHeaders,
         body: JSON.stringify({
           enabled: true,
           mode: 'REQUIRE_APPROVAL',
@@ -196,8 +193,8 @@ async function main() {
           maxRiskClass: 'LOW',
           maxQuantity: 10,
           allowedIdentitySources: ['API_KEY'],
-          allowedActorRoles: ['OPERATOR'],
-          approvalRoles: ['ADMIN', 'APPROVER'],
+          allowedActorRoles: ['SERVICE'],
+          approvalRoles: ['ADMIN'],
           allowedTargetEntityTypes: ['PRODUCT'],
           allowedTargetEntityIds: [productId],
         }),
