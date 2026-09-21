@@ -1,6 +1,8 @@
 # Production Hardening B2D3B3A — Mediator Route Retirement
 
-Status: **IMPLEMENTED — QUALITY GATE PENDING**
+Status: **COMPLETE**
+
+Authoritative implementation Quality Gate: **`35635059024`**
 
 Date: 2026-09-21
 
@@ -113,6 +115,43 @@ It verifies HTTP removal, dead-import cleanup, supported compatibility dependenc
 
 ## Quality Gate
 
-Pending the B2D3B3A branch Quality Gate.
+Authoritative implementation workflow:
 
-The phase must not be marked COMPLETE or advance the handoff until the integrated gate passes.
+**`35635059024`**
+
+Result:
+
+- `quality` — ✅ success
+- `Production A2 PostgreSQL` — ✅ success
+- TypeScript — ✅ success
+- production build — ✅ success
+- B2D3A route quarantine proof — ✅ success
+- B2D3B1 internal quality retirement proof — ✅ success
+- B2D3B2A operations/observability retirement proof — ✅ success
+- B2D3B2B tenant/SaaS retirement proof — ✅ success
+- B2D3B3A mediator retirement proof — ✅ success
+- all existing Phase 0–8 regressions — ✅ success
+- PostgreSQL production-hardening regressions — ✅ success
+- unseen-corpus benchmark — ✅ success
+- live Gemini benchmark — ✅ success
+
+## Exit criteria
+
+B2D3B3A is complete because:
+
+- all 16 `/api/v1/mediator/*` HTTP endpoints are removed
+- mediator-route-only production-server imports are removed
+- mediator reusable internals remain available outside HTTP
+- supported API-docs/provider/system dependencies remain intact
+- mediator is permanently `RETIRED`
+- compatibility mode cannot reopen mediator routes
+- RAG, Cognitive, and Phase 4 remain untouched for later slices
+- the integrated Quality Gate is green
+
+## Next small phase
+
+> **Production Hardening B2D3B3B — RAG + Cognitive Route Retirement or Migration**
+
+Keep the next slice limited to `/api/v1/rag/*` and `/api/v1/cognitive/*`.
+
+Do **not** start legacy Phase 4 cleanup, Track C object storage, or workers in the same slice.
