@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2C3 — Actions + Watch + Integrations + Automation Route Cutover.**
+> **Continue with Production Hardening B2D1 — Privileged Human Authorization Foundation + Platform Management.**
 
 Phases 0–8 are complete.
 
@@ -1066,6 +1066,7 @@ Track A relational milestones:
 - B2B2 HUMAN_SESSION Request Identity + Production Fallback Removal — COMPLETE, workflow `35528053793`
 - B2C1 Core Browser Route Cutover: KB + Datasets + Query — COMPLETE, workflow `35555336358`
 - B2C2 Insights + Company Knowledge Route Cutover — COMPLETE, workflow `35556818820`
+- B2C3 Actions + Watch + Integrations + Automation Route Cutover — COMPLETE, workflow `35557668826`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1081,6 +1082,8 @@ B2C1 evidence: `docs/PRODUCTION_B2C1_CORE_ROUTE_CUTOVER.md`.
 
 B2C2 evidence: `docs/PRODUCTION_B2C2_INSIGHTS_COMPANY_KNOWLEDGE.md`.
 
+B2C3 evidence: `docs/PRODUCTION_B2C3_PRODUCT_ROUTE_CUTOVER.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1091,19 +1094,21 @@ B2C1 migrates `/api/kb`, `/api/datasets`, and `/api/query` to the shared human-a
 
 B2C2 now migrates `/api/insights` and `/api/company-knowledge` to the same boundary. HUMAN_SESSION mutations enforce same-origin + CSRF protection, machine API-key behavior remains intact, and cross-account raw-ID/header-spoofing checks remain denied.
 
-Next, do **B2C3 only — Actions + Watch + Integrations + Automation Route Cutover**:
+B2C3 now migrates `/api/actions`, `/api/watch`, `/api/integrations`, and `/api/automation` to the shared human-aware boundary. HUMAN_SESSION Automation actors now carry durable user attribution and membership role, while API-key behavior remains separate.
 
-1. migrate `/api/actions` to `applicationIdentityMiddleware`
-2. migrate `/api/watch` to `applicationIdentityMiddleware`
-3. migrate `/api/integrations` to `applicationIdentityMiddleware`
-4. migrate `/api/automation` to `applicationIdentityMiddleware`
-5. preserve intentional API-key support
-6. preserve account isolation
-7. enforce same-origin + CSRF for HUMAN_SESSION unsafe methods
-8. reject missing production identity
-9. add focused route-cutover coverage
-10. stop before Platform Management / privileged-role redesign
+Normal product-route browser identity cutover is now complete.
 
-B2D remains responsible for privileged authorization, Platform Management, and legacy route quarantine.
+Next, do **B2D1 only — Privileged Human Authorization Foundation + Platform Management**:
 
-Do not start B2D, Track C object storage, or workers in the same slice.
+1. add reusable privileged HUMAN_SESSION role guards
+2. define OWNER / ADMIN privileged browser semantics
+3. migrate `/api/platform-management` to the human-aware identity boundary
+4. require privileged human role for Platform Management mutations
+5. preserve account isolation
+6. keep stable `/api/platform/v1` API-key-only
+7. add focused PostgreSQL coverage for OWNER, ADMIN, MEMBER, API_KEY, missing identity, and cross-account access
+8. stop before developer-key cleanup and legacy route quarantine
+
+B2D2 will handle developer-key and privileged policy authorization cleanup. B2D3 will handle legacy/prototype route quarantine.
+
+Do not start B2D2, B2D3, Track C object storage, or workers in the same slice.
