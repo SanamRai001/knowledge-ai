@@ -2,8 +2,8 @@ import express from 'express';
 import {
   RequestIdentity,
   RequestIdentityError,
-  resolveRequestIdentity,
 } from '../requestIdentity.js';
+import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
 import { ActionAccessError } from '../actions/actionStore.js';
 import { ActionExecutionError } from '../actions/actionExecutionService.js';
 import { CompanyKnowledgeAccessError } from '../companyKnowledge/companyKnowledgeStore.js';
@@ -29,32 +29,14 @@ import {
 
 export const automationRouter = express.Router();
 
-automationRouter.use((req, res, next) => {
-  try {
-    res.locals.requestIdentity = resolveRequestIdentity(req);
-    next();
-  } catch (error: any) {
-    if (error instanceof RequestIdentityError) {
-      res.status(error.statusCode).json({
-        error: error.message,
-        code: error.code,
-      });
-      return;
-    }
-    res.status(500).json({
-      error: 'Failed to resolve request identity.',
-    });
-  }
-});
+automationRouter.use(applicationIdentityMiddleware);
 
 function identity(res: express.Response): RequestIdentity {
   return res.locals.requestIdentity as RequestIdentity;
 }
 
 function actorLabel(value: RequestIdentity): string {
-  return value.source === 'API_KEY'
-    ? 'api-key:' + (value.apiKeyId || 'unknown')
-    : 'web:default';
+  return automationActorLabel(value);
 }
 
 function limitFrom(value: unknown, fallback: number): number {
@@ -86,6 +68,7 @@ const RISK_CLASSES: AutomationRiskClass[] = [
 
 const IDENTITY_SOURCES: RequestIdentity['source'][] = [
   'API_KEY',
+  'HUMAN_SESSION',
   'DEFAULT_WEB',
 ];
 
