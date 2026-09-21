@@ -99,6 +99,12 @@ function main() {
   );
 
   assert(
+    workspace.includes('ka_csrf=') &&
+      workspace.includes("'X-CSRF-Token': csrfToken()"),
+    'Integration browser mutations must send the CSRF token required by HUMAN_SESSION protection.'
+  );
+
+  assert(
     router.includes("tab: 'integrations'") &&
       router.includes("status: 'connected'") &&
       router.includes("status: 'error'") &&
