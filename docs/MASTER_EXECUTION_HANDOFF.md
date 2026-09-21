@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2C1 — Core Browser Route Cutover: KB + Datasets + Query.**
+> **Continue with Production Hardening B2C2 — Insights + Company Knowledge Route Cutover.**
 
 Phases 0–8 are complete.
 
@@ -1064,6 +1064,7 @@ Track A relational milestones:
 - B2A Human Identity Persistence Foundation — COMPLETE, workflow `35526535634`
 - B2B1 Human Credential + Auth Session API — COMPLETE, workflow `35527482968`
 - B2B2 HUMAN_SESSION Request Identity + Production Fallback Removal — COMPLETE, workflow `35528053793`
+- B2C1 Core Browser Route Cutover: KB + Datasets + Query — COMPLETE, workflow `35555336358`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1075,24 +1076,27 @@ B2B1 evidence: `docs/PRODUCTION_B2B1_AUTH_SESSION_API.md`.
 
 B2B2 evidence: `docs/PRODUCTION_B2B2_REQUEST_IDENTITY.md`.
 
+B2C1 evidence: `docs/PRODUCTION_B2C1_CORE_ROUTE_CUTOVER.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
 
-B2B2 now provides a distinct HUMAN_SESSION request identity carrying user, role, selected account/workspace, and session context. API keys remain a separate machine credential class. Production missing credentials fail closed; DEFAULT_WEB is explicit and non-production-only.
+B2B2 provides a distinct HUMAN_SESSION request identity carrying user, role, selected account/workspace, and session context. API keys remain a separate machine credential class. Production missing credentials fail closed; DEFAULT_WEB is explicit and non-production-only.
 
-Next, do **B2C1 only — Core Browser Route Cutover: KB + Datasets + Query**:
+B2C1 now migrates `/api/kb`, `/api/datasets`, and `/api/query` to the shared human-aware application identity middleware. HUMAN_SESSION mutations enforce same-origin + CSRF protection while API-key machine behavior remains intact.
 
-1. migrate `/api/kb` to the async human-aware identity resolver
-2. migrate `/api/datasets` to the async human-aware identity resolver
-3. migrate `/api/query` to the async human-aware identity resolver
-4. preserve intentional API-key support
-5. preserve tenant/workspace isolation
+Next, do **B2C2 only — Insights + Company Knowledge Route Cutover**:
+
+1. migrate `/api/insights` to `applicationIdentityMiddleware`
+2. migrate `/api/company-knowledge` to `applicationIdentityMiddleware`
+3. preserve intentional API-key support
+4. preserve Discovery / Company Knowledge account isolation
+5. enforce same-origin + CSRF for HUMAN_SESSION unsafe methods
 6. reject missing production identity
-7. retain explicit dev/test compatibility for legacy tests
-8. add focused HTTP coverage for these three route families
-9. stop before migrating any other router
+7. add focused human-session/API-key/isolation HTTP coverage
+8. stop before migrating other route families
 
-Later B2C slices will handle the remaining normal product route families. B2D remains responsible for privileged authorization and legacy/admin route quarantine.
+B2C3 will handle Actions, Watch, Integrations, and Automation. B2D remains responsible for privileged authorization, Platform Management, and legacy route quarantine.
 
-Do not start B2C2, B2C3, B2D, Track C object storage, or workers in the same slice.
+Do not start B2C3, B2D, Track C object storage, or workers in the same slice.
