@@ -172,7 +172,8 @@ The implementation sequence is deliberately split into small slices:
 17. **B2D3B3C — Phase 4 Route Retirement or Migration** — COMPLETE, workflow `35742006196`
 18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — COMPLETE, workflow `35746192253`
 19. **C1 — Durable Source File/Object Storage Forensic Audit** — COMPLETE, workflow `35749439403`
-20. **C2 — Source Object Metadata + Storage Abstraction Foundation** — NEXT
+20. **C2 — Source Object Metadata + Storage Abstraction Foundation** — COMPLETE, workflow `35754956014`
+21. **C3 — Durable Object Backend + Document Source Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -212,6 +213,8 @@ B2D3B4 evidence: `docs/PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP.md`.
 
 C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
 
+C2 evidence: `docs/PRODUCTION_C2_SOURCE_OBJECT_FOUNDATION.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -249,6 +252,8 @@ B2D3B3C removed all legacy `/api/phase4/*` active-workspace convenience routes, 
 B2D3B4 removed retired experimental Learning Lab / Orchestration / Diagnostics entry points and their isolated component trees, removed the unused legacy ChatArea, repaired Trust Checks to use `/api/kb/run-tests`, preserved Unified Ask on `/api/query/ask`, and added a repository-wide frontend retired-API guard.
 
 C1 inventoried browser uploads, Dataset imports, Drive/OneDrive sync, local workspace/document payloads, Dataset analytical payloads, retries/reprocessing, sample fixtures, and shadowed legacy upload handlers; defined the provider-neutral SourceObject/SourceVersion contract; and proved the current durability boundaries without changing runtime behavior.
+
+C2 added PostgreSQL `source_objects` / immutable `source_versions`, account-scoped repositories, database-enforced source-version immutability, provider-neutral byte-storage contracts, tenant-safe generated storage keys, SHA-256/size verification, and cross-account PostgreSQL proofs while intentionally leaving all current upload/import/sync runtime paths unchanged.
 
 ## Security rules
 
@@ -678,21 +683,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening C2 — Source Object Metadata + Storage Abstraction Foundation**
+**Production Hardening C3 — Durable Object Backend + Document Source Migration**
 
-Keep this slice provider-neutral and foundation-only.
+Keep this slice limited to original PDF document bytes and real retry/reprocessing.
 
-1. add PostgreSQL `source_objects` and immutable `source_versions` metadata with explicit account ownership and optional workspace/domain linkage
-2. include kind/origin, external connection/id/version metadata, filename, content type, size, SHA-256, backend/key/etag, lifecycle/tombstone state, and timestamps
-3. add repository interfaces and PostgreSQL implementations with account-scoped queries only
-4. add a provider-neutral byte-storage interface for put/get/delete-or-tombstone semantics; do not select a cloud provider
-5. add a server-generated tenant-safe storage-key builder that never trusts client filenames or arbitrary object keys
-6. define integrity verification helpers for SHA-256 + byte size
-7. prove cross-account metadata/object lookup is denied and immutable source-version identity cannot be rewritten
-8. preserve all existing upload/Dataset/integration runtime behavior for now; C2 must not cut traffic over
-9. add focused PostgreSQL + unit proofs and stop before C3 document upload migration
+1. select/configure one production object-storage adapter behind `SourceByteStorage`; keep provider-specific code isolated behind the contract
+2. add environment validation for the selected backend without embedding credentials in metadata/logs
+3. persist PDF source bytes before parsing is considered successful
+4. create SourceObject + immutable SourceVersion metadata only after storage integrity verification succeeds
+5. link `KnowledgeDocument` to `sourceVersionId` without embedding provider keys in browser-visible document state
+6. make document retry re-read the exact stored source version and genuinely re-run parsing
+7. preserve account/workspace authorization for upload, retry, and retrieval; no public bucket or arbitrary key access
+8. define failure/compensation behavior so metadata is not left READY when byte persistence fails
+9. add restart/redeploy proof showing document source bytes can be reconstructed independently of local `data/`
+10. keep Dataset source/analytical payloads and Drive/OneDrive checkpoint hardening out of C3
 
-Do not add S3/R2/GCS/Azure credentials, signed URLs, browser upload cutover, Dataset payload migration, integration checkpoint changes, workers/queues, or Track D transactions in C2.
+Do not migrate Dataset payloads, integration source snapshots, workers/queues, or Track D workflows in C3.
 ---
 
 # Track A closure note
