@@ -205,14 +205,14 @@ async function main() {
     }
 
     const devOnly = await fetch(
-      baseUrl + '/api/v1/rag/benchmark/run'
+      baseUrl + '/api/phase4/dashboard'
     );
     const devOnlyBody = await readJson(devOnly);
     assert(
       devOnly.status === 200 &&
         devOnlyBody?.source ===
           'post-quarantine-handler',
-      'B2D3B2A must preserve explicit non-production compatibility for later DEVELOPMENT_ONLY RAG/Cognitive/Phase 4 groups.'
+      'B2D3B2A must preserve explicit non-production compatibility for the remaining Phase 4 DEVELOPMENT_ONLY route group.'
     );
   } finally {
     await new Promise<void>((resolve, reject) => {
