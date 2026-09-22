@@ -6,6 +6,7 @@ import {
   ChatMessage,
   SpecializedAI,
   KnowledgeVersion,
+  KnowledgeVersionDocumentRef,
   EvaluationTestCase,
   EvaluationRun,
 } from '../src/types.js';
@@ -82,6 +83,45 @@ function createDefaultTestCases(kbId: string): EvaluationTestCase[] {
 export class KnowledgeBaseStore {
   private kbs: Map<string, KnowledgeBase> = new Map();
   private activeKbId: string = 'kb_default';
+
+  private versionProjection(
+    documents: KnowledgeDocument[]
+  ): {
+    documents: KnowledgeDocument[];
+    documentRefs: KnowledgeVersionDocumentRef[];
+  } {
+    const durableRefs:
+      KnowledgeVersionDocumentRef[] = [];
+    const legacyDocuments:
+      KnowledgeDocument[] = [];
+
+    for (const document of documents) {
+      if (
+        document.sourceVersionId &&
+        document.derivedPayloadId
+      ) {
+        durableRefs.push({
+          documentId: document.id,
+          filename: document.filename,
+          sourceVersionId:
+            document.sourceVersionId,
+          derivedPayloadId:
+            document.derivedPayloadId,
+        });
+      } else {
+        legacyDocuments.push(
+          JSON.parse(
+            JSON.stringify(document)
+          )
+        );
+      }
+    }
+
+    return {
+      documents: legacyDocuments,
+      documentRefs: durableRefs,
+    };
+  }
 
   constructor() {
     this.loadFromDisk();
@@ -396,15 +436,29 @@ export class KnowledgeBaseStore {
     const totalPages = kb.documents.reduce((acc, d) => acc + (d.pageCount || 0), 0);
     if (makeActive) kb.versions.forEach((v) => (v.isCurrent = false));
 
+    const projection =
+      this.versionProjection(
+        kb.documents
+      );
     const newVersion: KnowledgeVersion = {
-      id: 'ver_' + Math.random().toString(36).substring(2, 8),
+      id:
+        'ver_' +
+        Math.random()
+          .toString(36)
+          .substring(2, 8),
       versionNumber: nextNum,
       versionTag,
-      label: label.trim() || `Version ${versionTag}`,
+      label:
+        label.trim() ||
+        `Version ${versionTag}`,
       timestamp: Date.now(),
-      documentCount: kb.documents.length,
+      documentCount:
+        kb.documents.length,
       totalPages,
-      documents: JSON.parse(JSON.stringify(kb.documents)),
+      documents:
+        projection.documents,
+      documentRefs:
+        projection.documentRefs,
       isCurrent: makeActive,
     };
 
@@ -428,15 +482,29 @@ export class KnowledgeBaseStore {
     const totalPages = kb.documents.reduce((acc, d) => acc + (d.pageCount || 0), 0);
     kb.versions.forEach((v) => (v.isCurrent = false));
 
+    const projection =
+      this.versionProjection(
+        kb.documents
+      );
     const newVersion: KnowledgeVersion = {
-      id: 'ver_' + Math.random().toString(36).substring(2, 8),
+      id:
+        'ver_' +
+        Math.random()
+          .toString(36)
+          .substring(2, 8),
       versionNumber: nextNum,
       versionTag,
-      label: label.trim() || `Snapshot ${versionTag}`,
+      label:
+        label.trim() ||
+        `Snapshot ${versionTag}`,
       timestamp: Date.now(),
-      documentCount: kb.documents.length,
+      documentCount:
+        kb.documents.length,
       totalPages,
-      documents: JSON.parse(JSON.stringify(kb.documents)),
+      documents:
+        projection.documents,
+      documentRefs:
+        projection.documentRefs,
       isCurrent: true,
     };
 
@@ -458,7 +526,11 @@ export class KnowledgeBaseStore {
     const targetVersion = kb.versions.find((v) => v.id === versionId || v.versionTag === versionId);
     if (!targetVersion) throw new Error(`Target version ${versionId} not found`);
 
-    kb.documents = JSON.parse(JSON.stringify(targetVersion.documents));
+    kb.documents = JSON.parse(
+      JSON.stringify(
+        targetVersion.documents || []
+      )
+    );
     kb.versions.forEach((v) => (v.isCurrent = v.id === targetVersion.id));
     kb.currentVersion = targetVersion.versionTag;
     kb.updatedAt = Date.now();
@@ -478,16 +550,115 @@ export class KnowledgeBaseStore {
     kb.documents = kb.documents.filter((d) => d.id !== doc.id && d.filename !== doc.filename);
     kb.documents.push(doc);
 
-    const currentVer = kb.versions?.find((v) => v.versionTag === kb.currentVersion);
-    if (currentVer && (!currentVer.documents || currentVer.documents.length === 0)) {
-      currentVer.documents = JSON.parse(JSON.stringify(kb.documents));
-      currentVer.documentCount = kb.documents.length;
-      currentVer.totalPages = kb.documents.reduce((acc, d) => acc + (d.pageCount || 0), 0);
+    const currentVer =
+      kb.versions?.find(
+        (v) =>
+          v.versionTag ===
+          kb.currentVersion
+      );
+    if (
+      currentVer &&
+      (!currentVer.documents ||
+        currentVer.documents.length === 0) &&
+      (!currentVer.documentRefs ||
+        currentVer.documentRefs.length === 0)
+    ) {
+      const projection =
+        this.versionProjection(
+          kb.documents
+        );
+      currentVer.documents =
+        projection.documents;
+      currentVer.documentRefs =
+        projection.documentRefs;
+      currentVer.documentCount =
+        kb.documents.length;
+      currentVer.totalPages =
+        kb.documents.reduce(
+          (acc, d) =>
+            acc +
+            (d.pageCount || 0),
+          0
+        );
     }
 
     kb.updatedAt = Date.now();
     this.updateKBStatus(kb);
     this.saveToDisk();
+  }
+
+  replaceDocuments(
+    kbId: string,
+    documents: KnowledgeDocument[],
+    accountId: string = DEFAULT_ACCOUNT_ID
+  ): KnowledgeBase {
+    const kb =
+      this.ownedKB(
+        kbId,
+        accountId
+      );
+    if (!kb) {
+      throw new Error(
+        `Knowledge base ${kbId} not found`
+      );
+    }
+
+    kb.documents =
+      JSON.parse(
+        JSON.stringify(documents)
+      );
+    kb.updatedAt = Date.now();
+    this.updateKBStatus(kb);
+    this.saveToDisk();
+    return structuredClone(kb);
+  }
+
+  applyVersionRollback(
+    kbId: string,
+    versionId: string,
+    documents: KnowledgeDocument[],
+    accountId: string = DEFAULT_ACCOUNT_ID
+  ): KnowledgeBase {
+    const kb =
+      this.ownedKB(
+        kbId,
+        accountId
+      );
+    if (!kb) {
+      throw new Error(
+        `Knowledge base ${kbId} not found`
+      );
+    }
+
+    const targetVersion =
+      kb.versions.find(
+        (version) =>
+          version.id === versionId ||
+          version.versionTag ===
+            versionId
+      );
+    if (!targetVersion) {
+      throw new Error(
+        `Target version ${versionId} not found`
+      );
+    }
+
+    kb.documents =
+      JSON.parse(
+        JSON.stringify(documents)
+      );
+    kb.versions.forEach(
+      (version) =>
+        (version.isCurrent =
+          version.id ===
+          targetVersion.id)
+    );
+    kb.currentVersion =
+      targetVersion.versionTag;
+    kb.updatedAt = Date.now();
+    this.updateKBStatus(kb);
+    this.saveToDisk();
+    return structuredClone(kb);
   }
 
   removeDocument(
