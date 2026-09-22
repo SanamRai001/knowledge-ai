@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C2 — Source Object Metadata + Storage Abstraction Foundation.**
+> **Continue with Production Hardening C3 — Durable Object Backend + Document Source Migration.**
 
 Phases 0–8 are complete.
 
@@ -1080,7 +1080,8 @@ Track A relational milestones:
 - B2D3B3C Phase 4 Route Retirement — COMPLETE, workflow `35742006196`
 - B2D3B4 Retired Experimental Frontend Surface Cleanup — COMPLETE, workflow `35746192253`
 - C1 Durable Source File/Object Storage Forensic Audit — COMPLETE, workflow `35749439403`
-- C2 Source Object Metadata + Storage Abstraction Foundation — NEXT
+- C2 Source Object Metadata + Storage Abstraction Foundation — COMPLETE, workflow `35754956014`
+- C3 Durable Object Backend + Document Source Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1124,6 +1125,8 @@ B2D3B4 evidence: `docs/PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP.md`.
 
 C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
 
+C2 evidence: `docs/PRODUCTION_C2_SOURCE_OBJECT_FOUNDATION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1164,16 +1167,19 @@ B2D3B4 now removes retired Learning Lab, Advanced Orchestration, and Answer Diag
 
 C1 now inventories every current source-byte/large-payload durability boundary, separates original bytes from derived document/Dataset payloads and structured state, documents Drive/OneDrive checkpoint risk, defines a provider-neutral SourceObject/SourceVersion contract, and adds an executable drift proof without changing runtime behavior.
 
-Next, do **C2 only — Source Object Metadata + Storage Abstraction Foundation**:
+C2 now provides PostgreSQL source object/version metadata, account-scoped repositories, database-enforced immutable source-version byte identity, provider-neutral byte-storage contracts, tenant-safe generated keys, and SHA-256/size integrity verification. Browser uploads, Dataset imports, and integration sync remain intentionally uncut-over.
 
-1. add PostgreSQL `source_objects` and immutable `source_versions` metadata scoped by account
-2. model kind/origin, provider identity, filename/MIME/size/SHA-256, backend/key/etag, lifecycle state, and timestamps
-3. add account-scoped repository interfaces + PostgreSQL implementations
-4. add a provider-neutral byte-storage interface, but no cloud provider implementation
-5. add a server-generated tenant-safe storage-key builder
-6. add SHA-256/size integrity verification helpers
-7. prove cross-account isolation and source-version immutability
-8. leave current upload/Dataset/integration behavior untouched
-9. add focused PostgreSQL/unit proofs and stop before C3
+Next, do **C3 only — Durable Object Backend + Document Source Migration**:
 
-Do not add cloud credentials, signed URLs, upload cutover, Dataset payload migration, integration checkpoint changes, workers/queues, or Track D work in C2.
+1. select/configure one production object-storage adapter behind `SourceByteStorage`
+2. validate required storage environment/credentials without persisting or logging secrets
+3. persist original PDF bytes and verify SHA-256/size before document processing is committed
+4. create/link SourceObject + SourceVersion metadata to each uploaded document
+5. expose only `sourceVersionId` to document domain state, never provider object keys
+6. make document retry fetch exact durable bytes and genuinely re-run PDF parsing
+7. preserve HUMAN_SESSION account/workspace authorization and deny arbitrary key access
+8. define compensation for storage/metadata/parse failures
+9. prove source-byte survival independently of local runtime `data/`
+10. stop before Dataset or integration migration
+
+Do not migrate Dataset analytical payloads, Drive/OneDrive source snapshots, workers/queues, or Track D workflows in C3.
