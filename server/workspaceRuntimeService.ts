@@ -19,6 +19,7 @@ import {
   postgresWorkspaceMetadataRepository,
 } from './persistence/postgresRepositories.js';
 import type { WorkspaceMetadata } from './persistence/types.js';
+import { documentDerivedPayloadService } from './storage/documentDerivedPayloadService.js';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -58,17 +59,43 @@ export class WorkspaceRuntimeService {
     return postgresPersistenceEnabled();
   }
 
-  private materialize(
+  private async materialize(
     metadata: WorkspaceMetadata
-  ): KnowledgeBase {
-    const payload = kbStore.getKB(
+  ): Promise<KnowledgeBase> {
+    let payload = kbStore.getKB(
       metadata.id,
       metadata.accountId
     );
     if (!payload) {
       throw new WorkspaceRuntimeError(
-        'Workspace metadata exists in PostgreSQL, but its document/chat payload is unavailable on this application instance. Durable workspace payload storage is handled by the object-storage hardening track.'
+        'Workspace metadata and durable document payloads may exist, but the remaining structured workspace payload (AI configuration/chat/evaluation state) is unavailable on this application instance.'
       );
+    }
+
+    const durableAuthority =
+      await documentDerivedPayloadService
+        .hasWorkspacePayloads({
+          accountId: metadata.accountId,
+          workspaceId: metadata.id,
+        });
+
+    if (durableAuthority) {
+      const documents =
+        await documentDerivedPayloadService
+          .listCurrentDocuments({
+            accountId: metadata.accountId,
+            workspaceId: metadata.id,
+          });
+
+      kbStore.replaceDocuments(
+        metadata.id,
+        documents,
+        metadata.accountId
+      );
+      payload = kbStore.getKB(
+        metadata.id,
+        metadata.accountId
+      )!;
     }
 
     return {
@@ -119,22 +146,52 @@ export class WorkspaceRuntimeService {
 
     const metadata =
       await postgresWorkspaceMetadataRepository.list(accountId);
-    return metadata.map((item) => {
-      const payload = kbStore.getKB(item.id, accountId);
-      return {
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        documentCount: payload?.documents.length || 0,
-        currentVersion: item.currentVersionTag,
-        aiName:
-          payload?.specializedAi?.name ||
-          item.name + ' Specialist',
-        createdDate: item.createdAt,
-        updatedAt: item.updatedAt,
-        accountId: item.accountId,
-      };
-    });
+
+    return Promise.all(
+      metadata.map(async (item) => {
+        const payload =
+          kbStore.getKB(
+            item.id,
+            accountId
+          );
+        const durableAuthority =
+          await documentDerivedPayloadService
+            .hasWorkspacePayloads({
+              accountId,
+              workspaceId: item.id,
+            });
+        const documentCount =
+          durableAuthority
+            ? await documentDerivedPayloadService
+                .countCurrentDocuments({
+                  accountId,
+                  workspaceId: item.id,
+                })
+            : payload?.documents.length ||
+              0;
+
+        return {
+          id: item.id,
+          name: item.name,
+          description:
+            item.description,
+          documentCount,
+          currentVersion:
+            item.currentVersionTag,
+          aiName:
+            payload?.specializedAi
+              ?.name ||
+            item.name +
+              ' Specialist',
+          createdDate:
+            item.createdAt,
+          updatedAt:
+            item.updatedAt,
+          accountId:
+            item.accountId,
+        };
+      })
+    );
   }
 
   public async requireKB(
@@ -407,34 +464,135 @@ export class WorkspaceRuntimeService {
         versionId
       );
     }
-    await this.requireKB(accountId, kbId);
-    const kb = kbStore.rollbackToVersion(
-      kbId,
-      versionId,
-      accountId
-    );
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const target =
+      current.versions.find(
+        (version) =>
+          version.id === versionId ||
+          version.versionTag ===
+            versionId
+      );
+
+    if (!target) {
+      throw new WorkspaceAccessError(
+        'KNOWLEDGE_BASE_NOT_FOUND',
+        404,
+        'Target knowledge version was not found.'
+      );
+    }
+
+    if (
+      target.documentRefs !==
+      undefined
+    ) {
+      const durableDocuments =
+        await documentDerivedPayloadService
+          .activatePayloadRefs({
+            accountId,
+            workspaceId: kbId,
+            payloadIds:
+              target.documentRefs.map(
+                (ref) =>
+                  ref.derivedPayloadId
+              ),
+          });
+
+      const kb =
+        kbStore.applyVersionRollback(
+          kbId,
+          versionId,
+          [
+            ...(target.documents ||
+              []),
+            ...durableDocuments,
+          ],
+          accountId
+        );
+      await this.syncMetadata(kb);
+      return this.requireKB(
+        accountId,
+        kbId
+      );
+    }
+
+    const kb =
+      kbStore.rollbackToVersion(
+        kbId,
+        versionId,
+        accountId
+      );
     await this.syncMetadata(kb);
-    return this.requireKB(accountId, kbId);
+    return this.requireKB(
+      accountId,
+      kbId
+    );
   }
 
   public async addDocument(
     accountId: string,
     kbId: string,
     doc: KnowledgeDocument
-  ): Promise<void> {
+  ): Promise<KnowledgeDocument> {
     if (!this.usesPostgres()) {
       workspaceAccessService.addDocument(
         accountId,
         kbId,
         doc
       );
-      return;
+      return doc;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.addDocument(kbId, doc, accountId);
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
+
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const replaced =
+      current.documents.find(
+        (item) =>
+          item.filename ===
+            doc.filename &&
+          item.id !== doc.id
+      );
+
+    const persisted =
+      await documentDerivedPayloadService
+        .persistDocument({
+          accountId,
+          workspaceId: kbId,
+          document: doc,
+        });
+    const durableDocument =
+      persisted?.document || doc;
+
+    if (
+      replaced?.derivedPayloadId
+    ) {
+      await documentDerivedPayloadService
+        .markDocumentInactive({
+          accountId,
+          workspaceId: kbId,
+          documentId:
+            replaced.id,
+        });
+    }
+
+    kbStore.addDocument(
+      kbId,
+      durableDocument,
+      accountId
     );
+    await this.syncMetadata(
+      kbStore.getKB(
+        kbId,
+        accountId
+      )!
+    );
+    return durableDocument;
   }
 
   public async removeDocument(
@@ -449,7 +607,28 @@ export class WorkspaceRuntimeService {
         docId
       );
     }
-    await this.requireKB(accountId, kbId);
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const existing =
+      current.documents.find(
+        (document) =>
+          document.id === docId
+      );
+
+    if (
+      existing?.derivedPayloadId
+    ) {
+      await documentDerivedPayloadService
+        .markDocumentInactive({
+          accountId,
+          workspaceId: kbId,
+          documentId: docId,
+        });
+    }
+
     const removed = kbStore.removeDocument(
       kbId,
       docId,
@@ -480,16 +659,52 @@ export class WorkspaceRuntimeService {
       );
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.updateDocumentStatus(
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const document =
+      current.documents.find(
+        (item) =>
+          item.id === docId
+      );
+
+    if (!document) {
+      throw new WorkspaceAccessError(
+        'KNOWLEDGE_BASE_NOT_FOUND',
+        404,
+        'Document was not found in the current workspace.'
+      );
+    }
+
+    const updatedDocument:
+      KnowledgeDocument = {
+        ...document,
+        processingStatus: status,
+        errorMessage,
+      };
+
+    const persisted =
+      await documentDerivedPayloadService
+        .persistDocument({
+          accountId,
+          workspaceId: kbId,
+          document:
+            updatedDocument,
+        });
+
+    kbStore.addDocument(
       kbId,
-      docId,
-      status,
-      errorMessage,
+      persisted?.document ||
+        updatedDocument,
       accountId
     );
     await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
+      kbStore.getKB(
+        kbId,
+        accountId
+      )!
     );
   }
 
