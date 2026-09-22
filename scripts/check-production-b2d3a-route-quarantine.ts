@@ -107,6 +107,8 @@ async function main() {
       '/api/v1/tenants',
       '/api/v1/saas',
       '/api/v1/mediator',
+      '/api/v1/rag',
+      '/api/v1/cognitive',
     ];
 
     for (const prefix of expectedRetired) {
@@ -121,8 +123,6 @@ async function main() {
     }
 
     const expectedDevelopmentOnly = [
-      '/api/v1/rag',
-      '/api/v1/cognitive',
       '/api/phase4',
     ];
 
@@ -299,7 +299,6 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       for (const path of [
-        '/api/v1/rag/benchmark/run',
         '/api/phase4/dashboard',
       ]) {
         const response = await fetch(
@@ -331,6 +330,8 @@ async function main() {
         '/api/v1/tenants',
         '/api/v1/saas/status',
         '/api/v1/mediator/execute',
+        '/api/v1/rag/benchmark/run',
+        '/api/v1/cognitive/query',
         '/api/kb/legacy-only',
       ]) {
         const response = await fetch(
