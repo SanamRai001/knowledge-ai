@@ -112,15 +112,26 @@ async function main() {
     kbStore.includes("'knowledge_bases.json'") &&
       kbStore.includes('fs.writeFileSync') &&
       gitignore.split(/\r?\n/).includes('data/'),
-    'Workspace/document payload must remain explicitly identified as ignored local runtime state.'
+    'Structured workspace compatibility state must remain explicitly identified as ignored local runtime state until its later relational migration.'
   );
 
   assert(
-    workspaceRuntime.includes('WORKSPACE_PAYLOAD_UNAVAILABLE') &&
+    workspaceRuntime.includes(
+      'documentDerivedPayloadService'
+    ) &&
       workspaceRuntime.includes(
-        'Durable workspace payload storage is handled by the object-storage hardening track.'
+        'hasWorkspacePayloads'
+      ) &&
+      workspaceRuntime.includes(
+        'listCurrentDocuments'
+      ) &&
+      workspaceRuntime.includes(
+        'WORKSPACE_PAYLOAD_UNAVAILABLE'
+      ) &&
+      workspaceRuntime.includes(
+        'remaining structured workspace payload'
       ),
-    'Workspace runtime must still fail explicitly when PostgreSQL metadata outlives local payload state.'
+    'C1 regression proof must accept C4 durable parsed-document reconstruction while keeping missing chat/config/evaluation state explicit.'
   );
 
   assert(
@@ -197,7 +208,7 @@ async function main() {
     'PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'C1 historical audit boundaries remain guarded after C3: document source bytes have advanced to durable source versions, while workspace payloads, Dataset analytical payloads, and Drive/OneDrive checkpoint durability remain explicit later Track C work.'
+    'C1 historical audit boundaries remain guarded after C4: original PDF bytes and parsed document payloads are durable, while chat/config/evaluation state, Dataset analytical payloads, and Drive/OneDrive checkpoint durability remain explicit later work.'
   );
 }
 

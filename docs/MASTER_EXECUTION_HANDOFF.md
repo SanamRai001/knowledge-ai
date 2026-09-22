@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C4 — Durable Derived Document Payload + Workspace Reconstruction.**
+> **Continue with Production Hardening C5 — Dataset Source + Analytical Payload Migration.**
 
 Phases 0–8 are complete.
 
@@ -1082,7 +1082,8 @@ Track A relational milestones:
 - C1 Durable Source File/Object Storage Forensic Audit — COMPLETE, workflow `35749439403`
 - C2 Source Object Metadata + Storage Abstraction Foundation — COMPLETE, workflow `35754956014`
 - C3 Durable Object Backend + Document Source Migration — COMPLETE, workflow `35757955890`
-- C4 Durable Derived Document Payload + Workspace Reconstruction — NEXT
+- C4 Durable Derived Document Payload + Workspace Reconstruction — COMPLETE, workflow `35762662087`
+- C5 Dataset Source + Analytical Payload Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1130,6 +1131,8 @@ C2 evidence: `docs/PRODUCTION_C2_SOURCE_OBJECT_FOUNDATION.md`.
 
 C3 evidence: `docs/PRODUCTION_C3_DOCUMENT_SOURCE_MIGRATION.md`.
 
+C4 evidence: `docs/PRODUCTION_C4_DERIVED_DOCUMENT_RECONSTRUCTION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1174,17 +1177,19 @@ C2 now provides PostgreSQL source object/version metadata, account-scoped reposi
 
 C3 now adds an S3-compatible production source-byte adapter, stores exact PDF bytes before parsing, links documents only by opaque `sourceVersionId`, makes retry reload and integrity-check the original durable PDF, enforces account/workspace source lookup, and tombstones/deletes durable sources on replacement/removal while leaving Dataset/integration migration untouched.
 
-Next, do **C4 only — Durable Derived Document Payload + Workspace Reconstruction**:
+C4 now persists parsed PDF document payloads in integrity-verified durable object storage with PostgreSQL ownership metadata, hydrates the PostgreSQL workspace document corpus before Unified Ask, replaces new KnowledgeVersion full-document copies with durable refs, resolves historical refs, and supports durable rollback. Chat/config/evaluation state remains explicitly outside this slice.
 
-1. define a durable derived-document payload contract keyed by account/workspace/document/sourceVersionId/derivation version
-2. move parsed pages, summary, page count, document metadata, processing state, and sourceVersionId out of local-only `knowledge_bases.json` document payload dependence
-3. retain C3 SourceVersion as immutable provenance and rebuild source of truth
-4. enforce account/workspace-scoped derived payload access
-5. reconstruct workspace document corpora from durable metadata/payload after local-state loss
-6. prove restart/container replacement recovery of parsed document pages used by Ask
-7. replace KnowledgeVersion full-document duplication with stable immutable references
-8. define parser/derivation versioning and safe rebuild semantics
-9. preserve chat history, Specialized AI config, evaluation state, Dataset, and integration runtime behavior
-10. add focused PostgreSQL/restart proofs and stop before wider Track C migration
+Next, do **C5 only — Dataset Source + Analytical Payload Migration**:
 
-Do not migrate chat/config/evaluation structured state, Dataset source/analytical payloads, Drive/OneDrive snapshots, workers/queues, or Track D workflows in C4.
+1. persist original CSV/XLSX bytes as immutable `DATASET_SOURCE` source versions before import commit
+2. link DatasetVersion metadata to durable sourceVersionId while preserving existing source hash/size/MIME metadata
+3. add a durable integrity-verified Dataset analytical payload backend behind the existing payload locator abstraction
+4. keep PostgreSQL Dataset metadata authoritative and object blobs limited to source/analytical payload bytes
+5. reconstruct Dataset runtime rows from durable payload locators after local-state loss
+6. enforce account/Dataset/version ownership and never accept arbitrary provider object keys from clients
+7. define compensation/commit ordering across source bytes, parsing, analytical payload bytes, and PostgreSQL import metadata
+8. preserve deterministic analytics, discovery, historical version selection, schema correction, and UI behavior
+9. leave Drive/OneDrive immutable snapshots and checkpoint ordering for the following integration-focused slice
+10. add focused contract + PostgreSQL restart/isolation/tamper proofs and stop before C6
+
+Do not migrate integration checkpoints, chat/config/evaluation structured state, workers/queues, or Track D workflows in C5.

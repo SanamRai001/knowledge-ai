@@ -4,6 +4,7 @@ import { answerQuestionWithGroundedDocs } from './geminiService.js';
 import { ApiSource, Citation, ChatMessage, KnowledgeDocument, ExperienceSource } from '../src/types.js';
 import { memoryRetrievalService } from './memoryRetrievalService.js';
 import { memoryStore } from './memoryStore.js';
+import { documentDerivedPayloadService } from './storage/documentDerivedPayloadService.js';
 
 export class SpecializedAIError extends Error {
   public code: string;
@@ -124,10 +125,40 @@ export class SpecializedAIService {
     if (versionTag && kb.versions && kb.versions.length > 0) {
       const targetedVersion = kb.versions.find((v) => v.versionTag === versionTag || v.id === versionTag);
       if (targetedVersion) {
-        activeDocs = targetedVersion.documents && targetedVersion.documents.length > 0
-          ? targetedVersion.documents
-          : (kb.documents || []);
-        resolvedVersion = targetedVersion.versionTag;
+        if (
+          targetedVersion.documentRefs !==
+          undefined
+        ) {
+          const durableDocuments =
+            targetedVersion.documentRefs
+              .length > 0
+              ? await documentDerivedPayloadService
+                  .loadDocumentsByRefs({
+                    accountId:
+                      effectiveAccountId,
+                    workspaceId: kb.id,
+                    payloadIds:
+                      targetedVersion.documentRefs.map(
+                        (ref) =>
+                          ref.derivedPayloadId
+                      ),
+                  })
+              : [];
+          activeDocs = [
+            ...(targetedVersion.documents ||
+              []),
+            ...durableDocuments,
+          ];
+        } else {
+          activeDocs =
+            targetedVersion.documents &&
+            targetedVersion.documents.length >
+              0
+              ? targetedVersion.documents
+              : kb.documents || [];
+        }
+        resolvedVersion =
+          targetedVersion.versionTag;
       }
     }
 

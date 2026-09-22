@@ -205,6 +205,9 @@ jobs:
       - name: Production C3 document source contract proof
         run: npm run check:production:c3-document-source-contract
 
+      - name: Production C4 derived document contract proof
+        run: npm run check:production:c4-derived-document-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -332,3 +335,6 @@ jobs:
 
       - name: Production C3 document source PostgreSQL proof
         run: npm run check:production:c3-document-source-postgres
+
+      - name: Production C4 derived document PostgreSQL proof
+        run: npm run check:production:c4-derived-document-postgres
