@@ -14,6 +14,7 @@ export interface KnowledgeDocument {
   processingStatus: DocumentProcessingStatus;
   errorMessage?: string;
   sourceVersionId?: string;
+  derivedPayloadId?: string;
   pageCount: number;
   pages?: DocumentPage[];
   geminiFileRef?: string;
@@ -68,6 +69,13 @@ export interface SpecializedAI {
   updatedAt: number;
 }
 
+export interface KnowledgeVersionDocumentRef {
+  documentId: string;
+  filename: string;
+  sourceVersionId: string;
+  derivedPayloadId: string;
+}
+
 export interface KnowledgeVersion {
   id: string;
   versionNumber: number;
@@ -76,7 +84,8 @@ export interface KnowledgeVersion {
   timestamp: number;
   documentCount: number;
   totalPages: number;
-  documents: KnowledgeDocument[];
+  documents?: KnowledgeDocument[];
+  documentRefs?: KnowledgeVersionDocumentRef[];
   isCurrent: boolean;
 }
 
