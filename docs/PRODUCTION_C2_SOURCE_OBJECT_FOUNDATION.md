@@ -1,6 +1,6 @@
 # Production C2 — Source Object Metadata + Storage Abstraction Foundation
 
-Status: IMPLEMENTED — awaiting integrated Quality Gate validation.
+Status: **COMPLETE** — authoritative implementation Quality Gate `35754956014`.
 
 ## Scope
 
@@ -221,19 +221,23 @@ Checks:
 - source-object tombstone preserving version history
 - explicit account_id on both source metadata tables
 
-## Exit criteria
+## Validation
 
-C2 is complete only when:
+Authoritative implementation Quality Gate:
 
-- TypeScript passes
-- production build passes
-- provider-neutral C2 proof passes
-- PostgreSQL C2 proof passes
-- all earlier production-hardening proofs remain green
-- Phase 0–8 regression gates remain green
-- PostgreSQL suite remains green
-- unseen/live benchmark tail remains green
-- exact final branch head is validated
+`35754956014`
+
+Verified green:
+
+- TypeScript
+- production build
+- provider-neutral C2 storage-foundation proof
+- PostgreSQL C2 source-metadata/isolation/immutability proof
+- all earlier production-hardening proofs
+- Phase 0–8 regression gates
+- PostgreSQL production suite
+- unseen-corpus effectiveness benchmark
+- live Gemini benchmark
 
 ## Next phase
 
