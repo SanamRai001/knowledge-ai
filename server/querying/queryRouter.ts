@@ -8,6 +8,7 @@ import {
 import { applicationIdentityMiddleware } from '../requestIdentityMiddleware.js';
 import { SpecializedAIError } from '../specializedAIService.js';
 import { WorkspaceAccessError } from '../workspaceAccessService.js';
+import { WorkspaceRuntimeError } from '../workspaceRuntimeService.js';
 import {
   AnalyticalQuestionError,
   AnalyticalPlanningError,
@@ -29,6 +30,7 @@ function handleError(res: express.Response, error: any): void {
   if (
     error instanceof RequestIdentityError ||
     error instanceof WorkspaceAccessError ||
+    error instanceof WorkspaceRuntimeError ||
     error instanceof SpecializedAIError ||
     error instanceof DatasetAccessError ||
     error instanceof AnalyticalQueryError ||
