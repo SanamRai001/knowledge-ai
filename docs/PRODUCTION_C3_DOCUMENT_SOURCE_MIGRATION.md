@@ -1,6 +1,6 @@
 # Production C3 — Durable Object Backend + Document Source Migration
 
-Status: IMPLEMENTED — awaiting integrated Quality Gate validation.
+Status: **COMPLETE** — authoritative implementation Quality Gate `35757955890`.
 
 ## Scope
 
@@ -283,20 +283,27 @@ Therefore C3 does not claim complete stateless application-container recovery ye
 
 The durable PDF source now provides the authoritative material needed for a later workspace-payload reconstruction/migration slice.
 
-## Exit criteria
+## Validation
 
-C3 is complete only after:
+Authoritative implementation Quality Gate:
+
+`35757955890`
+
+Verified green:
 
 - TypeScript
 - production build
 - C1/C2 historical guards
-- C3 contract proof
+- C3 document-source contract proof
 - C3 PostgreSQL durable-source proof
 - all Phase 0–8 regression gates
 - all previous production-hardening proofs
 - PostgreSQL production suite
-- unseen-corpus benchmark
+- unseen-corpus effectiveness benchmark
 - live Gemini benchmark
-- exact final-head validation
 
-are green.
+## Next phase
+
+**C4 — Durable Derived Document Payload + Workspace Reconstruction**
+
+C4 should make parsed document pages/summaries reconstructable after application-container replacement using the durable C3 source version as provenance. Chat history, Specialized AI configuration, evaluation state, Dataset payloads, and integration source snapshots remain separate later slices.
