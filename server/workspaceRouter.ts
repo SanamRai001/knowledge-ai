@@ -7,6 +7,7 @@ import {
   parsePdfBuffer,
 } from './documentService.js';
 import { documentSourceStorageService } from './storage/documentSourceStorageService.js';
+import { SourceStorageConfigurationError } from './storage/sourceByteStorageRuntime.js';
 import { generateSampleDocs } from './sampleDocs.js';
 import { runEvaluationSuite } from './evaluationService.js';
 import { runFullTestSuite } from './testRunner.js';
@@ -65,6 +66,16 @@ function handleError(
     error instanceof RequestIdentityError
   ) {
     res.status(error.statusCode).json({
+      error: error.message,
+      code: error.code,
+    });
+    return;
+  }
+  if (
+    error instanceof
+      SourceStorageConfigurationError
+  ) {
+    res.status(503).json({
       error: error.message,
       code: error.code,
     });
