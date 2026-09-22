@@ -375,13 +375,20 @@ workspaceRouter.post(
 
       const processed = [];
       const errors = [];
+      const currentDocumentsByFilename =
+        new Map(
+          activeKb.documents.map(
+            (item) => [
+              item.filename,
+              item,
+            ] as const
+          )
+        );
 
       for (const file of files) {
         const previousDocument =
-          activeKb.documents.find(
-            (item) =>
-              item.filename ===
-              file.originalname
+          currentDocumentsByFilename.get(
+            file.originalname
           );
         let storedSource:
           | Awaited<
@@ -478,6 +485,10 @@ workspaceRouter.post(
                 });
             }
 
+            currentDocumentsByFilename.set(
+              doc.filename,
+              doc
+            );
             processed.push(doc);
           } catch (parseError: any) {
             if (!storedSource) {
@@ -522,6 +533,26 @@ workspaceRouter.post(
                 );
               throw error;
             }
+
+            if (
+              previousDocument
+                ?.sourceVersionId
+            ) {
+              await documentSourceStorageService
+                .retireDocumentSource({
+                  accountId,
+                  workspaceId:
+                    activeKb.id,
+                  sourceVersionId:
+                    previousDocument
+                      .sourceVersionId,
+                });
+            }
+
+            currentDocumentsByFilename.set(
+              failedDoc.filename,
+              failedDoc
+            );
 
             errors.push({
               filename:
