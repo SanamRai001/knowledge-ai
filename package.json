@@ -87,7 +87,8 @@
     "check:production:b2d3b3a-mediator-route-retirement": "tsx scripts/check-production-b2d3b3a-mediator-route-retirement.ts",
     "check:production:b2d3b3b-rag-cognitive-route-retirement": "tsx scripts/check-production-b2d3b3b-rag-cognitive-route-retirement.ts",
     "check:production:b2d3b3c-phase4-route-retirement": "tsx scripts/check-production-b2d3b3c-phase4-route-retirement.ts",
-    "check:production:b2d3b4-retired-frontend-surface-cleanup": "tsx scripts/check-production-b2d3b4-retired-frontend-surface-cleanup.ts"
+    "check:production:b2d3b4-retired-frontend-surface-cleanup": "tsx scripts/check-production-b2d3b4-retired-frontend-surface-cleanup.ts",
+    "check:production:c1-object-storage-forensic-audit": "tsx scripts/check-production-c1-object-storage-forensic-audit.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

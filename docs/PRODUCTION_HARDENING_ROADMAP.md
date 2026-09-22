@@ -171,7 +171,8 @@ The implementation sequence is deliberately split into small slices:
 16. **B2D3B3B — RAG + Cognitive Route Retirement or Migration** — COMPLETE, workflow `35736152396`
 17. **B2D3B3C — Phase 4 Route Retirement or Migration** — COMPLETE, workflow `35742006196`
 18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — COMPLETE, workflow `35746192253`
-19. **C1 — Durable Source File/Object Storage Forensic Audit** — NEXT
+19. **C1 — Durable Source File/Object Storage Forensic Audit** — COMPLETE, workflow `35749439403`
+20. **C2 — Source Object Metadata + Storage Abstraction Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -209,6 +210,8 @@ B2D3B3C evidence: `docs/PRODUCTION_B2D3B3C_PHASE4_ROUTE_RETIREMENT.md`.
 
 B2D3B4 evidence: `docs/PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP.md`.
 
+C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -244,6 +247,8 @@ B2D3B3B removed all prototype RAG/Cognitive HTTP exposure, permanently retired b
 B2D3B3C removed all legacy `/api/phase4/*` active-workspace convenience routes, permanently retired the family, preserved authenticated `/api/v1/ai/:ai_id/*` compatibility, preserved modern workspace AI configuration and `/api/query/ask`, and kept governed memory/sandbox/learning internals available.
 
 B2D3B4 removed retired experimental Learning Lab / Orchestration / Diagnostics entry points and their isolated component trees, removed the unused legacy ChatArea, repaired Trust Checks to use `/api/kb/run-tests`, preserved Unified Ask on `/api/query/ask`, and added a repository-wide frontend retired-API guard.
+
+C1 inventoried browser uploads, Dataset imports, Drive/OneDrive sync, local workspace/document payloads, Dataset analytical payloads, retries/reprocessing, sample fixtures, and shadowed legacy upload handlers; defined the provider-neutral SourceObject/SourceVersion contract; and proved the current durability boundaries without changing runtime behavior.
 
 ## Security rules
 
@@ -673,21 +678,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening C1 — Durable Source File/Object Storage Forensic Audit**
+**Production Hardening C2 — Source Object Metadata + Storage Abstraction Foundation**
 
-Keep this slice audit-only. Do not choose or integrate an object-storage provider yet.
+Keep this slice provider-neutral and foundation-only.
 
-1. inventory every place original uploaded/synchronized bytes or large user payloads are written, reconstructed, or discarded
-2. distinguish source bytes from PostgreSQL metadata, parsed text, derived chunks/indexes, Dataset analytical rows, caches, and test fixtures
-3. trace browser uploads, sample documents, Google Drive/OneDrive sync, document retry/reprocessing, and Dataset imports end-to-end
-4. identify current local-disk/container assumptions and restart/redeploy data-loss points
-5. document account/workspace ownership and provenance relationships for every durable-source candidate
-6. define the minimum SourceObject / SourceVersion metadata contract needed for later object storage: immutable identity, SHA-256, content type, byte size, tenant namespace, retention/tombstone state
-7. identify authorization requirements for future retrieval and prove no public-bucket assumption is needed
-8. classify KEEP / MIGRATE / EPHEMERAL / TEST-ONLY for each payload family
-9. add an executable audit guard where practical and stop before provider implementation
+1. add PostgreSQL `source_objects` and immutable `source_versions` metadata with explicit account ownership and optional workspace/domain linkage
+2. include kind/origin, external connection/id/version metadata, filename, content type, size, SHA-256, backend/key/etag, lifecycle/tombstone state, and timestamps
+3. add repository interfaces and PostgreSQL implementations with account-scoped queries only
+4. add a provider-neutral byte-storage interface for put/get/delete-or-tombstone semantics; do not select a cloud provider
+5. add a server-generated tenant-safe storage-key builder that never trusts client filenames or arbitrary object keys
+6. define integrity verification helpers for SHA-256 + byte size
+7. prove cross-account metadata/object lookup is denied and immutable source-version identity cannot be rewritten
+8. preserve all existing upload/Dataset/integration runtime behavior for now; C2 must not cut traffic over
+9. add focused PostgreSQL + unit proofs and stop before C3 document upload migration
 
-Do not start S3/R2/GCS/Azure integration, workers/queues, or broad transaction work in C1.
+Do not add S3/R2/GCS/Azure credentials, signed URLs, browser upload cutover, Dataset payload migration, integration checkpoint changes, workers/queues, or Track D transactions in C2.
 ---
 
 # Track A closure note
