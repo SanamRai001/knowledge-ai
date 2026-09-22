@@ -2,7 +2,7 @@
 
 Date: **2026-09-22**
 
-Status: **IMPLEMENTED — awaiting integrated Quality Gate validation.**
+Status: **COMPLETE** — authoritative implementation Quality Gate `35749439403`.
 
 ## Verdict
 
@@ -582,18 +582,27 @@ Structured chat/config/evaluation state should get its own relational hardening 
 
 ---
 
-# 14. C1 exit criteria
+# 14. Validation
 
-C1 is audit-only and is complete when:
+Authoritative implementation Quality Gate:
 
-- every current user-source byte path is inventoried
-- current local/container durability boundaries are explicit
-- source bytes are distinguished from derived analytical/document payloads
-- structured workspace state is not misclassified as object-source data
-- integration checkpoint risk is documented
-- a provider-neutral SourceObject/SourceVersion contract is defined
-- ownership, retrieval, deletion, and retention constraints are defined
-- an executable audit-drift proof captures the current known boundaries
-- integrated Quality Gate remains green
+`35749439403`
 
-C1 does **not** select or integrate an object-storage provider.
+Verified green:
+
+- TypeScript
+- production build
+- focused C1 forensic audit drift proof
+- all Phase 0–8 regression gates
+- all previous production-hardening proofs
+- PostgreSQL production suite
+- unseen-corpus effectiveness benchmark
+- live Gemini unseen-corpus benchmark
+
+C1 is audit-only and selected no storage provider.
+
+# 15. Next phase
+
+**C2 — Source Object Metadata + Storage Abstraction Foundation**
+
+C2 should add the relational metadata model and provider-neutral storage contracts only. It must not yet cut browser uploads, Dataset imports, or integration sync over to a cloud object backend.
