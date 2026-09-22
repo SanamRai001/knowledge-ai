@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { datasetStore } from '../datasets/datasetStore.js';
 import { specializedAIService } from '../specializedAIService.js';
-import { workspaceAccessService } from '../workspaceAccessService.js';
+import { workspaceRuntimeService } from '../workspaceRuntimeService.js';
 import { analyticalQuestionPlanner } from './analyticalQuestionPlanner.js';
 import { analyticalQuestionService } from './analyticalQuestionService.js';
 import {
@@ -155,10 +155,11 @@ export class UnifiedQueryService {
       );
     }
 
-    const kb = workspaceAccessService.requireKB(
-      params.accountId,
-      params.knowledgeBaseId
-    );
+    const kb =
+      await workspaceRuntimeService.requireKB(
+        params.accountId,
+        params.knowledgeBaseId
+      );
     const result = await specializedAIService.answer({
       aiId: kb.specializedAi.id,
       message: question,
