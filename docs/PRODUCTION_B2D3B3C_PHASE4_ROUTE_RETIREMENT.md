@@ -1,6 +1,6 @@
 # Production B2D3B3C — Legacy Phase 4 Route Retirement
 
-Status: IMPLEMENTED — awaiting integrated Quality Gate validation.
+Status: **COMPLETE** — authoritative implementation Quality Gate `35742006196`.
 
 ## Scope
 
@@ -132,17 +132,22 @@ Historical B2D3 proofs were advanced to accept the later Phase 4 retirement.
 
 The focused proof is registered in `package.json` and GitHub Actions Quality Gate.
 
-## Exit criteria
+## Validation
 
-B2D3B3C is complete only when:
+Authoritative implementation Quality Gate:
 
-- TypeScript passes
-- production build passes
-- focused B2D3B3C proof passes
-- previous production-hardening proofs remain green
-- PostgreSQL production suite remains green
-- Phase 0–8 regression gates remain green
-- integrated Quality Gate is green
+`35742006196`
+
+Verified green:
+
+- TypeScript
+- production build
+- focused B2D3B3C Phase 4 retirement proof
+- previous production-hardening regression proofs
+- PostgreSQL production suite
+- Phase 0–8 regression gates
+- unseen-corpus benchmark
+- live Gemini benchmark step
 
 ## Follow-up discovered
 
@@ -154,3 +159,9 @@ After backend legacy-route retirement closes, the production UI should remove or
 - stale acceptance-test actions that call retired test endpoints
 
 Keep that frontend cleanup separate from B2D3B3C.
+
+## Next phase
+
+**B2D3B4 — Retired Experimental Frontend Surface Cleanup**
+
+Remove or migrate UI entry points that still target retired backend families, including the Learning Lab, Advanced Orchestration, Answer Diagnostics, and stale Trust Checks execution path.
