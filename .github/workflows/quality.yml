@@ -187,6 +187,9 @@ jobs:
       - name: Production B2D3B3A mediator route retirement proof
         run: npm run check:production:b2d3b3a-mediator-route-retirement
 
+      - name: Production B2D3B3B RAG cognitive route retirement proof
+        run: npm run check:production:b2d3b3b-rag-cognitive-route-retirement
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
