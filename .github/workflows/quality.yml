@@ -196,6 +196,9 @@ jobs:
       - name: Production B2D3B4 retired frontend surface cleanup proof
         run: npm run check:production:b2d3b4-retired-frontend-surface-cleanup
 
+      - name: Production C1 object storage forensic audit proof
+        run: npm run check:production:c1-object-storage-forensic-audit
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
