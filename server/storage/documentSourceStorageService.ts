@@ -10,10 +10,10 @@ import {
 } from './sourceByteStorageRuntime.js';
 import {
   postgresSourceObjectRepository,
-  type PostgresSourceObjectRepository,
 } from './postgresSourceObjectRepository.js';
 import type {
   SourceObject,
+  SourceObjectRepository,
   SourceVersion,
 } from './sourceObjectTypes.js';
 
@@ -32,7 +32,7 @@ function id(prefix: string): string {
 export class DocumentSourceStorageService {
   constructor(
     private readonly repository:
-      PostgresSourceObjectRepository =
+      SourceObjectRepository =
         postgresSourceObjectRepository,
     private readonly storageProvider: () =>
       SourceByteStorage =
