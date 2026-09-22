@@ -157,9 +157,9 @@ export const legacyRouteInventory:
     {
       id: 'prototype-phase4',
       prefix: '/api/phase4',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
-        'Legacy Phase 4 memory/sandbox/learning routes predate the modern product and identity boundaries.',
+        'Retired by B2D3B3C. Legacy active-KB memory, feedback, sandbox, learning, improvement, and AI-config convenience routes are superseded by authenticated product and API-key boundaries or kept as internal services.',
     },
   ];
 
