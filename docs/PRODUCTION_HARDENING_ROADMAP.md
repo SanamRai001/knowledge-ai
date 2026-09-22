@@ -169,7 +169,8 @@ The implementation sequence is deliberately split into small slices:
 14. **B2D3B2B — Tenant + SaaS Route Retirement** — COMPLETE, workflow `35631363130`
 15. **B2D3B3A — Mediator Route Retirement** — COMPLETE, workflow `35635059024`
 16. **B2D3B3B — RAG + Cognitive Route Retirement or Migration** — COMPLETE, workflow `35736152396`
-17. **B2D3B3C — Phase 4 Route Retirement or Migration** — NEXT
+17. **B2D3B3C — Phase 4 Route Retirement or Migration** — COMPLETE, workflow `35742006196`
+18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -203,6 +204,8 @@ B2D3B3A evidence: `docs/PRODUCTION_B2D3B3A_MEDIATOR_ROUTE_RETIREMENT.md`.
 
 B2D3B3B evidence: `docs/PRODUCTION_B2D3B3B_RAG_COGNITIVE_ROUTE_RETIREMENT.md`.
 
+B2D3B3C evidence: `docs/PRODUCTION_B2D3B3C_PHASE4_ROUTE_RETIREMENT.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -234,6 +237,8 @@ B2D3B2B removed legacy tenant/SaaS HTTP administration, closed prototype tenant 
 B2D3B3A removed all prototype mediator HTTP exposure, permanently retired the mediator route family, retained reusable orchestration/planning/verification/benchmark internals, and preserved supported API-docs/provider/system dependencies.
 
 B2D3B3B removed all prototype RAG/Cognitive HTTP exposure, permanently retired both route families, preserved the identity-aware `/api/query/ask` product contract, and kept RAG/Cognitive engines, telemetry, graph/index, and benchmark modules available internally.
+
+B2D3B3C removed all legacy `/api/phase4/*` active-workspace convenience routes, permanently retired the family, preserved authenticated `/api/v1/ai/:ai_id/*` compatibility, preserved modern workspace AI configuration and `/api/query/ask`, and kept governed memory/sandbox/learning internals available.
 
 ## Security rules
 
@@ -663,21 +668,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D3B3C — Phase 4 Route Retirement or Migration**
+**Production Hardening B2D3B4 — Retired Experimental Frontend Surface Cleanup**
 
-Keep this slice limited to the legacy `/api/phase4/*` family.
+Keep this slice limited to frontend surfaces that still point at retired backend families.
 
-1. inventory every `/api/phase4/*` endpoint
-2. identify Phase 4 memory, sandbox, learning, feedback, and improvement modules still used by supported product/runtime code
-3. distinguish obsolete prototype HTTP workflows from capabilities that need a supported migration path
-4. retire prototype HTTP registration that has no supported product contract
-5. keep required internal modules available
-6. remove only imports made obsolete by HTTP retirement
-7. update the Phase 4 route disposition according to the verified outcome
-8. preserve all modern Phase 0–8 product routers and supported `/api/v1/*` compatibility surfaces
-9. add focused executable proof and stop before Track C or worker work
+1. remove Learning Lab, Advanced Orchestration, and Answer Diagnostics from normal navigation
+2. remove their retired tab values and render branches from the main App shell
+3. inspect whether the now-unreachable experimental components have any remaining references before deleting them
+4. repair the visible Trust Checks action so it uses the supported `/api/kb/run-tests` path instead of retired `/api/v1/tests/phase4`
+5. ensure current Ask remains `UnifiedAskView` on `/api/query/ask`
+6. preserve internal mediator/RAG/Cognitive/Phase 4 modules used by CI or supported runtime code
+7. add a focused frontend-shell contract proof
+8. keep current product navigation and all Phase 0–8 behavior green
+9. stop before Track C object storage or workers/queues
 
-Do not start Track C object storage, workers/queues, or frontend experimental-tab cleanup in this slice.
+Do not start Track C, worker infrastructure, or redesign the product UI in this slice.
 ---
 
 # Track A closure note
