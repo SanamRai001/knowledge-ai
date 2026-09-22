@@ -1,7 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import { ChatMessage } from '../src/types.js';
-import { parsePdfBuffer, createKnowledgeDocument } from './documentService.js';
+import {
+  createFailedKnowledgeDocument,
+  createKnowledgeDocument,
+  parsePdfBuffer,
+} from './documentService.js';
+import { documentSourceStorageService } from './storage/documentSourceStorageService.js';
+import { SourceStorageConfigurationError } from './storage/sourceByteStorageRuntime.js';
 import { generateSampleDocs } from './sampleDocs.js';
 import { runEvaluationSuite } from './evaluationService.js';
 import { runFullTestSuite } from './testRunner.js';
@@ -60,6 +66,16 @@ function handleError(
     error instanceof RequestIdentityError
   ) {
     res.status(error.statusCode).json({
+      error: error.message,
+      code: error.code,
+    });
+    return;
+  }
+  if (
+    error instanceof
+      SourceStorageConfigurationError
+  ) {
+    res.status(503).json({
       error: error.message,
       code: error.code,
     });
@@ -341,50 +357,243 @@ workspaceRouter.post(
   async (req, res) => {
     try {
       const { accountId } = identity(res);
-      const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
-      const files = (req.files as Express.Multer.File[]) || [];
+      const activeKb =
+        await workspaceRuntimeService.getActiveKB(
+          accountId
+        );
+      const files =
+        (req.files as Express.Multer.File[]) ||
+        [];
 
       if (files.length === 0) {
         res.status(400).json({
-          error: 'No PDF files were provided in the upload request.',
+          error:
+            'No PDF files were provided in the upload request.',
         });
         return;
       }
 
       const processed = [];
       const errors = [];
+      const currentDocumentsByFilename =
+        new Map(
+          activeKb.documents.map(
+            (item) => [
+              item.filename,
+              item,
+            ] as const
+          )
+        );
 
       for (const file of files) {
+        const previousDocument =
+          currentDocumentsByFilename.get(
+            file.originalname
+          );
+        let storedSource:
+          | Awaited<
+              ReturnType<
+                typeof documentSourceStorageService.persistUploadedPdf
+              >
+            >
+          | null = null;
+
         try {
-          const { pageCount, pages, summary } = await parsePdfBuffer(
-            file.originalname,
-            file.buffer
-          );
-          const doc = createKnowledgeDocument(
-            file.originalname,
-            file.buffer,
-            pageCount,
-            pages,
-            summary
-          );
-          await workspaceRuntimeService.addDocument(accountId, activeKb.id, doc);
-          processed.push(doc);
+          if (
+            workspaceRuntimeService.usesPostgres()
+          ) {
+            storedSource =
+              await documentSourceStorageService.persistUploadedPdf(
+                {
+                  accountId,
+                  workspaceId: activeKb.id,
+                  filename:
+                    file.originalname,
+                  contentType:
+                    file.mimetype ||
+                    'application/pdf',
+                  bytes: file.buffer,
+                }
+              );
+          }
+
+          try {
+            const {
+              pageCount,
+              pages,
+              summary,
+            } = await parsePdfBuffer(
+              file.originalname,
+              file.buffer
+            );
+
+            const doc =
+              createKnowledgeDocument(
+                file.originalname,
+                file.buffer,
+                pageCount,
+                pages,
+                summary,
+                {
+                  sourceVersionId:
+                    storedSource
+                      ?.sourceVersion.id,
+                }
+              );
+
+            try {
+              await workspaceRuntimeService.addDocument(
+                accountId,
+                activeKb.id,
+                doc
+              );
+            } catch (error) {
+              if (storedSource) {
+                await documentSourceStorageService
+                  .compensateUnlinkedSource(
+                    {
+                      accountId,
+                      sourceObjectId:
+                        storedSource
+                          .sourceObject.id,
+                      sourceVersionId:
+                        storedSource
+                          .sourceVersion.id,
+                      storageKey:
+                        storedSource
+                          .sourceVersion
+                          .storageKey,
+                    }
+                  );
+              }
+              throw error;
+            }
+
+            if (
+              storedSource &&
+              previousDocument
+                ?.sourceVersionId
+            ) {
+              await documentSourceStorageService
+                .retireDocumentSource({
+                  accountId,
+                  workspaceId:
+                    activeKb.id,
+                  sourceVersionId:
+                    previousDocument
+                      .sourceVersionId,
+                });
+            }
+
+            currentDocumentsByFilename.set(
+              doc.filename,
+              doc
+            );
+            processed.push(doc);
+          } catch (parseError: any) {
+            if (!storedSource) {
+              throw parseError;
+            }
+
+            const failedDoc =
+              createFailedKnowledgeDocument(
+                file.originalname,
+                file.buffer,
+                parseError?.message ||
+                  'Document processing failed',
+                {
+                  sourceVersionId:
+                    storedSource
+                      .sourceVersion.id,
+                }
+              );
+
+            try {
+              await workspaceRuntimeService.addDocument(
+                accountId,
+                activeKb.id,
+                failedDoc
+              );
+            } catch (error) {
+              await documentSourceStorageService
+                .compensateUnlinkedSource(
+                  {
+                    accountId,
+                    sourceObjectId:
+                      storedSource
+                        .sourceObject.id,
+                    sourceVersionId:
+                      storedSource
+                        .sourceVersion.id,
+                    storageKey:
+                      storedSource
+                        .sourceVersion
+                        .storageKey,
+                  }
+                );
+              throw error;
+            }
+
+            if (
+              previousDocument
+                ?.sourceVersionId
+            ) {
+              await documentSourceStorageService
+                .retireDocumentSource({
+                  accountId,
+                  workspaceId:
+                    activeKb.id,
+                  sourceVersionId:
+                    previousDocument
+                      .sourceVersionId,
+                });
+            }
+
+            currentDocumentsByFilename.set(
+              failedDoc.filename,
+              failedDoc
+            );
+
+            errors.push({
+              filename:
+                file.originalname,
+              documentId:
+                failedDoc.id,
+              retryable: true,
+              error:
+                parseError?.message ||
+                'Document processing failed',
+            });
+          }
         } catch (error: any) {
           errors.push({
             filename: file.originalname,
-            error: error?.message || 'Document processing failed',
+            error:
+              error?.message ||
+              'Document processing failed',
           });
         }
       }
 
       res.json({
-        message: `Processed ${processed.length} document(s).`,
+        message:
+          `Processed ${processed.length} document(s).`,
         processed,
-        errors: errors.length > 0 ? errors : undefined,
-        kb: await workspaceRuntimeService.getActiveKB(accountId),
+        errors:
+          errors.length > 0
+            ? errors
+            : undefined,
+        kb:
+          await workspaceRuntimeService.getActiveKB(
+            accountId
+          ),
       });
     } catch (error) {
-      handleError(res, error, 'Failed to process document upload');
+      handleError(
+        res,
+        error,
+        'Failed to process document upload'
+      );
     }
   }
 );
@@ -422,58 +631,221 @@ workspaceRouter.post('/documents/sample', async (_req, res) => {
   }
 });
 
-workspaceRouter.delete('/documents/:id', async (req, res) => {
-  try {
-    const { accountId } = identity(res);
-    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
-    const removed = await workspaceRuntimeService.removeDocument(
-      accountId,
-      activeKb.id,
-      req.params.id
-    );
+workspaceRouter.delete(
+  '/documents/:id',
+  async (req, res) => {
+    try {
+      const { accountId } =
+        identity(res);
+      const activeKb =
+        await workspaceRuntimeService.getActiveKB(
+          accountId
+        );
+      const existing =
+        activeKb.documents.find(
+          (item) =>
+            item.id === req.params.id
+        );
 
-    if (!removed) {
-      res.status(404).json({
-        error: `Document with ID ${req.params.id} was not found in active knowledge base.`,
+      const removed =
+        await workspaceRuntimeService.removeDocument(
+          accountId,
+          activeKb.id,
+          req.params.id
+        );
+
+      if (!removed) {
+        res.status(404).json({
+          error:
+            `Document with ID ${req.params.id} was not found in active knowledge base.`,
+        });
+        return;
+      }
+
+      let sourceCleanupPending = false;
+      if (
+        workspaceRuntimeService.usesPostgres() &&
+        existing?.sourceVersionId
+      ) {
+        const cleanup =
+          await documentSourceStorageService
+            .retireDocumentSource({
+              accountId,
+              workspaceId:
+                activeKb.id,
+              sourceVersionId:
+                existing.sourceVersionId,
+            });
+
+        sourceCleanupPending =
+          cleanup.found &&
+          !cleanup.purged;
+      }
+
+      res.json({
+        message:
+          'Document removed successfully',
+        sourceCleanupPending:
+          sourceCleanupPending ||
+          undefined,
+        kb:
+          await workspaceRuntimeService.getActiveKB(
+            accountId
+          ),
       });
-      return;
+    } catch (error) {
+      handleError(
+        res,
+        error,
+        'Failed to remove document'
+      );
     }
-
-    res.json({
-      message: 'Document removed successfully',
-      kb: await workspaceRuntimeService.getActiveKB(accountId),
-    });
-  } catch (error) {
-    handleError(res, error, 'Failed to remove document');
   }
-});
+);
 
-workspaceRouter.post('/documents/:id/retry', async (req, res) => {
-  try {
+workspaceRouter.post(
+  '/documents/:id/retry',
+  async (req, res) => {
     const { accountId } = identity(res);
-    const activeKb = await workspaceRuntimeService.getActiveKB(accountId);
-    const doc = activeKb.documents.find((item) => item.id === req.params.id);
+    let activeKb:
+      | Awaited<
+          ReturnType<
+            typeof workspaceRuntimeService.getActiveKB
+          >
+        >
+      | null = null;
 
-    if (!doc) {
-      res.status(404).json({ error: 'Document not found' });
-      return;
+    try {
+      activeKb =
+        await workspaceRuntimeService.getActiveKB(
+          accountId
+        );
+      const doc =
+        activeKb.documents.find(
+          (item) =>
+            item.id === req.params.id
+        );
+
+      if (!doc) {
+        res.status(404).json({
+          error: 'Document not found',
+        });
+        return;
+      }
+
+      if (
+        !workspaceRuntimeService.usesPostgres()
+      ) {
+        await workspaceRuntimeService
+          .updateDocumentStatus(
+            accountId,
+            activeKb.id,
+            req.params.id,
+            'processed'
+          );
+
+        res.json({
+          message:
+            'Document status reset in legacy file mode',
+          kb:
+            await workspaceRuntimeService.getActiveKB(
+              accountId
+            ),
+        });
+        return;
+      }
+
+      if (!doc.sourceVersionId) {
+        res.status(409).json({
+          error:
+            'This legacy document has no durable source version and cannot be reprocessed.',
+          code:
+            'DOCUMENT_SOURCE_NOT_DURABLE',
+        });
+        return;
+      }
+
+      await workspaceRuntimeService
+        .updateDocumentStatus(
+          accountId,
+          activeKb.id,
+          doc.id,
+          'processing'
+        );
+
+      try {
+        const { bytes } =
+          await documentSourceStorageService
+            .loadPdfBytes({
+              accountId,
+              workspaceId:
+                activeKb.id,
+              sourceVersionId:
+                doc.sourceVersionId,
+            });
+
+        const {
+          pageCount,
+          pages,
+          summary,
+        } = await parsePdfBuffer(
+          doc.filename,
+          bytes
+        );
+
+        const reprocessed =
+          createKnowledgeDocument(
+            doc.filename,
+            bytes,
+            pageCount,
+            pages,
+            summary,
+            {
+              id: doc.id,
+              uploadTimestamp:
+                doc.uploadTimestamp,
+              sourceVersionId:
+                doc.sourceVersionId,
+            }
+          );
+
+        await workspaceRuntimeService
+          .addDocument(
+            accountId,
+            activeKb.id,
+            reprocessed
+          );
+
+        res.json({
+          message:
+            'Document reprocessed from durable source bytes',
+          document: reprocessed,
+          kb:
+            await workspaceRuntimeService.getActiveKB(
+              accountId
+            ),
+        });
+      } catch (error: any) {
+        await workspaceRuntimeService
+          .updateDocumentStatus(
+            accountId,
+            activeKb.id,
+            req.params.id,
+            'failed',
+            error?.message ||
+              'Document reprocessing failed'
+          );
+        throw error;
+      }
+    } catch (error) {
+      handleError(
+        res,
+        error,
+        'Failed to retry document'
+      );
     }
-
-    await workspaceRuntimeService.updateDocumentStatus(
-      accountId,
-      activeKb.id,
-      req.params.id,
-      'processed'
-    );
-
-    res.json({
-      message: 'Document status reset',
-      kb: await workspaceRuntimeService.getActiveKB(accountId),
-    });
-  } catch (error) {
-    handleError(res, error, 'Failed to retry document');
   }
-});
+);
 
 workspaceRouter.post('/chat', async (req, res) => {
   try {

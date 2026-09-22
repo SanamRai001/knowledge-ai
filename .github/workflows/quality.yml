@@ -202,6 +202,9 @@ jobs:
       - name: Production C2 storage abstraction foundation proof
         run: npm run check:production:c2-storage-foundation
 
+      - name: Production C3 document source contract proof
+        run: npm run check:production:c3-document-source-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -326,3 +329,6 @@ jobs:
 
       - name: Production C2 source metadata PostgreSQL proof
         run: npm run check:production:c2-source-metadata-postgres
+
+      - name: Production C3 document source PostgreSQL proof
+        run: npm run check:production:c3-document-source-postgres

@@ -173,7 +173,8 @@ The implementation sequence is deliberately split into small slices:
 18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — COMPLETE, workflow `35746192253`
 19. **C1 — Durable Source File/Object Storage Forensic Audit** — COMPLETE, workflow `35749439403`
 20. **C2 — Source Object Metadata + Storage Abstraction Foundation** — COMPLETE, workflow `35754956014`
-21. **C3 — Durable Object Backend + Document Source Migration** — NEXT
+21. **C3 — Durable Object Backend + Document Source Migration** — COMPLETE, workflow `35757955890`
+22. **C4 — Durable Derived Document Payload + Workspace Reconstruction** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -215,6 +216,8 @@ C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
 
 C2 evidence: `docs/PRODUCTION_C2_SOURCE_OBJECT_FOUNDATION.md`.
 
+C3 evidence: `docs/PRODUCTION_C3_DOCUMENT_SOURCE_MIGRATION.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -254,6 +257,8 @@ B2D3B4 removed retired experimental Learning Lab / Orchestration / Diagnostics e
 C1 inventoried browser uploads, Dataset imports, Drive/OneDrive sync, local workspace/document payloads, Dataset analytical payloads, retries/reprocessing, sample fixtures, and shadowed legacy upload handlers; defined the provider-neutral SourceObject/SourceVersion contract; and proved the current durability boundaries without changing runtime behavior.
 
 C2 added PostgreSQL `source_objects` / immutable `source_versions`, account-scoped repositories, database-enforced source-version immutability, provider-neutral byte-storage contracts, tenant-safe generated storage keys, SHA-256/size verification, and cross-account PostgreSQL proofs while intentionally leaving all current upload/import/sync runtime paths unchanged.
+
+C3 added an S3-compatible production object-storage adapter, durable PDF source persistence before parsing, opaque `sourceVersionId` document linkage, real retry/reprocessing from integrity-verified stored bytes, account/workspace-scoped source lookup, and tombstone/cleanup compensation while keeping Dataset/integration migration out of scope.
 
 ## Security rules
 
@@ -683,22 +688,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening C3 — Durable Object Backend + Document Source Migration**
+**Production Hardening C4 — Durable Derived Document Payload + Workspace Reconstruction**
 
-Keep this slice limited to original PDF document bytes and real retry/reprocessing.
+Keep this slice limited to parsed document payload durability and restart reconstruction.
 
-1. select/configure one production object-storage adapter behind `SourceByteStorage`; keep provider-specific code isolated behind the contract
-2. add environment validation for the selected backend without embedding credentials in metadata/logs
-3. persist PDF source bytes before parsing is considered successful
-4. create SourceObject + immutable SourceVersion metadata only after storage integrity verification succeeds
-5. link `KnowledgeDocument` to `sourceVersionId` without embedding provider keys in browser-visible document state
-6. make document retry re-read the exact stored source version and genuinely re-run parsing
-7. preserve account/workspace authorization for upload, retry, and retrieval; no public bucket or arbitrary key access
-8. define failure/compensation behavior so metadata is not left READY when byte persistence fails
-9. add restart/redeploy proof showing document source bytes can be reconstructed independently of local `data/`
-10. keep Dataset source/analytical payloads and Drive/OneDrive checkpoint hardening out of C3
+1. define one durable derived-document payload contract keyed by account, workspace, document ID, sourceVersionId, and parse/derivation version
+2. persist parsed pages, summary, page count, filename/type/size, processing state, and sourceVersionId outside `knowledge_bases.json`
+3. keep the C3 SourceVersion as immutable provenance; derived payloads must never replace or mutate original source bytes
+4. add account/workspace-scoped repository/storage access for derived document payloads
+5. make PostgreSQL workspace materialization reconstruct document payloads when local `knowledge_bases.json` document state is missing
+6. prove a simulated application/container restart can recover an uploaded document corpus and Ask-visible parsed pages without relying on local `data/`
+7. stop KnowledgeVersion snapshots from duplicating full document/page objects; store stable immutable document/source references instead
+8. define derivation invalidation/versioning so a future parser upgrade can rebuild from C3 source bytes safely
+9. preserve chat history, Specialized AI configuration, evaluation cases/runs, Dataset payloads, and integration flows unchanged in this slice
+10. add focused PostgreSQL/restart proofs and keep all existing gates green
 
-Do not migrate Dataset payloads, integration source snapshots, workers/queues, or Track D workflows in C3.
+Do not migrate chat/config/evaluation structured state, Dataset source/analytical payloads, Drive/OneDrive source snapshots, workers/queues, or Track D workflows in C4.
 ---
 
 # Track A closure note

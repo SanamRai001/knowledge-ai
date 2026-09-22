@@ -65,23 +65,62 @@ export async function parsePdfBuffer(
   }
 }
 
+export interface KnowledgeDocumentIdentity {
+  id?: string;
+  uploadTimestamp?: number;
+  sourceVersionId?: string;
+}
+
 export function createKnowledgeDocument(
   filename: string,
   buffer: Buffer,
   pageCount: number,
   pages: DocumentPage[],
-  summary: string
+  summary: string,
+  identity: KnowledgeDocumentIdentity = {}
 ): KnowledgeDocument {
-  const id = 'doc_' + Math.random().toString(36).substring(2, 10);
+  const id =
+    identity.id ||
+    'doc_' +
+      Math.random().toString(36).substring(2, 10);
   return {
     id,
     filename,
     fileType: 'application/pdf',
     fileSize: buffer.length,
-    uploadTimestamp: Date.now(),
+    uploadTimestamp:
+      identity.uploadTimestamp ?? Date.now(),
     processingStatus: 'processed',
+    sourceVersionId:
+      identity.sourceVersionId,
     pageCount,
     pages,
     summary,
+  };
+}
+
+export function createFailedKnowledgeDocument(
+  filename: string,
+  buffer: Buffer,
+  errorMessage: string,
+  identity: KnowledgeDocumentIdentity = {}
+): KnowledgeDocument {
+  const id =
+    identity.id ||
+    'doc_' +
+      Math.random().toString(36).substring(2, 10);
+  return {
+    id,
+    filename,
+    fileType: 'application/pdf',
+    fileSize: buffer.length,
+    uploadTimestamp:
+      identity.uploadTimestamp ?? Date.now(),
+    processingStatus: 'failed',
+    errorMessage,
+    sourceVersionId:
+      identity.sourceVersionId,
+    pageCount: 0,
+    pages: [],
   };
 }

@@ -104,6 +104,12 @@ export interface SourceObjectRepository {
     sourceVersionId: string
   ): Promise<SourceVersion | null>;
 
+  getVersionForWorkspace(
+    accountId: string,
+    workspaceId: string,
+    sourceVersionId: string
+  ): Promise<SourceVersion | null>;
+
   listVersions(
     accountId: string,
     sourceObjectId: string

@@ -13,6 +13,7 @@ export interface KnowledgeDocument {
   uploadTimestamp: number;
   processingStatus: DocumentProcessingStatus;
   errorMessage?: string;
+  sourceVersionId?: string;
   pageCount: number;
   pages?: DocumentPage[];
   geminiFileRef?: string;

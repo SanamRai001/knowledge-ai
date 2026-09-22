@@ -225,6 +225,34 @@ export class PostgresSourceObjectRepository
       : null;
   }
 
+  async getVersionForWorkspace(
+    accountId: string,
+    workspaceId: string,
+    sourceVersionId: string
+  ): Promise<SourceVersion | null> {
+    const result = await postgresPool().query(
+      `SELECT sv.*
+       FROM source_versions sv
+       JOIN source_objects so
+         ON so.account_id = sv.account_id
+        AND so.id = sv.source_object_id
+       WHERE sv.account_id = $1
+         AND so.workspace_id = $2
+         AND sv.id = $3
+         AND so.status = 'ACTIVE'
+         AND sv.retention_state = 'ACTIVE'`,
+      [
+        accountId,
+        workspaceId,
+        sourceVersionId,
+      ]
+    );
+
+    return result.rowCount
+      ? versionFromRow(result.rows[0])
+      : null;
+  }
+
   async listVersions(
     accountId: string,
     sourceObjectId: string

@@ -189,8 +189,8 @@ async function main() {
     'C2 migration must include source object/version metadata and DB immutability.'
   );
 
-  const workspaceRouter = fs.readFileSync(
-    'server/workspaceRouter.ts',
+  const sourceContract = fs.readFileSync(
+    'server/storage/sourceByteStorage.ts',
     'utf8'
   );
   const datasetService = fs.readFileSync(
@@ -202,8 +202,14 @@ async function main() {
     'utf8'
   );
 
+  assert(
+    !sourceContract.includes('@aws-sdk') &&
+      !sourceContract.includes('@google-cloud') &&
+      !sourceContract.includes('@azure/'),
+    'The C2 SourceByteStorage contract itself must remain provider-neutral after later provider adapters are added.'
+  );
+
   for (const [name, source] of [
-    ['workspaceRouter', workspaceRouter],
     ['datasetService', datasetService],
     ['integrationSyncService', integrationSync],
   ]) {
@@ -211,27 +217,8 @@ async function main() {
       !source.includes('postgresSourceObjectRepository') &&
         !source.includes('SourceByteStorage') &&
         !source.includes('buildSourceStorageKey'),
-      'C2 foundation must not cut runtime traffic over yet: ' +
+      'Later Track C document migration must not prematurely cut over ' +
         name
-    );
-  }
-
-  const pkg = JSON.parse(
-    fs.readFileSync('package.json', 'utf8')
-  );
-  const dependencies = {
-    ...(pkg.dependencies || {}),
-    ...(pkg.devDependencies || {}),
-  };
-  for (const cloudPackage of [
-    '@aws-sdk/client-s3',
-    '@google-cloud/storage',
-    '@azure/storage-blob',
-  ]) {
-    assert(
-      !dependencies[cloudPackage],
-      'C2 must remain provider-neutral and not add cloud SDK: ' +
-        cloudPackage
     );
   }
 
@@ -239,7 +226,7 @@ async function main() {
     'PRODUCTION_C2_STORAGE_FOUNDATION_CHECK_PASSED'
   );
   console.log(
-    'Provider-neutral storage contract, tenant-safe keys, integrity verification, source metadata migration, runtime non-cutover, and no-cloud-SDK scope are verified.'
+    'C2 foundation remains intact after C3: provider-neutral storage contract, tenant-safe keys, integrity verification, source metadata migration, and Dataset/integration non-cutover are verified.'
   );
 }
 
