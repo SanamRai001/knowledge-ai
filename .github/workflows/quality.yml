@@ -199,6 +199,9 @@ jobs:
       - name: Production C1 object storage forensic audit proof
         run: npm run check:production:c1-object-storage-forensic-audit
 
+      - name: Production C2 storage abstraction foundation proof
+        run: npm run check:production:c2-storage-foundation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -320,3 +323,6 @@ jobs:
 
       - name: Production B2D2B2 Integration privileged authorization proof
         run: npm run check:production:b2d2b2-integration-privileged-auth
+
+      - name: Production C2 source metadata PostgreSQL proof
+        run: npm run check:production:c2-source-metadata-postgres
