@@ -282,17 +282,30 @@ async function main() {
   );
 
   for (const forbidden of [
-    'storageKey:',
     'SOURCE_STORAGE_BUCKET',
     'SOURCE_STORAGE_SECRET_ACCESS_KEY',
   ]) {
     assert(
       !upload.includes(forbidden) &&
         !retry.includes(forbidden),
-      'C3 HTTP document paths must not expose provider storage details: ' +
+      'C3 HTTP document paths must not expose provider storage configuration: ' +
         forbidden
     );
   }
+
+  assert(
+    !retry.includes('storageKey') &&
+      !upload.includes(
+        'processed: storedSource'
+      ) &&
+      !upload.includes(
+        'sourceObject: storedSource'
+      ) &&
+      upload.includes(
+        'compensateUnlinkedSource'
+      ),
+    'Provider storage keys may be used only inside server-side compensation; upload/retry responses must expose document state, not storage metadata.'
+  );
 
   const datasetService = fs.readFileSync(
     'server/datasets/datasetService.ts',
