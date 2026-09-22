@@ -147,15 +147,20 @@ async function main() {
   for (const prefix of [
     '/api/v1/rag',
     '/api/v1/cognitive',
-    '/api/phase4',
   ]) {
     assert(
       classifyLegacyRoute(prefix + '/proof')
-        ?.disposition === 'DEVELOPMENT_ONLY',
+        ?.disposition === 'RETIRED',
       prefix +
-        ' must remain DEVELOPMENT_ONLY for later B2D3B3 slices.'
+        ' must remain RETIRED after B2D3B3B.'
     );
   }
+
+  assert(
+    classifyLegacyRoute('/api/phase4/proof')
+      ?.disposition === 'DEVELOPMENT_ONLY',
+    '/api/phase4 must remain DEVELOPMENT_ONLY for B2D3B3C.'
+  );
 
   assert(
     typeof orchestrationEngine.listRuns === 'function' &&
@@ -264,20 +269,26 @@ async function main() {
     for (const path of [
       '/api/v1/rag/benchmark/run',
       '/api/v1/cognitive/query',
-      '/api/phase4/dashboard',
     ]) {
-      const response = await fetch(
-        baseUrl + path
-      );
+      const response = await fetch(baseUrl + path);
       const body = await readJson(response);
       assert(
-        response.status === 200 &&
-          body?.source ===
-            'post-quarantine-handler',
-        'B2D3B3A must preserve later DEVELOPMENT_ONLY route family: ' +
-          path
+        response.status === 404 &&
+          body?.code === LEGACY_ROUTE_QUARANTINE_CODE &&
+          body?.disposition === 'RETIRED',
+        'B2D3B3B-retired route must stay unavailable: ' + path
       );
     }
+
+    const phase4 = await fetch(
+      baseUrl + '/api/phase4/dashboard'
+    );
+    const phase4Body = await readJson(phase4);
+    assert(
+      phase4.status === 200 &&
+        phase4Body?.source === 'post-quarantine-handler',
+      'B2D3B3A must preserve Phase 4 DEVELOPMENT_ONLY compatibility.'
+    );
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) =>

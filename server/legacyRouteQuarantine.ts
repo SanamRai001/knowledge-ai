@@ -143,16 +143,16 @@ export const legacyRouteInventory:
     {
       id: 'prototype-rag',
       prefix: '/api/v1/rag',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
-        'RAG benchmark, reproduction, and telemetry routes are internal evaluation tooling.',
+        'Retired by B2D3B3B. RAG benchmark, reproduction, and telemetry capabilities remain internal evaluation tooling rather than production HTTP endpoints.',
     },
     {
       id: 'prototype-cognitive',
       prefix: '/api/v1/cognitive',
-      disposition: 'DEVELOPMENT_ONLY',
+      disposition: 'RETIRED',
       rationale:
-        'Cognitive engine query/benchmark/graph routes are prototype research surfaces.',
+        'Retired by B2D3B3B. The prototype Cognitive Studio query, benchmark, telemetry, graph, table, and outline HTTP surfaces are replaced by supported product query APIs or kept internal.',
     },
     {
       id: 'prototype-phase4',
