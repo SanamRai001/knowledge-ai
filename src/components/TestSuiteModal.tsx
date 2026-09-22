@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   X,
   ShieldCheck,
@@ -7,8 +7,6 @@ import {
   Clock,
   RefreshCw,
   Play,
-  Brain,
-  FileCheck,
 } from 'lucide-react';
 import { TestResultItem } from '../types';
 
@@ -16,7 +14,7 @@ interface TestSuiteModalProps {
   isOpen: boolean;
   onClose: () => void;
   results: TestResultItem[];
-  onRunTests: (suite: 'phase4' | 'phase1') => void;
+  onRunTests: () => void;
   isRunning: boolean;
 }
 
@@ -27,8 +25,6 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({
   onRunTests,
   isRunning,
 }) => {
-  const [selectedSuite, setSelectedSuite] = useState<'phase4' | 'phase1'>('phase4');
-
   if (!isOpen) return null;
 
   const passedCount = results.filter((r) => r.status === 'passed').length;
@@ -51,10 +47,10 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-slate-900">
-                Knowledge AI Acceptance Verification Battery
+                Knowledge AI Trust Regression Suite
               </h3>
               <p className="text-xs text-slate-500">
-                Automated regression testing across Grounding, Security, Memory Governance, and Sandbox Isolation
+                Supported regression checks across grounding, security, isolation, and core product contracts
               </p>
             </div>
           </div>
@@ -68,42 +64,18 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({
           </button>
         </div>
 
-        {/* Suite Selector Segmented Control */}
+        {/* Supported trust-suite action */}
         <div className="px-6 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={() => {
-                setSelectedSuite('phase4');
-                onRunTests('phase4');
-              }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                selectedSuite === 'phase4'
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Brain className="w-3.5 h-3.5" />
-              <span>Phase 4 Suite (50 Tests: Memory & Sandbox)</span>
-            </button>
-            <button
-              onClick={() => {
-                setSelectedSuite('phase1');
-                onRunTests('phase1');
-              }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                selectedSuite === 'phase1'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <FileCheck className="w-3.5 h-3.5" />
-              <span>Phase 1 Grounding (10 Tests)</span>
-            </button>
+          <div>
+            <p className="text-xs font-semibold text-slate-800">Production Trust Suite</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Runs the supported workspace regression contract.
+            </p>
           </div>
 
           <button
             id="btn-run-tests-modal"
-            onClick={() => onRunTests(selectedSuite)}
+            onClick={onRunTests}
             disabled={isRunning}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
           >
@@ -132,7 +104,7 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({
           </div>
 
           <div className="text-slate-500 font-mono text-[11px]">
-            {selectedSuite === 'phase4' ? '50-Point Battery' : '10-Point Grounding'}
+            /api/kb/run-tests
           </div>
         </div>
 

@@ -170,7 +170,8 @@ The implementation sequence is deliberately split into small slices:
 15. **B2D3B3A — Mediator Route Retirement** — COMPLETE, workflow `35635059024`
 16. **B2D3B3B — RAG + Cognitive Route Retirement or Migration** — COMPLETE, workflow `35736152396`
 17. **B2D3B3C — Phase 4 Route Retirement or Migration** — COMPLETE, workflow `35742006196`
-18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — NEXT
+18. **B2D3B4 — Retired Experimental Frontend Surface Cleanup** — COMPLETE, workflow `35746192253`
+19. **C1 — Durable Source File/Object Storage Forensic Audit** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -206,6 +207,8 @@ B2D3B3B evidence: `docs/PRODUCTION_B2D3B3B_RAG_COGNITIVE_ROUTE_RETIREMENT.md`.
 
 B2D3B3C evidence: `docs/PRODUCTION_B2D3B3C_PHASE4_ROUTE_RETIREMENT.md`.
 
+B2D3B4 evidence: `docs/PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -239,6 +242,8 @@ B2D3B3A removed all prototype mediator HTTP exposure, permanently retired the me
 B2D3B3B removed all prototype RAG/Cognitive HTTP exposure, permanently retired both route families, preserved the identity-aware `/api/query/ask` product contract, and kept RAG/Cognitive engines, telemetry, graph/index, and benchmark modules available internally.
 
 B2D3B3C removed all legacy `/api/phase4/*` active-workspace convenience routes, permanently retired the family, preserved authenticated `/api/v1/ai/:ai_id/*` compatibility, preserved modern workspace AI configuration and `/api/query/ask`, and kept governed memory/sandbox/learning internals available.
+
+B2D3B4 removed retired experimental Learning Lab / Orchestration / Diagnostics entry points and their isolated component trees, removed the unused legacy ChatArea, repaired Trust Checks to use `/api/kb/run-tests`, preserved Unified Ask on `/api/query/ask`, and added a repository-wide frontend retired-API guard.
 
 ## Security rules
 
@@ -668,21 +673,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D3B4 — Retired Experimental Frontend Surface Cleanup**
+**Production Hardening C1 — Durable Source File/Object Storage Forensic Audit**
 
-Keep this slice limited to frontend surfaces that still point at retired backend families.
+Keep this slice audit-only. Do not choose or integrate an object-storage provider yet.
 
-1. remove Learning Lab, Advanced Orchestration, and Answer Diagnostics from normal navigation
-2. remove their retired tab values and render branches from the main App shell
-3. inspect whether the now-unreachable experimental components have any remaining references before deleting them
-4. repair the visible Trust Checks action so it uses the supported `/api/kb/run-tests` path instead of retired `/api/v1/tests/phase4`
-5. ensure current Ask remains `UnifiedAskView` on `/api/query/ask`
-6. preserve internal mediator/RAG/Cognitive/Phase 4 modules used by CI or supported runtime code
-7. add a focused frontend-shell contract proof
-8. keep current product navigation and all Phase 0–8 behavior green
-9. stop before Track C object storage or workers/queues
+1. inventory every place original uploaded/synchronized bytes or large user payloads are written, reconstructed, or discarded
+2. distinguish source bytes from PostgreSQL metadata, parsed text, derived chunks/indexes, Dataset analytical rows, caches, and test fixtures
+3. trace browser uploads, sample documents, Google Drive/OneDrive sync, document retry/reprocessing, and Dataset imports end-to-end
+4. identify current local-disk/container assumptions and restart/redeploy data-loss points
+5. document account/workspace ownership and provenance relationships for every durable-source candidate
+6. define the minimum SourceObject / SourceVersion metadata contract needed for later object storage: immutable identity, SHA-256, content type, byte size, tenant namespace, retention/tombstone state
+7. identify authorization requirements for future retrieval and prove no public-bucket assumption is needed
+8. classify KEEP / MIGRATE / EPHEMERAL / TEST-ONLY for each payload family
+9. add an executable audit guard where practical and stop before provider implementation
 
-Do not start Track C, worker infrastructure, or redesign the product UI in this slice.
+Do not start S3/R2/GCS/Azure integration, workers/queues, or broad transaction work in C1.
 ---
 
 # Track A closure note
