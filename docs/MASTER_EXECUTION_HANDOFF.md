@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C1 — Durable Source File/Object Storage Forensic Audit.**
+> **Continue with Production Hardening C2 — Source Object Metadata + Storage Abstraction Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1079,7 +1079,8 @@ Track A relational milestones:
 - B2D3B3B RAG + Cognitive Route Retirement — COMPLETE, workflow `35736152396`
 - B2D3B3C Phase 4 Route Retirement — COMPLETE, workflow `35742006196`
 - B2D3B4 Retired Experimental Frontend Surface Cleanup — COMPLETE, workflow `35746192253`
-- C1 Durable Source File/Object Storage Forensic Audit — NEXT
+- C1 Durable Source File/Object Storage Forensic Audit — COMPLETE, workflow `35749439403`
+- C2 Source Object Metadata + Storage Abstraction Foundation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1121,6 +1122,8 @@ B2D3B3C evidence: `docs/PRODUCTION_B2D3B3C_PHASE4_ROUTE_RETIREMENT.md`.
 
 B2D3B4 evidence: `docs/PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP.md`.
 
+C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1159,16 +1162,18 @@ B2D3B3C now removes all legacy `/api/phase4/*` active-workspace convenience rout
 
 B2D3B4 now removes retired Learning Lab, Advanced Orchestration, and Answer Diagnostics from the normal browser shell, deletes their isolated frontend component trees plus unused legacy ChatArea, repairs Trust Checks to use `/api/kb/run-tests`, and adds a source-wide guard against retired frontend API calls while preserving backend engines.
 
-Next, do **C1 only — Durable Source File/Object Storage Forensic Audit**:
+C1 now inventories every current source-byte/large-payload durability boundary, separates original bytes from derived document/Dataset payloads and structured state, documents Drive/OneDrive checkpoint risk, defines a provider-neutral SourceObject/SourceVersion contract, and adds an executable drift proof without changing runtime behavior.
 
-1. inventory original uploaded/synchronized bytes and large payload persistence
-2. separate source bytes from relational metadata, parsed/derived content, analytical rows, caches, and fixtures
-3. trace browser upload, sample docs, Google Drive/OneDrive sync, retries/reprocessing, and Dataset imports
-4. identify local-container durability assumptions and concrete data-loss points
-5. map account/workspace/provenance ownership for every candidate object
-6. define the minimum immutable SourceObject / SourceVersion metadata contract
-7. define future authorized retrieval requirements without selecting a provider
-8. classify every payload family KEEP / MIGRATE / EPHEMERAL / TEST-ONLY
-9. add audit evidence/guardrails and stop before implementation
+Next, do **C2 only — Source Object Metadata + Storage Abstraction Foundation**:
 
-Do not integrate S3-compatible storage, cloud object storage, workers/queues, or Track D transactions in C1.
+1. add PostgreSQL `source_objects` and immutable `source_versions` metadata scoped by account
+2. model kind/origin, provider identity, filename/MIME/size/SHA-256, backend/key/etag, lifecycle state, and timestamps
+3. add account-scoped repository interfaces + PostgreSQL implementations
+4. add a provider-neutral byte-storage interface, but no cloud provider implementation
+5. add a server-generated tenant-safe storage-key builder
+6. add SHA-256/size integrity verification helpers
+7. prove cross-account isolation and source-version immutability
+8. leave current upload/Dataset/integration behavior untouched
+9. add focused PostgreSQL/unit proofs and stop before C3
+
+Do not add cloud credentials, signed URLs, upload cutover, Dataset payload migration, integration checkpoint changes, workers/queues, or Track D work in C2.
