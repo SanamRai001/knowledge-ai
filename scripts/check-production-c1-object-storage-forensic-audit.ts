@@ -67,12 +67,13 @@ async function main() {
     "workspaceRouter.post('/documents/sample'"
   );
   assert(
-    uploadSection.includes('parsePdfBuffer') &&
-      uploadSection.includes('file.buffer') &&
-      uploadSection.includes('createKnowledgeDocument') &&
-      !uploadSection.includes('sourceVersionId') &&
-      !uploadSection.includes('storageKey'),
-    'C1 expects browser PDF bytes to be parsed from request memory without a durable source object.'
+    uploadSection.includes('file.buffer') &&
+      uploadSection.includes('persistUploadedPdf') &&
+      uploadSection.includes('sourceVersionId') &&
+      uploadSection.indexOf('persistUploadedPdf') <
+        uploadSection.indexOf('parsePdfBuffer') &&
+      !uploadSection.includes('SOURCE_STORAGE_BUCKET'),
+    'C1 regression proof must accept the later C3 document-source migration: durable bytes are persisted before parsing and only sourceVersionId reaches document state.'
   );
 
   const retrySection = section(
@@ -81,10 +82,11 @@ async function main() {
     "workspaceRouter.post('/chat'"
   );
   assert(
-    retrySection.includes('updateDocumentStatus') &&
-      !retrySection.includes('parsePdfBuffer') &&
-      !retrySection.includes('file.buffer'),
-    'C1 expects document retry to reset status rather than re-read original source bytes.'
+    retrySection.includes('loadPdfBytes') &&
+      retrySection.includes('parsePdfBuffer') &&
+      retrySection.includes('sourceVersionId') &&
+      !retrySection.includes('storageKey'),
+    'C1 regression proof must accept the later C3 retry migration to exact durable source bytes.'
   );
 
   const knowledgeDocument = section(
@@ -93,17 +95,17 @@ async function main() {
     'export interface Citation {'
   );
   assert(
-    !knowledgeDocument.includes('sourceVersionId') &&
+    knowledgeDocument.includes('sourceVersionId?: string;') &&
       !knowledgeDocument.includes('sha256') &&
       !knowledgeDocument.includes('storageKey'),
-    'KnowledgeDocument must still lack a durable source-version locator during C1 audit.'
+    'Later Track C work may add opaque sourceVersionId, but provider keys/hashes must stay out of browser document state.'
   );
 
   assert(
     documentService.includes('fileSize: buffer.length') &&
       !documentService.includes('storageKey') &&
-      !documentService.includes('sourceVersionId'),
-    'Document creation must still store metadata/parsed content rather than durable source bytes.'
+      documentService.includes('sourceVersionId'),
+    'Document service may carry the opaque sourceVersionId after C3 but must not know provider storage keys.'
   );
 
   assert(
@@ -195,7 +197,7 @@ async function main() {
     'PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'C1 audit boundaries verified: user source bytes are transient, workspace/document and Dataset analytical payloads remain local runtime state, Dataset metadata already carries SHA-256/size/MIME, Drive sync imports transient buffers, legacy /api/kb byte handlers remain retired fallback, and no runtime storage implementation was changed.'
+    'C1 historical audit boundaries remain guarded after C3: document source bytes have advanced to durable source versions, while workspace payloads, Dataset analytical payloads, and Drive/OneDrive checkpoint durability remain explicit later Track C work.'
   );
 }
 
