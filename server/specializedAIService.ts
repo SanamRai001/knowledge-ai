@@ -126,21 +126,24 @@ export class SpecializedAIService {
       const targetedVersion = kb.versions.find((v) => v.versionTag === versionTag || v.id === versionTag);
       if (targetedVersion) {
         if (
-          targetedVersion.documentRefs &&
-          targetedVersion.documentRefs.length > 0
+          targetedVersion.documentRefs !==
+          undefined
         ) {
           const durableDocuments =
-            await documentDerivedPayloadService
-              .loadDocumentsByRefs({
-                accountId:
-                  effectiveAccountId,
-                workspaceId: kb.id,
-                payloadIds:
-                  targetedVersion.documentRefs.map(
-                    (ref) =>
-                      ref.derivedPayloadId
-                  ),
-              });
+            targetedVersion.documentRefs
+              .length > 0
+              ? await documentDerivedPayloadService
+                  .loadDocumentsByRefs({
+                    accountId:
+                      effectiveAccountId,
+                    workspaceId: kb.id,
+                    payloadIds:
+                      targetedVersion.documentRefs.map(
+                        (ref) =>
+                          ref.derivedPayloadId
+                      ),
+                  })
+              : [];
           activeDocs = [
             ...(targetedVersion.documents ||
               []),
