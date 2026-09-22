@@ -202,6 +202,66 @@ export class DocumentSourceStorageService {
     };
   }
 
+  async retireDocumentSource(input: {
+    accountId: string;
+    workspaceId: string;
+    sourceVersionId: string;
+  }): Promise<{
+    found: boolean;
+    purged: boolean;
+  }> {
+    const sourceVersion =
+      await this.repository
+        .getVersionForWorkspace(
+          input.accountId,
+          input.workspaceId,
+          input.sourceVersionId
+        );
+
+    if (!sourceVersion) {
+      return {
+        found: false,
+        purged: false,
+      };
+    }
+
+    await this.repository
+      .setVersionRetentionState(
+        input.accountId,
+        sourceVersion.sourceObjectId,
+        sourceVersion.id,
+        'PURGE_PENDING'
+      );
+
+    await this.repository
+      .tombstoneObject(
+        input.accountId,
+        sourceVersion.sourceObjectId
+      );
+
+    try {
+      await this.storageProvider().delete(
+        sourceVersion.storageKey
+      );
+      await this.repository
+        .setVersionRetentionState(
+          input.accountId,
+          sourceVersion.sourceObjectId,
+          sourceVersion.id,
+          'TOMBSTONED'
+        );
+      return {
+        found: true,
+        purged: true,
+      };
+    } catch {
+      return {
+        found: true,
+        purged: false,
+      };
+    }
+  }
+
   async compensateUnlinkedSource(input: {
     accountId: string;
     sourceObjectId: string;
