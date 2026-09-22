@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C3 — Durable Object Backend + Document Source Migration.**
+> **Continue with Production Hardening C4 — Durable Derived Document Payload + Workspace Reconstruction.**
 
 Phases 0–8 are complete.
 
@@ -1081,7 +1081,8 @@ Track A relational milestones:
 - B2D3B4 Retired Experimental Frontend Surface Cleanup — COMPLETE, workflow `35746192253`
 - C1 Durable Source File/Object Storage Forensic Audit — COMPLETE, workflow `35749439403`
 - C2 Source Object Metadata + Storage Abstraction Foundation — COMPLETE, workflow `35754956014`
-- C3 Durable Object Backend + Document Source Migration — NEXT
+- C3 Durable Object Backend + Document Source Migration — COMPLETE, workflow `35757955890`
+- C4 Durable Derived Document Payload + Workspace Reconstruction — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1127,6 +1128,8 @@ C1 evidence: `docs/PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT.md`.
 
 C2 evidence: `docs/PRODUCTION_C2_SOURCE_OBJECT_FOUNDATION.md`.
 
+C3 evidence: `docs/PRODUCTION_C3_DOCUMENT_SOURCE_MIGRATION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1169,17 +1172,19 @@ C1 now inventories every current source-byte/large-payload durability boundary, 
 
 C2 now provides PostgreSQL source object/version metadata, account-scoped repositories, database-enforced immutable source-version byte identity, provider-neutral byte-storage contracts, tenant-safe generated keys, and SHA-256/size integrity verification. Browser uploads, Dataset imports, and integration sync remain intentionally uncut-over.
 
-Next, do **C3 only — Durable Object Backend + Document Source Migration**:
+C3 now adds an S3-compatible production source-byte adapter, stores exact PDF bytes before parsing, links documents only by opaque `sourceVersionId`, makes retry reload and integrity-check the original durable PDF, enforces account/workspace source lookup, and tombstones/deletes durable sources on replacement/removal while leaving Dataset/integration migration untouched.
 
-1. select/configure one production object-storage adapter behind `SourceByteStorage`
-2. validate required storage environment/credentials without persisting or logging secrets
-3. persist original PDF bytes and verify SHA-256/size before document processing is committed
-4. create/link SourceObject + SourceVersion metadata to each uploaded document
-5. expose only `sourceVersionId` to document domain state, never provider object keys
-6. make document retry fetch exact durable bytes and genuinely re-run PDF parsing
-7. preserve HUMAN_SESSION account/workspace authorization and deny arbitrary key access
-8. define compensation for storage/metadata/parse failures
-9. prove source-byte survival independently of local runtime `data/`
-10. stop before Dataset or integration migration
+Next, do **C4 only — Durable Derived Document Payload + Workspace Reconstruction**:
 
-Do not migrate Dataset analytical payloads, Drive/OneDrive source snapshots, workers/queues, or Track D workflows in C3.
+1. define a durable derived-document payload contract keyed by account/workspace/document/sourceVersionId/derivation version
+2. move parsed pages, summary, page count, document metadata, processing state, and sourceVersionId out of local-only `knowledge_bases.json` document payload dependence
+3. retain C3 SourceVersion as immutable provenance and rebuild source of truth
+4. enforce account/workspace-scoped derived payload access
+5. reconstruct workspace document corpora from durable metadata/payload after local-state loss
+6. prove restart/container replacement recovery of parsed document pages used by Ask
+7. replace KnowledgeVersion full-document duplication with stable immutable references
+8. define parser/derivation versioning and safe rebuild semantics
+9. preserve chat history, Specialized AI config, evaluation state, Dataset, and integration runtime behavior
+10. add focused PostgreSQL/restart proofs and stop before wider Track C migration
+
+Do not migrate chat/config/evaluation structured state, Dataset source/analytical payloads, Drive/OneDrive snapshots, workers/queues, or Track D workflows in C4.
