@@ -109,6 +109,7 @@ async function main() {
       '/api/v1/mediator',
       '/api/v1/rag',
       '/api/v1/cognitive',
+      '/api/phase4',
     ];
 
     for (const prefix of expectedRetired) {
@@ -119,22 +120,6 @@ async function main() {
         family?.disposition === 'RETIRED',
         prefix +
           ' must remain permanently retired.'
-      );
-    }
-
-    const expectedDevelopmentOnly = [
-      '/api/phase4',
-    ];
-
-    for (const prefix of expectedDevelopmentOnly) {
-      const family = classifyLegacyRoute(
-        prefix + '/proof'
-      );
-      assert(
-        family?.disposition ===
-          'DEVELOPMENT_ONLY',
-        prefix +
-          ' must be classified DEVELOPMENT_ONLY.'
       );
     }
 
@@ -299,28 +284,6 @@ async function main() {
 
     await withServer(async (baseUrl) => {
       for (const path of [
-        '/api/phase4/dashboard',
-      ]) {
-        const response = await fetch(
-          baseUrl + path,
-          {
-            method:
-              path.endsWith('/execute')
-                ? 'POST'
-                : 'GET',
-          }
-        );
-        const body = await readJson(response);
-        assert(
-          response.status === 200 &&
-            body?.source ===
-              'post-quarantine-handler',
-          'Explicit non-production compatibility must allow DEVELOPMENT_ONLY route ' +
-            path
-        );
-      }
-
-      for (const path of [
         '/api/v1/tests/run',
         '/api/v1/stress/concurrency',
         '/api/v1/eval/run',
@@ -332,6 +295,7 @@ async function main() {
         '/api/v1/mediator/execute',
         '/api/v1/rag/benchmark/run',
         '/api/v1/cognitive/query',
+        '/api/phase4/dashboard',
         '/api/kb/legacy-only',
       ]) {
         const response = await fetch(
