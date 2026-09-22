@@ -386,6 +386,28 @@ export class DocumentDerivedPayloadService {
     return documents;
   }
 
+  async hasWorkspacePayloads(input: {
+    accountId: string;
+    workspaceId: string;
+  }): Promise<boolean> {
+    return this.repository
+      .hasAnyForWorkspace(
+        input.accountId,
+        input.workspaceId
+      );
+  }
+
+  async countCurrentDocuments(input: {
+    accountId: string;
+    workspaceId: string;
+  }): Promise<number> {
+    return this.repository
+      .countCurrentForWorkspace(
+        input.accountId,
+        input.workspaceId
+      );
+  }
+
   async markDocumentInactive(input: {
     accountId: string;
     workspaceId: string;
