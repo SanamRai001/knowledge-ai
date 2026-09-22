@@ -1,6 +1,6 @@
 # Production B2D3B3B — RAG + Cognitive Route Retirement
 
-Status: IMPLEMENTED — awaiting integrated Quality Gate validation.
+Status: **COMPLETE** — authoritative implementation Quality Gate `35736152396`.
 
 ## Scope
 
@@ -143,16 +143,22 @@ The legacy `CognitiveStudioView` is still reachable from the old experimental na
 
 This backend slice does not expand into frontend cleanup. After the prototype route-retirement sequence is complete, retired experimental navigation/components should be removed or intentionally migrated so the production UI does not expose dead tooling.
 
-## Exit criteria
+## Validation
 
-B2D3B3B is complete only when:
+Authoritative implementation Quality Gate:
 
-- TypeScript passes
-- production build passes
-- focused B2D3B3B proof passes
-- previous production-hardening proofs remain green
-- PostgreSQL production suite remains green
-- integrated Quality Gate is green
+`35736152396`
+
+Verified green:
+
+- TypeScript
+- production build
+- focused B2D3B3B retirement proof
+- prior production-hardening regression proofs
+- Phase 0–8 regression gates
+- PostgreSQL production suite
+- unseen-corpus benchmark
+- live Gemini benchmark step
 
 ## Next phase
 
