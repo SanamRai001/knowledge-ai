@@ -80,6 +80,25 @@ does not re-read or re-parse source bytes. It only changes the document status b
 
 **MIGRATE — P0 durable source object**
 
+## 1.2 Shadowed legacy `/api/kb` byte handlers
+
+`server.ts` still contains older inline PDF upload/sample handlers using their own `multer.memoryStorage()` instance.
+
+They are **not the authoritative production path**:
+
+1. `app.use('/api/kb', workspaceRouter)` is mounted first
+2. the legacy/prototype quarantine middleware is mounted next
+3. inline `/api/kb/*` handlers appear only after that boundary
+4. the quarantine inventory marks `/api/kb` fall-through as `RETIRED_FALLBACK`
+
+Therefore a normal upload is handled by the identity-aware workspace router, while a `/api/kb` request that falls through cannot reach the old inline handler in production.
+
+These stale handlers are still relevant to the forensic inventory because they duplicate byte-flow logic and can mislead future maintenance. They should be removed in a later dead-server-code cleanup slice, not mixed into C1 storage architecture.
+
+### Classification
+
+**LEGACY DEAD/SHADOWED — no new storage integration should target these handlers**
+
 ---
 
 # 2. Workspace/document payload boundary
