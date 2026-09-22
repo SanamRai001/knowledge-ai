@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening B2D3B3C — Phase 4 Route Retirement or Migration.**
+> **Continue with Production Hardening B2D3B4 — Retired Experimental Frontend Surface Cleanup.**
 
 Phases 0–8 are complete.
 
@@ -1077,6 +1077,7 @@ Track A relational milestones:
 - B2D3B2B Tenant + SaaS Route Retirement — COMPLETE, workflow `35631363130`
 - B2D3B3A Mediator Route Retirement — COMPLETE, workflow `35635059024`
 - B2D3B3B RAG + Cognitive Route Retirement — COMPLETE, workflow `35736152396`
+- B2D3B3C Phase 4 Route Retirement — COMPLETE, workflow `35742006196`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1114,6 +1115,8 @@ B2D3B3A evidence: `docs/PRODUCTION_B2D3B3A_MEDIATOR_ROUTE_RETIREMENT.md`.
 
 B2D3B3B evidence: `docs/PRODUCTION_B2D3B3B_RAG_COGNITIVE_ROUTE_RETIREMENT.md`.
 
+B2D3B3C evidence: `docs/PRODUCTION_B2D3B3C_PHASE4_ROUTE_RETIREMENT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1148,16 +1151,18 @@ B2D3B3A now removes all prototype mediator HTTP exposure. The mediator family is
 
 B2D3B3B now removes all prototype RAG/Cognitive HTTP exposure. Both families are RETIRED and cannot be reopened by compatibility mode. The supported identity-aware `/api/query/ask` product contract remains intact, while RAG/Cognitive engines, telemetry, graph/index, and benchmark modules remain internally importable.
 
-Next, do **B2D3B3C only — Phase 4 Route Retirement or Migration**:
+B2D3B3C now removes all legacy `/api/phase4/*` active-workspace convenience routes. The family is RETIRED and cannot be reopened by compatibility mode. Authenticated `/api/v1/ai/:ai_id/*`, modern workspace AI configuration, `/api/query/ask`, and governed memory/sandbox/learning internals remain intact.
 
-1. inventory every `/api/phase4/*` endpoint
-2. identify Phase 4 memory, sandbox, learning, feedback, and improvement modules still used by supported product/runtime code
-3. distinguish obsolete prototype HTTP workflows from capabilities that need a supported migration path
-4. remove prototype HTTP registration that has no supported product contract
-5. keep required Phase 4 internals available
-6. remove only obsolete `server.ts` imports
-7. update the Phase 4 route disposition according to the verified retirement/migration outcome
-8. preserve modern product routers and supported compatibility surfaces
-9. add focused proof and stop before Track C or frontend experimental-tab cleanup
+Next, do **B2D3B4 only — Retired Experimental Frontend Surface Cleanup**:
 
-Do not start Track C object storage, workers/queues, or frontend experimental-tab cleanup in the same slice.
+1. remove Learning Lab, Advanced Orchestration, and Answer Diagnostics from normal navigation
+2. remove their retired tab values and App render branches
+3. audit remaining references before deleting any experimental component files
+4. repair Trust Checks to use supported `/api/kb/run-tests` rather than retired `/api/v1/tests/phase4`
+5. keep current Ask on `UnifiedAskView` + `/api/query/ask`
+6. preserve internal mediator/RAG/Cognitive/Phase 4 services still used by CI or supported runtime
+7. add a focused frontend-shell contract proof
+8. keep all existing production hardening and Phase 0–8 gates green
+9. stop before Track C or worker infrastructure
+
+Do not redesign the product UI or start Track C in the same slice.

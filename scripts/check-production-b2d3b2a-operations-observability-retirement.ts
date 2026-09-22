@@ -204,15 +204,16 @@ async function main() {
       );
     }
 
-    const devOnly = await fetch(
+    const phase4 = await fetch(
       baseUrl + '/api/phase4/dashboard'
     );
-    const devOnlyBody = await readJson(devOnly);
+    const phase4Body = await readJson(phase4);
     assert(
-      devOnly.status === 200 &&
-        devOnlyBody?.source ===
-          'post-quarantine-handler',
-      'B2D3B2A must preserve explicit non-production compatibility for the remaining Phase 4 DEVELOPMENT_ONLY route group.'
+      phase4.status === 404 &&
+        phase4Body?.code ===
+          LEGACY_ROUTE_QUARANTINE_CODE &&
+        phase4Body?.disposition === 'RETIRED',
+      'B2D3B2A regression proof must accept the later B2D3B3C Phase 4 retirement.'
     );
   } finally {
     await new Promise<void>((resolve, reject) => {

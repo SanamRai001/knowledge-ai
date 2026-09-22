@@ -158,8 +158,8 @@ async function main() {
 
   assert(
     classifyLegacyRoute('/api/phase4/proof')
-      ?.disposition === 'DEVELOPMENT_ONLY',
-    '/api/phase4 must remain DEVELOPMENT_ONLY for B2D3B3C.'
+      ?.disposition === 'RETIRED',
+    '/api/phase4 must remain RETIRED after B2D3B3C.'
   );
 
   assert(
@@ -285,9 +285,10 @@ async function main() {
     );
     const phase4Body = await readJson(phase4);
     assert(
-      phase4.status === 200 &&
-        phase4Body?.source === 'post-quarantine-handler',
-      'B2D3B3A must preserve Phase 4 DEVELOPMENT_ONLY compatibility.'
+      phase4.status === 404 &&
+        phase4Body?.code === LEGACY_ROUTE_QUARANTINE_CODE &&
+        phase4Body?.disposition === 'RETIRED',
+      'B2D3B3A regression proof must accept the later B2D3B3C Phase 4 retirement.'
     );
   } finally {
     await new Promise<void>((resolve, reject) => {
