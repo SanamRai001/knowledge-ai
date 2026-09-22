@@ -168,8 +168,8 @@ The implementation sequence is deliberately split into small slices:
 13. **B2D3B2A — Operations + Observability Route Retirement** — COMPLETE, workflow `35629641464`
 14. **B2D3B2B — Tenant + SaaS Route Retirement** — COMPLETE, workflow `35631363130`
 15. **B2D3B3A — Mediator Route Retirement** — COMPLETE, workflow `35635059024`
-16. **B2D3B3B — RAG + Cognitive Route Retirement or Migration** — NEXT
-17. B2D3B3C — Phase 4 Route Retirement or Migration
+16. **B2D3B3B — RAG + Cognitive Route Retirement or Migration** — COMPLETE, workflow `35736152396`
+17. **B2D3B3C — Phase 4 Route Retirement or Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -201,6 +201,10 @@ B2D3B2B evidence: `docs/PRODUCTION_B2D3B2B_TENANT_SAAS_RETIREMENT.md`.
 
 B2D3B3A evidence: `docs/PRODUCTION_B2D3B3A_MEDIATOR_ROUTE_RETIREMENT.md`.
 
+B2D3B3B evidence: `docs/PRODUCTION_B2D3B3B_RAG_COGNITIVE_ROUTE_RETIREMENT.md`.
+
+B2D3B3B evidence: `docs/PRODUCTION_B2D3B3B_RAG_COGNITIVE_ROUTE_RETIREMENT.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -230,6 +234,8 @@ B2D3B2A removed prototype operations/observability HTTP exposure, retained reusa
 B2D3B2B removed legacy tenant/SaaS HTTP administration, closed prototype tenant key/billing/quota/governance/webhook paths, retained the supporting services internally, and preserved modern Platform Management as the privileged key-admin boundary.
 
 B2D3B3A removed all prototype mediator HTTP exposure, permanently retired the mediator route family, retained reusable orchestration/planning/verification/benchmark internals, and preserved supported API-docs/provider/system dependencies.
+
+B2D3B3B removed all prototype RAG/Cognitive HTTP exposure, permanently retired both route families, preserved the identity-aware `/api/query/ask` product contract, and kept RAG/Cognitive engines, telemetry, graph/index, and benchmark modules available internally.
 
 ## Security rules
 
@@ -659,21 +665,21 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening B2D3B3B — RAG + Cognitive Route Retirement or Migration**
+**Production Hardening B2D3B3C — Phase 4 Route Retirement or Migration**
 
-Keep this slice limited to the prototype RAG and Cognitive HTTP families.
+Keep this slice limited to the legacy `/api/phase4/*` family.
 
-1. inventory every `/api/v1/rag/*` and `/api/v1/cognitive/*` endpoint
-2. identify which underlying RAG/Cognitive modules are still reused by supported product/runtime code
-3. distinguish internal benchmark/research HTTP surfaces from any capability that needs a supported migration path
+1. inventory every `/api/phase4/*` endpoint
+2. identify Phase 4 memory, sandbox, learning, feedback, and improvement modules still used by supported product/runtime code
+3. distinguish obsolete prototype HTTP workflows from capabilities that need a supported migration path
 4. retire prototype HTTP registration that has no supported product contract
-5. keep required RAG/Cognitive internals available for product/runtime use
+5. keep required internal modules available
 6. remove only imports made obsolete by HTTP retirement
-7. update RAG/Cognitive route dispositions according to the verified outcome
-8. preserve legacy `/api/phase4/*` for B2D3B3C
-9. add focused executable proof and stop before Phase 4 cleanup
+7. update the Phase 4 route disposition according to the verified outcome
+8. preserve all modern Phase 0–8 product routers and supported `/api/v1/*` compatibility surfaces
+9. add focused executable proof and stop before Track C or worker work
 
-Do not start B2D3B3C, Track C object storage, or workers in this slice.
+Do not start Track C object storage, workers/queues, or frontend experimental-tab cleanup in this slice.
 ---
 
 # Track A closure note
