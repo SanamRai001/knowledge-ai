@@ -441,12 +441,14 @@ workspaceRouter.post(
                 }
               );
 
+            let persistedDoc;
             try {
-              await workspaceRuntimeService.addDocument(
-                accountId,
-                activeKb.id,
-                doc
-              );
+              persistedDoc =
+                await workspaceRuntimeService.addDocument(
+                  accountId,
+                  activeKb.id,
+                  doc
+                );
             } catch (error) {
               if (storedSource) {
                 await documentSourceStorageService
@@ -486,10 +488,12 @@ workspaceRouter.post(
             }
 
             currentDocumentsByFilename.set(
-              doc.filename,
-              doc
+              persistedDoc.filename,
+              persistedDoc
             );
-            processed.push(doc);
+            processed.push(
+              persistedDoc
+            );
           } catch (parseError: any) {
             if (!storedSource) {
               throw parseError;
@@ -508,12 +512,14 @@ workspaceRouter.post(
                 }
               );
 
+            let persistedFailedDoc;
             try {
-              await workspaceRuntimeService.addDocument(
-                accountId,
-                activeKb.id,
-                failedDoc
-              );
+              persistedFailedDoc =
+                await workspaceRuntimeService.addDocument(
+                  accountId,
+                  activeKb.id,
+                  failedDoc
+                );
             } catch (error) {
               await documentSourceStorageService
                 .compensateUnlinkedSource(
@@ -550,15 +556,15 @@ workspaceRouter.post(
             }
 
             currentDocumentsByFilename.set(
-              failedDoc.filename,
-              failedDoc
+              persistedFailedDoc.filename,
+              persistedFailedDoc
             );
 
             errors.push({
               filename:
                 file.originalname,
               documentId:
-                failedDoc.id,
+                persistedFailedDoc.id,
               retryable: true,
               error:
                 parseError?.message ||
@@ -617,8 +623,13 @@ workspaceRouter.post('/documents/sample', async (_req, res) => {
         pages,
         summary
       );
-      await workspaceRuntimeService.addDocument(accountId, activeKb.id, doc);
-      added.push(doc);
+      const persistedDoc =
+        await workspaceRuntimeService.addDocument(
+          accountId,
+          activeKb.id,
+          doc
+        );
+      added.push(persistedDoc);
     }
 
     res.json({
@@ -809,17 +820,19 @@ workspaceRouter.post(
             }
           );
 
-        await workspaceRuntimeService
-          .addDocument(
-            accountId,
-            activeKb.id,
-            reprocessed
-          );
+        const persistedReprocessed =
+          await workspaceRuntimeService
+            .addDocument(
+              accountId,
+              activeKb.id,
+              reprocessed
+            );
 
         res.json({
           message:
             'Document reprocessed from durable source bytes',
-          document: reprocessed,
+          document:
+            persistedReprocessed,
           kb:
             await workspaceRuntimeService.getActiveKB(
               accountId
