@@ -213,6 +213,40 @@ export class PostgresDocumentDerivedPayloadRepository
     );
   }
 
+  async hasAnyForWorkspace(
+    accountId: string,
+    workspaceId: string
+  ): Promise<boolean> {
+    const result =
+      await postgresPool().query(
+        `SELECT 1
+         FROM document_derived_payloads
+         WHERE account_id = $1
+           AND workspace_id = $2
+         LIMIT 1`,
+        [accountId, workspaceId]
+      );
+    return Boolean(result.rowCount);
+  }
+
+  async countCurrentForWorkspace(
+    accountId: string,
+    workspaceId: string
+  ): Promise<number> {
+    const result =
+      await postgresPool().query(
+        `SELECT count(*)::int AS count
+         FROM document_derived_payloads
+         WHERE account_id = $1
+           AND workspace_id = $2
+           AND is_current = true`,
+        [accountId, workspaceId]
+      );
+    return Number(
+      result.rows[0]?.count || 0
+    );
+  }
+
   async markDocumentInactive(
     accountId: string,
     workspaceId: string,
