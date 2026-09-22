@@ -11,16 +11,14 @@ import {
   Sparkles,
   BarChart2,
   Code2,
-  Brain,
   Network,
-  Cpu,
   BellRing,
   PlugZap,
   Gauge,
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 
-export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'sandbox' | 'mediator' | 'cognitive';
+export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -286,50 +284,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Developers</span>
         </button>
 
-        <button
-          id="nav-tab-sandbox"
-          onClick={() => onTabChange('sandbox')}
-          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-            currentTab === 'sandbox'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Brain className="w-3.5 h-3.5 text-purple-600" />
-          <span>Learning Lab</span>
-        </button>
-
-        <button
-          id="nav-tab-mediator"
-          onClick={() => onTabChange('mediator')}
-          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-            currentTab === 'mediator'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Network className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Advanced Orchestration</span>
-          <span className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-1.5 py-0.2 rounded-full">
-            Admin
-          </span>
-        </button>
-
-        <button
-          id="nav-tab-cognitive"
-          onClick={() => onTabChange('cognitive')}
-          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-            currentTab === 'cognitive'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Cpu className="w-3.5 h-3.5 text-purple-600" />
-          <span>Answer Diagnostics</span>
-          <span className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-1.5 py-0.2 rounded-full">
-            Advanced
-          </span>
-        </button>
       </div>
     </header>
   );
