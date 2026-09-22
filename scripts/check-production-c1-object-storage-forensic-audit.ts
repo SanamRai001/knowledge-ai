@@ -78,7 +78,7 @@ async function main() {
 
   const retrySection = section(
     workspaceRouter,
-    "workspaceRouter.post('/documents/:id/retry'",
+    "workspaceRouter.post(\n  '/documents/:id/retry'",
     "workspaceRouter.post('/chat'"
   );
   assert(
