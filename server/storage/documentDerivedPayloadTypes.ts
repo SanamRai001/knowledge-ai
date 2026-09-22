@@ -69,6 +69,16 @@ export interface DocumentDerivedPayloadRepository {
     workspaceId: string
   ): Promise<DocumentDerivedPayloadRecord[]>;
 
+  hasAnyForWorkspace(
+    accountId: string,
+    workspaceId: string
+  ): Promise<boolean>;
+
+  countCurrentForWorkspace(
+    accountId: string,
+    workspaceId: string
+  ): Promise<number>;
+
   markDocumentInactive(
     accountId: string,
     workspaceId: string,
