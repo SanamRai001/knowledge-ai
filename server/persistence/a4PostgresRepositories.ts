@@ -1200,6 +1200,49 @@ export class PostgresIntegrationCheckpointRepository
             'External import does not belong to this checkpoint account/connection.'
           );
         }
+
+        if (imported.status === 'INGESTED') {
+          throw new Error(
+            'INTEGRATION_CHECKPOINT_INCOMPLETE: cursor cannot advance while an external import is still INGESTED.'
+          );
+        }
+
+        if (
+          imported.internalKind === 'DATASET' &&
+          imported.sourceVersionId
+        ) {
+          if (
+            !imported.internalId ||
+            !imported.internalVersionId
+          ) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_SOURCE_MISMATCH: Dataset import with sourceVersionId is missing Dataset identity.'
+            );
+          }
+
+          const durableVersion =
+            await client.query(
+              `SELECT 1
+               FROM dataset_versions
+               WHERE account_id = $1
+                 AND dataset_id = $2
+                 AND id = $3
+                 AND source_version_id = $4`,
+              [
+                input.accountId,
+                imported.internalId,
+                imported.internalVersionId,
+                imported.sourceVersionId,
+              ]
+            );
+
+          if (!durableVersion.rowCount) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_SOURCE_MISMATCH: external import source snapshot does not match its DatasetVersion.'
+            );
+          }
+        }
+
         await saveImportWith(client, imported);
       }
 
