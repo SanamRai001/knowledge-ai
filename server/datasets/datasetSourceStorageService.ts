@@ -28,6 +28,8 @@ function id(prefix: string): string {
 export interface StoredDatasetSource {
   sourceObject: SourceObject;
   sourceVersion: SourceVersion;
+  createdSourceObject: boolean;
+  createdSourceVersion: boolean;
 }
 
 export class DatasetSourceStorageService {
@@ -144,6 +146,8 @@ export class DatasetSourceStorageService {
             sourceObject,
             sourceVersion:
               exactVersion,
+            createdSourceObject: false,
+            createdSourceVersion: false,
           };
         }
       }
@@ -237,6 +241,8 @@ export class DatasetSourceStorageService {
       return {
         sourceObject,
         sourceVersion,
+        createdSourceObject,
+        createdSourceVersion: true,
       };
     } catch (error) {
       await storage
@@ -333,6 +339,7 @@ export class DatasetSourceStorageService {
     sourceObjectId: string;
     sourceVersionId: string;
     storageKey: string;
+    tombstoneSourceObject?: boolean;
   }): Promise<void> {
     const storage =
       this.storageProvider();
@@ -359,12 +366,14 @@ export class DatasetSourceStorageService {
         )
         .catch(() => undefined);
     } finally {
-      await this.repository
-        .tombstoneObject(
-          input.accountId,
-          input.sourceObjectId
-        )
-        .catch(() => undefined);
+      if (input.tombstoneSourceObject) {
+        await this.repository
+          .tombstoneObject(
+            input.accountId,
+            input.sourceObjectId
+          )
+          .catch(() => undefined);
+      }
     }
   }
 }
