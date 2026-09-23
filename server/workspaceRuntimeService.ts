@@ -566,23 +566,33 @@ export class WorkspaceRuntimeService {
       );
     }
 
-    await this.requireKB(accountId, kbId);
-    const updated = kbStore.updateSpecializedAI(
-      kbId,
-      updates,
-      accountId
-    );
-    if (!updated) {
-      throw new WorkspaceAccessError(
-        'KNOWLEDGE_BASE_NOT_FOUND',
-        404,
-        'Knowledge base not found.'
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
       );
-    }
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return updated;
+    const updated: SpecializedAI = {
+      ...current.specializedAi,
+      ...clone(updates),
+      id: current.specializedAi.id,
+      kbId,
+      updatedAt: Date.now(),
+    };
+
+    await workspaceStructuredStateService
+      .saveSpecializedAI(
+        accountId,
+        kbId,
+        updated
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: updated.updatedAt }
+      );
+
+    return clone(updated);
   }
 
   public async createVersionSnapshot(
@@ -597,16 +607,72 @@ export class WorkspaceRuntimeService {
         label
       );
     }
-    await this.requireKB(accountId, kbId);
-    const version = kbStore.createVersionSnapshot(
-      kbId,
-      label,
-      accountId
-    );
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return version;
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const nextNum =
+      Math.max(
+        0,
+        ...current.versions.map(
+          (version) =>
+            version.versionNumber
+        )
+      ) + 1;
+    const versionTag =
+      'v' + String(nextNum) + '.0';
+    const now = Date.now();
+    const projection =
+      projectDocumentsForVersion(
+        current.documents
+      );
+    const version: KnowledgeVersion = {
+      id:
+        'ver_' +
+        crypto
+          .randomBytes(6)
+          .toString('hex'),
+      versionNumber: nextNum,
+      versionTag,
+      label:
+        label.trim() ||
+        'Snapshot ' + versionTag,
+      timestamp: now,
+      documentCount:
+        current.documents.length,
+      totalPages:
+        current.documents.reduce(
+          (sum, document) =>
+            sum +
+            (document.pageCount || 0),
+          0
+        ),
+      documents:
+        projection.documents,
+      documentRefs:
+        projection.documentRefs,
+      isCurrent: true,
+    };
+
+    await workspaceStructuredStateService
+      .saveVersion(
+        accountId,
+        kbId,
+        version
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        {
+          currentVersionTag:
+            versionTag,
+          updatedAt: now,
+        }
+      );
+
+    return clone(version);
   }
 
   public async rollbackToVersion(
@@ -646,43 +712,51 @@ export class WorkspaceRuntimeService {
       target.documentRefs !==
       undefined
     ) {
-      const durableDocuments =
-        await documentDerivedPayloadService
-          .activatePayloadRefs({
-            accountId,
-            workspaceId: kbId,
-            payloadIds:
-              target.documentRefs.map(
-                (ref) =>
-                  ref.derivedPayloadId
-              ),
-          });
-
-      const kb =
-        kbStore.applyVersionRollback(
-          kbId,
-          versionId,
-          [
-            ...(target.documents ||
-              []),
-            ...durableDocuments,
-          ],
-          accountId
-        );
-      await this.syncMetadata(kb);
-      return this.requireKB(
-        accountId,
-        kbId
-      );
+      await documentDerivedPayloadService
+        .activatePayloadRefs({
+          accountId,
+          workspaceId: kbId,
+          payloadIds:
+            target.documentRefs.map(
+              (ref) =>
+                ref.derivedPayloadId
+            ),
+        });
     }
 
-    const kb =
-      kbStore.rollbackToVersion(
+    await workspaceStructuredStateService
+      .setCurrentVersion(
+        accountId,
         kbId,
-        versionId,
-        accountId
+        target.id
       );
-    await this.syncMetadata(kb);
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        {
+          currentVersionTag:
+            target.versionTag,
+          processingStatus:
+            processingStatusForDocuments(
+              [
+                ...(target.documents ||
+                  []),
+                ...(target.documentRefs
+                  ?.length
+                  ? await documentDerivedPayloadService
+                      .listCurrentDocuments({
+                        accountId,
+                        workspaceId:
+                          kbId,
+                      })
+                  : []),
+              ]
+            ),
+          updatedAt: Date.now(),
+        }
+      );
+
     return this.requireKB(
       accountId,
       kbId
@@ -878,8 +952,16 @@ export class WorkspaceRuntimeService {
       );
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.addChatMessage(kbId, message, accountId);
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    await workspaceStructuredStateService
+      .addChatMessage(
+        accountId,
+        kbId,
+        message
+      );
   }
 
   public async clearChat(
@@ -890,8 +972,15 @@ export class WorkspaceRuntimeService {
       workspaceAccessService.clearChat(accountId, kbId);
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.clearChat(kbId, accountId);
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    await workspaceStructuredStateService
+      .clearChat(
+        accountId,
+        kbId
+      );
   }
 
   public async addTestCase(
@@ -906,16 +995,32 @@ export class WorkspaceRuntimeService {
         testCase
       );
     }
-    await this.requireKB(accountId, kbId);
-    const created = kbStore.addTestCase(
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    const created: EvaluationTestCase = {
+      id:
+        'tc_' +
+        crypto
+          .randomBytes(6)
+          .toString('hex'),
       kbId,
-      testCase,
-      accountId
-    );
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return created;
+      ...clone(testCase),
+    };
+    await workspaceStructuredStateService
+      .addTestCase(
+        accountId,
+        kbId,
+        created
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: Date.now() }
+      );
+    return clone(created);
   }
 
   public async removeTestCase(
@@ -930,16 +1035,24 @@ export class WorkspaceRuntimeService {
         testCaseId
       );
     }
-    await this.requireKB(accountId, kbId);
-    const removed = kbStore.removeTestCase(
-      kbId,
-      testCaseId,
-      accountId
+    await this.requireKB(
+      accountId,
+      kbId
     );
+    const removed =
+      await workspaceStructuredStateService
+        .removeTestCase(
+          accountId,
+          kbId,
+          testCaseId
+        );
     if (removed) {
-      await this.syncMetadata(
-        kbStore.getKB(kbId, accountId)!
-      );
+      await postgresWorkspaceMetadataRepository
+        .update(
+          accountId,
+          kbId,
+          { updatedAt: Date.now() }
+        );
     }
     return removed;
   }
@@ -957,11 +1070,22 @@ export class WorkspaceRuntimeService {
       );
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.recordEvaluationRun(kbId, run, accountId);
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
+    await this.requireKB(
+      accountId,
+      kbId
     );
+    await workspaceStructuredStateService
+      .recordEvaluationRun(
+        accountId,
+        kbId,
+        run
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: Date.now() }
+      );
   }
 }
 
