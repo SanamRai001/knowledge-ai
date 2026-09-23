@@ -34,12 +34,24 @@ export class IntegrationSourceRecoveryService {
     externalId: string;
     externalVersion: string;
   }): Promise<RecoveredIntegrationDatasetImport | null> {
-    const sourceObject =
+    const sourceVersion =
       await postgresSourceObjectRepository
-        .findExternalObject(
+        .findExternalVersionByIdentity(
           input.accountId,
           input.connectionId,
-          input.externalId
+          input.externalId,
+          input.externalVersion
+        );
+
+    if (!sourceVersion) {
+      return null;
+    }
+
+    const sourceObject =
+      await postgresSourceObjectRepository
+        .getObject(
+          input.accountId,
+          sourceVersion.sourceObjectId
         );
 
     if (
@@ -47,18 +59,6 @@ export class IntegrationSourceRecoveryService {
       sourceObject.kind !==
         'DATASET_SOURCE'
     ) {
-      return null;
-    }
-
-    const sourceVersion =
-      await postgresSourceObjectRepository
-        .findExternalVersion(
-          input.accountId,
-          sourceObject.id,
-          input.externalVersion
-        );
-
-    if (!sourceVersion) {
       return null;
     }
 
