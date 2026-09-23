@@ -89,27 +89,30 @@ export class DatasetSourceStorageService {
       input.externalConnectionId &&
       input.externalId
     ) {
-      sourceObject =
-        await this.repository
-          .findExternalObject(
-            input.accountId,
-            input.externalConnectionId,
-            input.externalId
-          );
-
-      if (
-        sourceObject &&
-        input.externalVersion
-      ) {
+      if (input.externalVersion) {
         const exactVersion =
           await this.repository
-            .findExternalVersion(
+            .findExternalVersionByIdentity(
               input.accountId,
-              sourceObject.id,
+              input.externalConnectionId,
+              input.externalId,
               input.externalVersion
             );
 
         if (exactVersion) {
+          sourceObject =
+            await this.repository
+              .getObject(
+                input.accountId,
+                exactVersion.sourceObjectId
+              );
+
+          if (!sourceObject) {
+            throw new Error(
+              'External source snapshot exists without its owning SourceObject.'
+            );
+          }
+
           if (
             exactVersion.sizeBytes !==
               sizeBytes ||
@@ -151,6 +154,14 @@ export class DatasetSourceStorageService {
           };
         }
       }
+
+      sourceObject =
+        await this.repository
+          .findExternalObject(
+            input.accountId,
+            input.externalConnectionId,
+            input.externalId
+          );
     }
 
     const sourceObjectId =
