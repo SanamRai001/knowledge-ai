@@ -44,6 +44,12 @@ async function main() {
   const integrationSync = read(
     'server/integrations/integrationSyncService.ts'
   );
+  const integrationRuntime = read(
+    'server/integrations/integrationRuntimeService.ts'
+  );
+  const integrationPostgres = read(
+    'server/persistence/a4PostgresRepositories.ts'
+  );
   const googleDrive = read(
     'server/integrations/connectors/googleDriveConnector.ts'
   );
@@ -178,10 +184,22 @@ async function main() {
   );
 
   assert(
-    integrationSync.includes('cursor: result.cursorAfter') &&
-      integrationSync.includes("status: 'READY'") &&
-      !integrationSync.includes('sourceVersionId'),
-    'C1 expects provider checkpointing without an immutable source snapshot link.'
+    integrationRuntime.includes(
+      'integrationSourceRecoveryService'
+    ) &&
+      integrationRuntime.includes(
+        'commitSuccessfulCheckpoint'
+      ) &&
+      integrationRuntime.includes(
+        'sourceVersionId'
+      ) &&
+      integrationPostgres.includes(
+        'INTEGRATION_CHECKPOINT_STALE'
+      ) &&
+      integrationPostgres.includes(
+        'INTEGRATION_CHECKPOINT_INCOMPLETE'
+      ),
+    'C1 regression proof must accept C6 durable external source recovery and transactional checkpoint guards while retaining the legacy/file-mode integration path separately.'
   );
 
   assert(
@@ -210,7 +228,7 @@ async function main() {
     'PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'C1 historical audit boundaries remain guarded after C5: original/derived document payloads and new Dataset source/analytical payloads are durable, while chat/config/evaluation state and integration checkpoint atomicity remain explicit later work.'
+    'C1 historical audit boundaries remain guarded after C6: document and Dataset payloads are durable and PostgreSQL integration checkpoints recover committed source snapshots safely; the remaining explicit durability debt is the local workspace structured shell (AI config, chat, evaluation, and KnowledgeVersion metadata).'
   );
 }
 
