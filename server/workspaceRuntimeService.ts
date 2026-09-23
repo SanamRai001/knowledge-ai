@@ -164,18 +164,36 @@ export class WorkspaceRuntimeService {
           workspaceId: metadata.id,
         });
 
+    const currentVersion =
+      structuredState.versions.find(
+        (version) => version.isCurrent
+      ) ||
+      structuredState.versions.find(
+        (version) =>
+          version.versionTag ===
+          metadata.currentVersionTag
+      );
+
+    const legacyVersionDocuments =
+      clone(
+        currentVersion?.documents || []
+      );
+
     const documents =
       durableAuthority
-        ? await documentDerivedPayloadService
-            .listCurrentDocuments({
-              accountId:
-                metadata.accountId,
-              workspaceId:
-                metadata.id,
-            })
+        ? [
+            ...legacyVersionDocuments,
+            ...(await documentDerivedPayloadService
+              .listCurrentDocuments({
+                accountId:
+                  metadata.accountId,
+                workspaceId:
+                  metadata.id,
+              })),
+          ]
         : clone(
             legacyPayload?.documents ||
-              []
+              legacyVersionDocuments
           );
 
     const materialized:
@@ -217,7 +235,8 @@ export class WorkspaceRuntimeService {
     };
 
     kbStore.hydrateKnowledgeBase(
-      materialized
+      materialized,
+      false
     );
 
     return clone(materialized);
@@ -408,18 +427,35 @@ export class WorkspaceRuntimeService {
     });
 
     try {
-      kbStore.createKBWithId(
-        kbId,
-        cleanName,
-        description,
-        accountId
-      );
-      await postgresWorkspaceMetadataRepository.setActive(
+      const compatibilityKb =
+        kbStore.createKBWithId(
+          kbId,
+          cleanName,
+          description,
+          accountId,
+          false
+        );
+
+      await workspaceStructuredStateService
+        .initializeFromKnowledgeBase(
+          compatibilityKb
+        );
+
+      await postgresWorkspaceMetadataRepository
+        .setActive(
+          accountId,
+          kbId
+        );
+
+      return this.requireKB(
         accountId,
         kbId
       );
-      return this.requireKB(accountId, kbId);
     } catch (error) {
+      kbStore.forgetKnowledgeBase(
+        kbId,
+        accountId
+      );
       await postgresWorkspaceMetadataRepository
         .delete(accountId, kbId)
         .catch(() => undefined);
@@ -456,7 +492,6 @@ export class WorkspaceRuntimeService {
         }
       );
 
-    kbStore.updateKB(kbId, updates, accountId);
     return this.materialize(metadata);
   }
 
@@ -485,9 +520,10 @@ export class WorkspaceRuntimeService {
       kbId
     );
 
-    if (kbStore.getKB(kbId, accountId)) {
-      kbStore.deleteKB(kbId, accountId);
-    }
+    kbStore.forgetKnowledgeBase(
+      kbId,
+      accountId
+    );
   }
 
   public async setActiveKB(
