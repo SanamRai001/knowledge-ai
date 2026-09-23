@@ -175,7 +175,8 @@ The implementation sequence is deliberately split into small slices:
 20. **C2 — Source Object Metadata + Storage Abstraction Foundation** — COMPLETE, workflow `35754956014`
 21. **C3 — Durable Object Backend + Document Source Migration** — COMPLETE, workflow `35757955890`
 22. **C4 — Durable Derived Document Payload + Workspace Reconstruction** — COMPLETE, workflow `35762662087`
-23. **C5 — Dataset Source + Analytical Payload Migration** — NEXT
+23. **C5 — Dataset Source + Analytical Payload Migration** — COMPLETE, workflow `35886051635`
+24. **C6 — Integration Snapshot + Checkpoint Commit Ordering** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -221,6 +222,8 @@ C3 evidence: `docs/PRODUCTION_C3_DOCUMENT_SOURCE_MIGRATION.md`.
 
 C4 evidence: `docs/PRODUCTION_C4_DERIVED_DOCUMENT_RECONSTRUCTION.md`.
 
+C5 evidence: `docs/PRODUCTION_C5_DATASET_DURABILITY.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -264,6 +267,8 @@ C2 added PostgreSQL `source_objects` / immutable `source_versions`, account-scop
 C3 added an S3-compatible production object-storage adapter, durable PDF source persistence before parsing, opaque `sourceVersionId` document linkage, real retry/reprocessing from integrity-verified stored bytes, account/workspace-scoped source lookup, and tombstone/cleanup compensation while keeping Dataset/integration migration out of scope.
 
 C4 added PostgreSQL-backed derived-document payload metadata, integrity-verified parsed-document JSON in durable object storage, PostgreSQL-mode document-corpus hydration before Unified Ask, opaque `derivedPayloadId` linkage, non-duplicating KnowledgeVersion refs, historical ref resolution, and durable version rollback while leaving chat/config/evaluation state and Dataset/integration payloads unchanged.
+
+C5 added immutable durable CSV/XLSX SourceVersions, durable integrity-verified Dataset analytical payloads, PostgreSQL DatasetVersion linkage to source/payload integrity metadata, restart reconstruction of current and historical Dataset rows from object storage, cross-account/tamper guards, and failed-import compensation while keeping legacy local payloads compatibility-readable.
 
 ## Security rules
 
@@ -693,22 +698,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening C5 — Dataset Source + Analytical Payload Migration**
+**Production Hardening C6 — Integration Snapshot + Checkpoint Commit Ordering**
 
-Keep this slice limited to Dataset durability.
+Keep this slice limited to integration durability and checkpoint correctness.
 
-1. persist original CSV/XLSX upload bytes as immutable `DATASET_SOURCE` SourceObject/SourceVersion records before an import is committed
-2. link DatasetVersion metadata to the durable sourceVersionId while retaining filename/MIME/size/SHA-256 metadata
-3. replace `local-dataset-payload` JSON-file analytical payloads with an integrity-verified durable object-storage backend behind the existing Dataset payload abstraction
-4. keep PostgreSQL Dataset/DatasetVersion/import-run metadata authoritative; do not duplicate relational metadata into object blobs
-5. make Dataset runtime bootstrap/reconstruction load analytical rows from durable payload locators after local `data/` loss
-6. enforce account/Dataset/version ownership for source and analytical payload lookup; no arbitrary object-key access
-7. define store/parse/payload/metadata commit and compensation ordering so failed imports cannot report READY/IMPORTED with missing durable bytes
-8. preserve deterministic analytics, schema correction, historical version selection, discovery, and UI behavior
-9. keep Google Drive / OneDrive immutable provider snapshots and cursor/checkpoint transaction hardening out of C5; integrations continue to feed the Dataset import contract for now
-10. add focused contract + PostgreSQL restart/isolation/tamper proofs and keep all existing gates green
+1. bind provider external versions to immutable durable SourceVersions wherever integration imports require source-byte provenance
+2. link external-import provenance to those durable snapshots without exposing physical object keys
+3. preserve connection/externalId/externalVersion idempotency across retries
+4. ensure provider cursor advancement occurs only after all required durable imports/projections for that checkpoint are committed
+5. define partial-failure behavior so crash/retry cannot skip an uncommitted provider record
+6. preserve PostgreSQL IntegrationConnection/SyncRun/import metadata authority
+7. preserve existing sync leases, retry/backoff, permission-loss recovery, and reauthorization behavior
+8. preserve same-Dataset versioning and Living Knowledge projection behavior
+9. add focused crash/retry/checkpoint/source-provenance PostgreSQL proofs
+10. stop before worker/queue migration or broader Track D transaction redesign
 
-Do not migrate integration provider checkpoints, chat/config/evaluation structured state, workers/queues, or Track D workflows in C5.
+Do not migrate chat/config/evaluation structured state, workers/queues, or unrelated Track D workflows in C6.
 ---
 
 # Track A closure note
