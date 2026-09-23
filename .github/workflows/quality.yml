@@ -211,6 +211,9 @@ jobs:
       - name: Production C5 Dataset durability contract proof
         run: npm run check:production:c5-dataset-durability-contract
 
+      - name: Production C6 integration checkpoint contract proof
+        run: npm run check:production:c6-integration-checkpoint-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -344,3 +347,6 @@ jobs:
 
       - name: Production C5 Dataset durability PostgreSQL proof
         run: npm run check:production:c5-dataset-durability-postgres
+
+      - name: Production C6 integration checkpoint PostgreSQL proof
+        run: npm run check:production:c6-integration-checkpoint-postgres
