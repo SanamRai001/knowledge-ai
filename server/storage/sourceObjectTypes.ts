@@ -109,6 +109,18 @@ export interface SourceObjectRepository {
     sourceVersionId: string
   ): Promise<SourceVersion | null>;
 
+  findExternalObject(
+    accountId: string,
+    externalConnectionId: string,
+    externalId: string
+  ): Promise<SourceObject | null>;
+
+  findExternalVersion(
+    accountId: string,
+    sourceObjectId: string,
+    externalVersion: string
+  ): Promise<SourceVersion | null>;
+
   getVersionForWorkspace(
     accountId: string,
     workspaceId: string,
