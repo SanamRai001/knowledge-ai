@@ -320,7 +320,8 @@ export class KnowledgeBaseStore {
     id: string,
     name: string,
     description?: string,
-    accountId: string = DEFAULT_ACCOUNT_ID
+    accountId: string = DEFAULT_ACCOUNT_ID,
+    persist: boolean = true
   ): KnowledgeBase {
     const normalized = this.normalizeAccountId(accountId);
     const cleanId = id.trim();
@@ -364,7 +365,9 @@ export class KnowledgeBaseStore {
 
     this.kbs.set(cleanId, newKb);
     this.activeKbId = cleanId;
-    this.saveToDisk();
+    if (persist) {
+      this.saveToDisk();
+    }
     return structuredClone(newKb);
   }
 
@@ -426,6 +429,16 @@ export class KnowledgeBaseStore {
     return structuredClone(
       hydrated
     );
+  }
+
+  forgetKnowledgeBase(
+    id: string,
+    accountId: string = DEFAULT_ACCOUNT_ID
+  ): void {
+    const existing =
+      this.ownedKB(id, accountId);
+    if (!existing) return;
+    this.kbs.delete(id);
   }
 
   setActiveKB(id: string, accountId: string = DEFAULT_ACCOUNT_ID): boolean {
