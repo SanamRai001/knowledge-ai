@@ -73,29 +73,77 @@ export class AutomationExecutionRuntimeService {
       if (
         existingExecution.executionMode === 'AUTOMATION_POLICY'
       ) {
-        const priorRun =
-          (
-            await automationPersistence.listRuns({
-              accountId: params.accountId,
-              proposalId: params.proposalId,
-              status: 'SUCCEEDED',
-              limit: 1,
-            })
-          )[0] ||
-          (await automationPersistence.createRun({
+        const proposalRuns =
+          await automationPersistence.listRuns({
             accountId: params.accountId,
             proposalId: params.proposalId,
-            status: 'SUCCEEDED',
-            attemptCount: 0,
-            maxAttempts: 0,
-            actor,
-            actorRole,
-            policyId: existingExecution.automationPolicyId,
-            policyVersion:
-              existingExecution.automationPolicyVersion,
-            executionId: existingExecution.id,
-            completedAt: Date.now(),
-          }));
+            limit: 100,
+          });
+
+        let priorRun =
+          proposalRuns.find(
+            (item) =>
+              item.status ===
+                'SUCCEEDED' &&
+              item.executionId ===
+                existingExecution.id
+          );
+
+        if (!priorRun) {
+          const recoverableRun =
+            proposalRuns.find(
+              (item) =>
+                item.status ===
+                  'RUNNING' &&
+                item.policyId ===
+                  existingExecution
+                    .automationPolicyId &&
+                item.policyVersion ===
+                  existingExecution
+                    .automationPolicyVersion
+            );
+
+          priorRun = recoverableRun
+            ? await automationPersistence.updateRun(
+                params.accountId,
+                recoverableRun.id,
+                {
+                  status:
+                    'SUCCEEDED',
+                  executionId:
+                    existingExecution.id,
+                  retryable: false,
+                  failureCategory:
+                    undefined,
+                  lastError:
+                    undefined,
+                  completedAt:
+                    Date.now(),
+                }
+              )
+            : await automationPersistence.createRun({
+                accountId:
+                  params.accountId,
+                proposalId:
+                  params.proposalId,
+                status:
+                  'SUCCEEDED',
+                attemptCount: 0,
+                maxAttempts: 0,
+                actor,
+                actorRole,
+                policyId:
+                  existingExecution
+                    .automationPolicyId,
+                policyVersion:
+                  existingExecution
+                    .automationPolicyVersion,
+                executionId:
+                  existingExecution.id,
+                completedAt:
+                  Date.now(),
+              });
+        }
 
         return {
           replayed: true,
