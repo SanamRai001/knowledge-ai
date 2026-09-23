@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C7 — Workspace Structured State Relational Migration.**
+> **Continue with Production Hardening D1 — Confirmed Action Transaction Boundary.**
 
 Phases 0–8 are complete.
 
@@ -1085,7 +1085,8 @@ Track A relational milestones:
 - C4 Durable Derived Document Payload + Workspace Reconstruction — COMPLETE, workflow `35762662087`
 - C5 Dataset Source + Analytical Payload Migration — COMPLETE, workflow `35886051635`
 - C6 Integration Snapshot + Checkpoint Commit Ordering — COMPLETE, workflow `35892271035`
-- C7 Workspace Structured State Relational Migration — NEXT
+- C7 Workspace Structured State Relational Migration — COMPLETE, workflow `35895848629`
+- D1 Confirmed Action Transaction Boundary — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1139,6 +1140,8 @@ C5 evidence: `docs/PRODUCTION_C5_DATASET_DURABILITY.md`.
 
 C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
 
+C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1189,17 +1192,19 @@ C5 now persists original CSV/XLSX bytes as immutable DATASET_SOURCE SourceVersio
 
 C6 now binds provider external versions to immutable source snapshots, recovers crash-orphaned Dataset imports before provider refetch, carries opaque sourceVersionId through external-import state, preserves exact-version idempotency, and uses the existing transactional checkpoint boundary with stronger Dataset/source/projection prerequisites before cursor movement.
 
-Next, do **C7 only — Workspace Structured State Relational Migration**:
+C7 now makes Specialized AI configuration, KnowledgeVersion metadata/refs, chat history, evaluation test cases, and evaluation runs PostgreSQL-authoritative per account/workspace. Production workspace shells reconstruct without `knowledge_bases.json`, active selection remains relational, one-time legacy migration is supported, and the legacy store is memory-only compatibility in PostgreSQL mode.
 
-1. persist KnowledgeVersion metadata + durable document refs relationally
-2. persist account/workspace-scoped chat history relationally
-3. persist Specialized AI configuration relationally
-4. persist evaluation test cases and evaluation runs relationally
-5. reconstruct the workspace shell from PostgreSQL + C4 durable document payloads when `knowledge_bases.json` is absent
-6. remove production authority from legacy global active-workspace state
-7. keep file-mode development compatibility without allowing JSON to override PostgreSQL production state
-8. preserve current KB/query/chat/AI-config/evaluation/version/rollback behavior
-9. prove restart reconstruction and cross-account isolation for all migrated state
-10. stop before worker/queue, managed-secret, or broad Track D workflow work
+Next, do **D1 only — Confirmed Action Transaction Boundary**:
 
-Do not revisit C3/C4 document payloads, C5 Dataset durability, C6 integration snapshots, workers/queues, or unrelated Track D workflows in C7.
+1. inventory the confirmed/manual Action execution path and all relational writes
+2. map the idempotency claim, company-state mutation, Action status transition, and audit/event writes
+3. create one explicit PostgreSQL transaction for relationally compatible parts of the confirmed Action workflow
+4. add database-backed idempotency so duplicate confirmation/replay cannot apply the same mutation twice
+5. define and prove crash outcomes without reporting partial work as success
+6. use compensation only where a real external side effect cannot share the transaction
+7. preserve current human/API-key identity, approval, authorization, and policy semantics
+8. preserve file-mode compatibility
+9. add focused duplicate/crash/cross-account PostgreSQL proofs
+10. stop before Controlled Automation transaction redesign or Track E worker/queue work
+
+Do not start managed-secret, deployment, observability, or unrelated transaction work in D1.

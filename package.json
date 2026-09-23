@@ -98,7 +98,9 @@
     "check:production:c5-dataset-durability-contract": "tsx scripts/check-production-c5-dataset-durability-contract.ts",
     "check:production:c5-dataset-durability-postgres": "tsx scripts/check-production-c5-dataset-durability-postgres.ts",
     "check:production:c6-integration-checkpoint-contract": "tsx scripts/check-production-c6-integration-checkpoint-contract.ts",
-    "check:production:c6-integration-checkpoint-postgres": "tsx scripts/check-production-c6-integration-checkpoint-postgres.ts"
+    "check:production:c6-integration-checkpoint-postgres": "tsx scripts/check-production-c6-integration-checkpoint-postgres.ts",
+    "check:production:c7-workspace-structured-state-contract": "tsx scripts/check-production-c7-workspace-structured-state-contract.ts",
+    "check:production:c7-workspace-structured-state-postgres": "tsx scripts/check-production-c7-workspace-structured-state-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

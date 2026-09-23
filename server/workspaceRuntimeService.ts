@@ -20,6 +20,7 @@ import {
 } from './persistence/postgresRepositories.js';
 import type { WorkspaceMetadata } from './persistence/types.js';
 import { documentDerivedPayloadService } from './storage/documentDerivedPayloadService.js';
+import { workspaceStructuredStateService } from './workspaceState/workspaceStructuredStateService.js';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -27,6 +28,79 @@ function clone<T>(value: T): T {
 
 function id(): string {
   return 'kb_' + crypto.randomBytes(8).toString('hex');
+}
+
+function processingStatusForDocuments(
+  documents: KnowledgeDocument[]
+): KnowledgeBase['processingStatus'] {
+  if (documents.length === 0) {
+    return 'empty';
+  }
+  if (
+    documents.some(
+      (doc) =>
+        doc.processingStatus ===
+          'processing' ||
+        doc.processingStatus ===
+          'pending'
+    )
+  ) {
+    return 'processing';
+  }
+  if (
+    documents.some(
+      (doc) =>
+        doc.processingStatus ===
+        'failed'
+    ) &&
+    !documents.some(
+      (doc) =>
+        doc.processingStatus ===
+        'processed'
+    )
+  ) {
+    return 'error';
+  }
+  return 'ready';
+}
+
+function projectDocumentsForVersion(
+  documents: KnowledgeDocument[]
+): Pick<
+  KnowledgeVersion,
+  'documents' | 'documentRefs'
+> {
+  const legacyDocuments:
+    KnowledgeDocument[] = [];
+  const documentRefs:
+    NonNullable<
+      KnowledgeVersion['documentRefs']
+    > = [];
+
+  for (const document of documents) {
+    if (
+      document.sourceVersionId &&
+      document.derivedPayloadId
+    ) {
+      documentRefs.push({
+        documentId: document.id,
+        filename: document.filename,
+        sourceVersionId:
+          document.sourceVersionId,
+        derivedPayloadId:
+          document.derivedPayloadId,
+      });
+    } else {
+      legacyDocuments.push(
+        clone(document)
+      );
+    }
+  }
+
+  return {
+    documents: legacyDocuments,
+    documentRefs,
+  };
 }
 
 function metadataFromKb(kb: KnowledgeBase): WorkspaceMetadata {
@@ -62,13 +136,24 @@ export class WorkspaceRuntimeService {
   private async materialize(
     metadata: WorkspaceMetadata
   ): Promise<KnowledgeBase> {
-    let payload = kbStore.getKB(
-      metadata.id,
-      metadata.accountId
-    );
-    if (!payload) {
+    const legacyPayload =
+      kbStore.getKB(
+        metadata.id,
+        metadata.accountId
+      );
+
+    const structuredState =
+      await workspaceStructuredStateService
+        .ensureInitialized({
+          accountId: metadata.accountId,
+          workspaceId: metadata.id,
+          legacyKnowledgeBase:
+            legacyPayload,
+        });
+
+    if (!structuredState) {
       throw new WorkspaceRuntimeError(
-        'Workspace metadata and durable document payloads may exist, but the remaining structured workspace payload (AI configuration/chat/evaluation state) is unavailable on this application instance.'
+        'Workspace metadata exists, but C7 structured state has not been initialized and no legacy compatibility payload is available for one-time migration.'
       );
     }
 
@@ -79,36 +164,82 @@ export class WorkspaceRuntimeService {
           workspaceId: metadata.id,
         });
 
-    if (durableAuthority) {
-      const documents =
-        await documentDerivedPayloadService
-          .listCurrentDocuments({
-            accountId: metadata.accountId,
-            workspaceId: metadata.id,
-          });
-
-      kbStore.replaceDocuments(
-        metadata.id,
-        documents,
-        metadata.accountId
+    const currentVersion =
+      structuredState.versions.find(
+        (version) => version.isCurrent
+      ) ||
+      structuredState.versions.find(
+        (version) =>
+          version.versionTag ===
+          metadata.currentVersionTag
       );
-      payload = kbStore.getKB(
-        metadata.id,
-        metadata.accountId
-      )!;
-    }
 
-    return {
-      ...clone(payload),
+    const legacyVersionDocuments =
+      clone(
+        currentVersion?.documents || []
+      );
+
+    const documents =
+      durableAuthority
+        ? [
+            ...legacyVersionDocuments,
+            ...(await documentDerivedPayloadService
+              .listCurrentDocuments({
+                accountId:
+                  metadata.accountId,
+                workspaceId:
+                  metadata.id,
+              })),
+          ]
+        : clone(
+            legacyPayload?.documents ||
+              legacyVersionDocuments
+          );
+
+    const materialized:
+      KnowledgeBase = {
       id: metadata.id,
       accountId: metadata.accountId,
       name: metadata.name,
-      description: metadata.description,
-      processingStatus: metadata.processingStatus,
-      currentVersion: metadata.currentVersionTag,
-      createdDate: metadata.createdAt,
-      updatedAt: metadata.updatedAt,
+      description:
+        metadata.description,
+      processingStatus:
+        metadata.processingStatus,
+      currentVersion:
+        metadata.currentVersionTag,
+      createdDate:
+        metadata.createdAt,
+      updatedAt:
+        metadata.updatedAt,
+      versions:
+        clone(
+          structuredState.versions
+        ),
+      documents,
+      chatHistory:
+        clone(
+          structuredState.chatHistory
+        ),
+      specializedAi:
+        clone(
+          structuredState.specializedAi
+        ),
+      testCases:
+        clone(
+          structuredState.testCases
+        ),
+      evaluationRuns:
+        clone(
+          structuredState.evaluationRuns
+        ),
     };
+
+    kbStore.hydrateKnowledgeBase(
+      materialized,
+      false
+    );
+
+    return clone(materialized);
   }
 
   private async syncMetadata(kb: KnowledgeBase): Promise<void> {
@@ -149,11 +280,19 @@ export class WorkspaceRuntimeService {
 
     return Promise.all(
       metadata.map(async (item) => {
-        const payload =
+        const legacyPayload =
           kbStore.getKB(
             item.id,
             accountId
           );
+        const structuredState =
+          await workspaceStructuredStateService
+            .ensureInitialized({
+              accountId,
+              workspaceId: item.id,
+              legacyKnowledgeBase:
+                legacyPayload,
+            });
         const durableAuthority =
           await documentDerivedPayloadService
             .hasWorkspacePayloads({
@@ -167,7 +306,8 @@ export class WorkspaceRuntimeService {
                   accountId,
                   workspaceId: item.id,
                 })
-            : payload?.documents.length ||
+            : legacyPayload
+                ?.documents.length ||
               0;
 
         return {
@@ -179,8 +319,8 @@ export class WorkspaceRuntimeService {
           currentVersion:
             item.currentVersionTag,
           aiName:
-            payload?.specializedAi
-              ?.name ||
+            structuredState
+              ?.specializedAi.name ||
             item.name +
               ' Specialist',
           createdDate:
@@ -287,18 +427,35 @@ export class WorkspaceRuntimeService {
     });
 
     try {
-      kbStore.createKBWithId(
-        kbId,
-        cleanName,
-        description,
-        accountId
-      );
-      await postgresWorkspaceMetadataRepository.setActive(
+      const compatibilityKb =
+        kbStore.createKBWithId(
+          kbId,
+          cleanName,
+          description,
+          accountId,
+          false
+        );
+
+      await workspaceStructuredStateService
+        .initializeFromKnowledgeBase(
+          compatibilityKb
+        );
+
+      await postgresWorkspaceMetadataRepository
+        .setActive(
+          accountId,
+          kbId
+        );
+
+      return this.requireKB(
         accountId,
         kbId
       );
-      return this.requireKB(accountId, kbId);
     } catch (error) {
+      kbStore.forgetKnowledgeBase(
+        kbId,
+        accountId
+      );
       await postgresWorkspaceMetadataRepository
         .delete(accountId, kbId)
         .catch(() => undefined);
@@ -335,7 +492,6 @@ export class WorkspaceRuntimeService {
         }
       );
 
-    kbStore.updateKB(kbId, updates, accountId);
     return this.materialize(metadata);
   }
 
@@ -364,9 +520,10 @@ export class WorkspaceRuntimeService {
       kbId
     );
 
-    if (kbStore.getKB(kbId, accountId)) {
-      kbStore.deleteKB(kbId, accountId);
-    }
+    kbStore.forgetKnowledgeBase(
+      kbId,
+      accountId
+    );
   }
 
   public async setActiveKB(
@@ -396,6 +553,55 @@ export class WorkspaceRuntimeService {
       .specializedAi;
   }
 
+  public async getSpecializedAIById(
+    accountId: string | undefined,
+    aiId: string
+  ): Promise<{
+    ai: SpecializedAI;
+    kb: KnowledgeBase;
+  } | null> {
+    if (!this.usesPostgres()) {
+      const lookup =
+        kbStore.getSpecializedAIById(
+          aiId,
+          accountId
+        );
+      return lookup
+        ? {
+            ai: clone(lookup.ai),
+            kb: clone(lookup.kb),
+          }
+        : null;
+    }
+
+    if (!accountId) {
+      return null;
+    }
+
+    const workspaceId =
+      await workspaceStructuredStateService
+        .findWorkspaceIdByAiId(
+          accountId,
+          aiId
+        );
+    if (!workspaceId) {
+      return null;
+    }
+
+    const kb = await this.requireKB(
+      accountId,
+      workspaceId
+    );
+    if (kb.specializedAi.id !== aiId) {
+      return null;
+    }
+
+    return {
+      ai: clone(kb.specializedAi),
+      kb,
+    };
+  }
+
   public async updateSpecializedAI(
     accountId: string,
     kbId: string,
@@ -409,23 +615,33 @@ export class WorkspaceRuntimeService {
       );
     }
 
-    await this.requireKB(accountId, kbId);
-    const updated = kbStore.updateSpecializedAI(
-      kbId,
-      updates,
-      accountId
-    );
-    if (!updated) {
-      throw new WorkspaceAccessError(
-        'KNOWLEDGE_BASE_NOT_FOUND',
-        404,
-        'Knowledge base not found.'
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
       );
-    }
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return updated;
+    const updated: SpecializedAI = {
+      ...current.specializedAi,
+      ...clone(updates),
+      id: current.specializedAi.id,
+      kbId,
+      updatedAt: Date.now(),
+    };
+
+    await workspaceStructuredStateService
+      .saveSpecializedAI(
+        accountId,
+        kbId,
+        updated
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: updated.updatedAt }
+      );
+
+    return clone(updated);
   }
 
   public async createVersionSnapshot(
@@ -440,16 +656,72 @@ export class WorkspaceRuntimeService {
         label
       );
     }
-    await this.requireKB(accountId, kbId);
-    const version = kbStore.createVersionSnapshot(
-      kbId,
-      label,
-      accountId
-    );
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return version;
+    const current =
+      await this.requireKB(
+        accountId,
+        kbId
+      );
+    const nextNum =
+      Math.max(
+        0,
+        ...current.versions.map(
+          (version) =>
+            version.versionNumber
+        )
+      ) + 1;
+    const versionTag =
+      'v' + String(nextNum) + '.0';
+    const now = Date.now();
+    const projection =
+      projectDocumentsForVersion(
+        current.documents
+      );
+    const version: KnowledgeVersion = {
+      id:
+        'ver_' +
+        crypto
+          .randomBytes(6)
+          .toString('hex'),
+      versionNumber: nextNum,
+      versionTag,
+      label:
+        label.trim() ||
+        'Snapshot ' + versionTag,
+      timestamp: now,
+      documentCount:
+        current.documents.length,
+      totalPages:
+        current.documents.reduce(
+          (sum, document) =>
+            sum +
+            (document.pageCount || 0),
+          0
+        ),
+      documents:
+        projection.documents,
+      documentRefs:
+        projection.documentRefs,
+      isCurrent: true,
+    };
+
+    await workspaceStructuredStateService
+      .saveVersion(
+        accountId,
+        kbId,
+        version
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        {
+          currentVersionTag:
+            versionTag,
+          updatedAt: now,
+        }
+      );
+
+    return clone(version);
   }
 
   public async rollbackToVersion(
@@ -489,43 +761,51 @@ export class WorkspaceRuntimeService {
       target.documentRefs !==
       undefined
     ) {
-      const durableDocuments =
-        await documentDerivedPayloadService
-          .activatePayloadRefs({
-            accountId,
-            workspaceId: kbId,
-            payloadIds:
-              target.documentRefs.map(
-                (ref) =>
-                  ref.derivedPayloadId
-              ),
-          });
-
-      const kb =
-        kbStore.applyVersionRollback(
-          kbId,
-          versionId,
-          [
-            ...(target.documents ||
-              []),
-            ...durableDocuments,
-          ],
-          accountId
-        );
-      await this.syncMetadata(kb);
-      return this.requireKB(
-        accountId,
-        kbId
-      );
+      await documentDerivedPayloadService
+        .activatePayloadRefs({
+          accountId,
+          workspaceId: kbId,
+          payloadIds:
+            target.documentRefs.map(
+              (ref) =>
+                ref.derivedPayloadId
+            ),
+        });
     }
 
-    const kb =
-      kbStore.rollbackToVersion(
+    await workspaceStructuredStateService
+      .setCurrentVersion(
+        accountId,
         kbId,
-        versionId,
-        accountId
+        target.id
       );
-    await this.syncMetadata(kb);
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        {
+          currentVersionTag:
+            target.versionTag,
+          processingStatus:
+            processingStatusForDocuments(
+              [
+                ...(target.documents ||
+                  []),
+                ...(target.documentRefs
+                  ?.length
+                  ? await documentDerivedPayloadService
+                      .listCurrentDocuments({
+                        accountId,
+                        workspaceId:
+                          kbId,
+                      })
+                  : []),
+              ]
+            ),
+          updatedAt: Date.now(),
+        }
+      );
+
     return this.requireKB(
       accountId,
       kbId
@@ -584,13 +864,37 @@ export class WorkspaceRuntimeService {
     kbStore.addDocument(
       kbId,
       durableDocument,
-      accountId
+      accountId,
+      false
     );
-    await this.syncMetadata(
+
+    const mirrored =
       kbStore.getKB(
         kbId,
         accountId
-      )!
+      )!;
+
+    const mirroredCurrentVersion =
+      mirrored.versions.find(
+        (version) =>
+          version.isCurrent
+      ) ||
+      mirrored.versions.find(
+        (version) =>
+          version.versionTag ===
+          mirrored.currentVersion
+      );
+    if (mirroredCurrentVersion) {
+      await workspaceStructuredStateService
+        .saveVersion(
+          accountId,
+          kbId,
+          mirroredCurrentVersion
+        );
+    }
+
+    await this.syncMetadata(
+      mirrored
     );
     return durableDocument;
   }
@@ -632,7 +936,8 @@ export class WorkspaceRuntimeService {
     const removed = kbStore.removeDocument(
       kbId,
       docId,
-      accountId
+      accountId,
+      false
     );
     if (removed) {
       await this.syncMetadata(
@@ -698,13 +1003,36 @@ export class WorkspaceRuntimeService {
       kbId,
       persisted?.document ||
         updatedDocument,
-      accountId
+      accountId,
+      false
     );
-    await this.syncMetadata(
+
+    const mirrored =
       kbStore.getKB(
         kbId,
         accountId
-      )!
+      )!;
+    const mirroredCurrentVersion =
+      mirrored.versions.find(
+        (version) =>
+          version.isCurrent
+      ) ||
+      mirrored.versions.find(
+        (version) =>
+          version.versionTag ===
+          mirrored.currentVersion
+      );
+    if (mirroredCurrentVersion) {
+      await workspaceStructuredStateService
+        .saveVersion(
+          accountId,
+          kbId,
+          mirroredCurrentVersion
+        );
+    }
+
+    await this.syncMetadata(
+      mirrored
     );
   }
 
@@ -721,8 +1049,16 @@ export class WorkspaceRuntimeService {
       );
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.addChatMessage(kbId, message, accountId);
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    await workspaceStructuredStateService
+      .addChatMessage(
+        accountId,
+        kbId,
+        message
+      );
   }
 
   public async clearChat(
@@ -733,8 +1069,15 @@ export class WorkspaceRuntimeService {
       workspaceAccessService.clearChat(accountId, kbId);
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.clearChat(kbId, accountId);
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    await workspaceStructuredStateService
+      .clearChat(
+        accountId,
+        kbId
+      );
   }
 
   public async addTestCase(
@@ -749,16 +1092,32 @@ export class WorkspaceRuntimeService {
         testCase
       );
     }
-    await this.requireKB(accountId, kbId);
-    const created = kbStore.addTestCase(
+    await this.requireKB(
+      accountId,
+      kbId
+    );
+    const created: EvaluationTestCase = {
+      id:
+        'tc_' +
+        crypto
+          .randomBytes(6)
+          .toString('hex'),
       kbId,
-      testCase,
-      accountId
-    );
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
-    );
-    return created;
+      ...clone(testCase),
+    };
+    await workspaceStructuredStateService
+      .addTestCase(
+        accountId,
+        kbId,
+        created
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: Date.now() }
+      );
+    return clone(created);
   }
 
   public async removeTestCase(
@@ -773,16 +1132,24 @@ export class WorkspaceRuntimeService {
         testCaseId
       );
     }
-    await this.requireKB(accountId, kbId);
-    const removed = kbStore.removeTestCase(
-      kbId,
-      testCaseId,
-      accountId
+    await this.requireKB(
+      accountId,
+      kbId
     );
+    const removed =
+      await workspaceStructuredStateService
+        .removeTestCase(
+          accountId,
+          kbId,
+          testCaseId
+        );
     if (removed) {
-      await this.syncMetadata(
-        kbStore.getKB(kbId, accountId)!
-      );
+      await postgresWorkspaceMetadataRepository
+        .update(
+          accountId,
+          kbId,
+          { updatedAt: Date.now() }
+        );
     }
     return removed;
   }
@@ -800,11 +1167,22 @@ export class WorkspaceRuntimeService {
       );
       return;
     }
-    await this.requireKB(accountId, kbId);
-    kbStore.recordEvaluationRun(kbId, run, accountId);
-    await this.syncMetadata(
-      kbStore.getKB(kbId, accountId)!
+    await this.requireKB(
+      accountId,
+      kbId
     );
+    await workspaceStructuredStateService
+      .recordEvaluationRun(
+        accountId,
+        kbId,
+        run
+      );
+    await postgresWorkspaceMetadataRepository
+      .update(
+        accountId,
+        kbId,
+        { updatedAt: Date.now() }
+      );
   }
 }
 

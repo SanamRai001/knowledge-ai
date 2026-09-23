@@ -214,6 +214,9 @@ jobs:
       - name: Production C6 integration checkpoint contract proof
         run: npm run check:production:c6-integration-checkpoint-contract
 
+      - name: Production C7 workspace structured-state contract proof
+        run: npm run check:production:c7-workspace-structured-state-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -350,3 +353,6 @@ jobs:
 
       - name: Production C6 integration checkpoint PostgreSQL proof
         run: npm run check:production:c6-integration-checkpoint-postgres
+
+      - name: Production C7 workspace structured-state PostgreSQL proof
+        run: npm run check:production:c7-workspace-structured-state-postgres

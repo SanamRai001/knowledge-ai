@@ -30,6 +30,18 @@ async function main() {
   const workspaceRouter = read('server/workspaceRouter.ts');
   const workspaceRuntime = read('server/workspaceRuntimeService.ts');
   const kbStore = read('server/kbStore.ts');
+  const workspaceStructuredState = read(
+    'server/workspaceState/postgresWorkspaceStructuredStateRepository.ts'
+  );
+  const workspaceStructuredMigration = read(
+    'server/persistence/migrations/013_workspace_structured_state.sql'
+  );
+  const specializedAIService = read(
+    'server/specializedAIService.ts'
+  );
+  const evaluationService = read(
+    'server/evaluationService.ts'
+  );
   const documentService = read('server/documentService.ts');
   const appTypes = read('src/types.ts');
   const datasetRouter = read('server/datasets/datasetRouter.ts');
@@ -120,8 +132,11 @@ async function main() {
   assert(
     kbStore.includes("'knowledge_bases.json'") &&
       kbStore.includes('fs.writeFileSync') &&
+      kbStore.includes(
+        'hydrateKnowledgeBase(\n    kb: KnowledgeBase,\n    persist: boolean = true'
+      ) &&
       gitignore.split(/\r?\n/).includes('data/'),
-    'Structured workspace compatibility state must remain explicitly identified as ignored local runtime state until its later relational migration.'
+    'Legacy knowledge_bases.json must remain explicit only as ignored file-mode/one-time compatibility state after C7.'
   );
 
   assert(
@@ -135,12 +150,45 @@ async function main() {
         'listCurrentDocuments'
       ) &&
       workspaceRuntime.includes(
-        'WORKSPACE_PAYLOAD_UNAVAILABLE'
+        'workspaceStructuredStateService'
       ) &&
       workspaceRuntime.includes(
-        'remaining structured workspace payload'
+        'ensureInitialized'
+      ) &&
+      workspaceRuntime.includes(
+        'hydrateKnowledgeBase(\n      materialized,\n      false'
+      ) &&
+      workspaceStructuredMigration.includes(
+        'CREATE TABLE workspace_specialized_ai'
+      ) &&
+      workspaceStructuredMigration.includes(
+        'CREATE TABLE workspace_knowledge_versions'
+      ) &&
+      workspaceStructuredMigration.includes(
+        'CREATE TABLE workspace_chat_messages'
+      ) &&
+      workspaceStructuredMigration.includes(
+        'CREATE TABLE workspace_evaluation_test_cases'
+      ) &&
+      workspaceStructuredMigration.includes(
+        'CREATE TABLE workspace_evaluation_runs'
+      ) &&
+      workspaceStructuredState.includes(
+        'findWorkspaceIdByAiId'
+      ) &&
+      specializedAIService.includes(
+        'workspaceRuntimeService'
+      ) &&
+      !specializedAIService.includes(
+        "from './kbStore.js'"
+      ) &&
+      evaluationService.includes(
+        'workspaceRuntimeService'
+      ) &&
+      !evaluationService.includes(
+        "from './kbStore.js'"
       ),
-    'C1 regression proof must accept C4 durable parsed-document reconstruction while keeping missing chat/config/evaluation state explicit.'
+    'C1 regression proof must accept C7 relational workspace structured-state reconstruction while keeping legacy JSON compatibility non-authoritative.'
   );
 
   assert(
@@ -234,7 +282,7 @@ async function main() {
     'PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'C1 historical audit boundaries remain guarded after C6: document, Dataset, and integration source/checkpoint durability are hardened; chat history, Specialized AI configuration, and evaluation state remain explicit structured relational work.'
+    'C1 historical audit boundaries remain guarded after C7: document, Dataset, integration source/checkpoint, and workspace structured state are durable; legacy JSON remains compatibility-only while later operational tracks remain explicit.'
   );
 }
 

@@ -106,7 +106,13 @@ async function main() {
         'listCurrentDocuments'
       ) &&
       runtime.includes(
-        'replaceDocuments'
+        'workspaceStructuredStateService'
+      ) &&
+      runtime.includes(
+        'projectDocumentsForVersion'
+      ) &&
+      runtime.includes(
+        '.saveVersion('
       ) &&
       runtime.includes(
         'persistDocument'
@@ -117,7 +123,7 @@ async function main() {
       runtime.includes(
         'activatePayloadRefs'
       ),
-    'C4 workspace runtime must make durable derived payloads authoritative for PostgreSQL document corpora.'
+    'C4 workspace runtime must keep durable derived payloads authoritative for PostgreSQL document corpora while C7 stores version refs relationally.'
   );
 
   const unified = read(
