@@ -54,7 +54,7 @@ function s3ConfigFromEnv():
 
   if (!bucket || !region) {
     throw new SourceStorageConfigurationError(
-      'SOURCE_STORAGE_BUCKET and SOURCE_STORAGE_REGION are required for durable document source storage.'
+      'SOURCE_STORAGE_BUCKET and SOURCE_STORAGE_REGION are required for durable source/object storage.'
     );
   }
 
@@ -89,7 +89,7 @@ export function sourceStorageRuntimeConfig() {
 
   if (backend !== 's3') {
     throw new SourceStorageConfigurationError(
-      'SOURCE_STORAGE_BACKEND must be "s3" for C3 production document durability.'
+      'SOURCE_STORAGE_BACKEND must be "s3" for production durable source/object storage.'
     );
   }
 
