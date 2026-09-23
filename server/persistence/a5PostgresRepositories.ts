@@ -900,6 +900,23 @@ export class PostgresAutomationExecutionTransactionRepository
         return existing;
       }
 
+      if (
+        existing &&
+        existing.status === 'RUNNING'
+      ) {
+        await saveRunWith(client, {
+          ...existing,
+          status: 'BLOCKED',
+          failureCategory:
+            'POLICY',
+          retryable: false,
+          lastError:
+            'Automation execution claim was superseded by a newer policy revision before Action commit.',
+          updatedAt: input.now,
+          completedAt: input.now,
+        });
+      }
+
       const run: AutomationRun = {
         id:
           'autorun_' +
