@@ -15,6 +15,8 @@ import {
 } from '../server/datasets/datasetRuntimePersistence.js';
 import { datasetService } from '../server/datasets/datasetService.js';
 import { structuredAnalyticsEngine } from '../server/datasets/structuredAnalyticsEngine.js';
+import { setSourceByteStorageForTesting } from '../server/storage/sourceByteStorageRuntime.js';
+import { MemorySourceByteStorage } from './support/memorySourceByteStorage.js';
 import { kbStore } from '../server/kbStore.js';
 import {
   closePostgresPool,
@@ -63,6 +65,12 @@ async function main() {
 
   await runPostgresMigrations();
   await resetRuntimeTables();
+
+  const sourceStorage =
+    new MemorySourceByteStorage();
+  setSourceByteStorageForTesting(
+    sourceStorage
+  );
 
   const dataDir = path.join(process.cwd(), 'data');
   const apiKeyFile = path.join(dataDir, 'api_keys.json');
@@ -341,10 +349,19 @@ async function main() {
     firstMetadata?.currentVersionId ===
       firstImport.version.id &&
       firstVersionMetadata?.payload.backend ===
-        'local-dataset-payload' &&
-      firstVersionMetadata.payload.ref ===
-        firstImport.version.id,
-    'Production Dataset import must commit relational identity/version metadata with an explicit analytical payload locator.'
+        'durable-dataset-payload' &&
+      Boolean(
+        firstVersionMetadata.sourceVersionId
+      ) &&
+      firstVersionMetadata.payload.storageBackend ===
+        sourceStorage.backend &&
+      Boolean(
+        firstVersionMetadata.payload.sha256
+      ) &&
+      Number(
+        firstVersionMetadata.payload.sizeBytes
+      ) > 0,
+    'Production Dataset import must commit relational identity/version metadata with durable source and analytical payload locators.'
   );
 
   const firstAnalytics = structuredAnalyticsEngine.execute({
@@ -487,14 +504,18 @@ async function main() {
   }
 
   assert(
-    snapshot(datasetPayloadFile) !== payloadBefore,
-    'Dataset analytical payload backend must contain the new production payload versions.'
+    snapshot(datasetPayloadFile) === payloadBefore,
+    'C5 PostgreSQL Dataset imports must no longer mutate the legacy local analytical payload file.'
   );
 
   // Workspace payload remains intentionally local until Track C.
   assert(
     snapshot(knowledgePayloadFile) !== knowledgeBefore,
     'A7G explicitly expects the temporary workspace document/chat payload backend to remain local until Track C.'
+  );
+
+  setSourceByteStorageForTesting(
+    null
   );
 
   console.log('PRODUCTION_A7G_CORE_METADATA_RUNTIME_CHECK_PASSED');
