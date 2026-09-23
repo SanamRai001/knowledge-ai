@@ -875,6 +875,17 @@ export class IntegrationRuntimeService {
         record.ref.externalVersion,
     });
 
+    if (
+      this.usesPostgres() &&
+      !imported.version.sourceVersionId
+    ) {
+      throw new IntegrationSyncError(
+        'EXTERNAL_SOURCE_VERSION_MISSING',
+        500,
+        'Durable integration Dataset import completed without a sourceVersionId.'
+      );
+    }
+
     const importState = await integrationPersistence.recordImport({
       status: 'INGESTED',
       accountId,
