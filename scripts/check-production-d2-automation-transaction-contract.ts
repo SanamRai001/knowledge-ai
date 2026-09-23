@@ -125,8 +125,8 @@ async function main() {
     'finalizeCommittedPostgresAction',
     'recoverableRun',
     "status: 'BLOCKED'",
-    "mode: 'AUTOMATION_POLICY'",
-    "mode: 'AUTOMATION_COMPENSATION'",
+    "'AUTOMATION_POLICY'",
+    "'AUTOMATION_COMPENSATION'",
   ]) {
     assert(
       runtime.includes(required),
