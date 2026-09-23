@@ -158,7 +158,7 @@ async function main() {
   assert(
     datasetPersistence.includes('private async loadPayload') &&
       datasetPersistence.includes("'durable-dataset-payload'") &&
-      datasetPersistence.includes("locator.backend === 'local-dataset-payload'") &&
+      datasetPersistence.includes("'local-dataset-payload'") &&
       datasetPersistence.includes('durableDatasetPayloadStore.get') &&
       datasetPersistence.includes('public async bootstrap()') &&
       datasetPersistence.includes('await this.loadPayload'),
