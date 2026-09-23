@@ -15,6 +15,9 @@ import {
   postgresActionRepository,
   postgresConfirmedActionTransactionRepository,
 } from '../persistence/a3PostgresRepositories.js';
+import type {
+  ConfirmedActionTransactionInput,
+} from '../persistence/a3Types.js';
 import { actionPersistence } from './actionPersistence.js';
 import {
   ActionExecutionError,
@@ -174,6 +177,208 @@ function eventFor(params: {
   };
 }
 
+export async function preparePostgresConfirmedAction(params: {
+  accountId: string;
+  proposalId: string;
+  now?: number;
+  authorization?: {
+    mode: ActionExecutionMode;
+    actor: string;
+    actorRole?: string;
+    automationPolicyId?: string;
+    automationPolicyVersion?: number;
+  };
+}): Promise<{
+  proposal: ActionProposal;
+  input: ConfirmedActionTransactionInput;
+}> {
+  const proposal =
+    await actionPersistence.requireProposal(
+      params.accountId,
+      params.proposalId
+    );
+  const now = params.now ?? Date.now();
+  const authorization: AuthorizationContext =
+    params.authorization || {
+      mode: 'MANUAL_CONFIRMATION',
+      actor: 'user:explicit-confirmation',
+    };
+
+  if (proposal.status !== 'PROPOSED') {
+    throw new ActionExecutionError(
+      'ACTION_NOT_CONFIRMABLE',
+      409,
+      `Action proposal is ${proposal.status} and cannot be confirmed.`
+    );
+  }
+
+  if (proposal.expiresAt <= now) {
+    await actionPersistence.transitionProposal({
+      accountId: params.accountId,
+      proposalId: proposal.id,
+      status: 'STALE',
+      detail: 'Proposal expired before confirmation.',
+    });
+    throw new ActionExecutionError(
+      'ACTION_EXPIRED',
+      409,
+      `Action proposal expired at ${new Date(
+        proposal.expiresAt
+      ).toISOString()}.`
+    );
+  }
+
+  for (const mutation of proposal.mutations) {
+    const entity =
+      await companyKnowledgePersistence.requireEntity(
+        params.accountId,
+        mutation.entityId
+      );
+    if (entity.type !== mutation.entityType) {
+      throw new ActionExecutionError(
+        'ACTION_MUTATION_INVALID',
+        422,
+        'Action target entity type no longer matches the validated proposal.'
+      );
+    }
+    if (mutation.operation !== 'SET') {
+      throw new ActionExecutionError(
+        'ACTION_MUTATION_INVALID',
+        422,
+        'Unsupported mutation operation.'
+      );
+    }
+  }
+
+  const sourceRef = sourceRefFor(
+    proposal,
+    authorization
+  );
+  const claimsToClose: Array<{
+    claimId: string;
+    validTo: number;
+  }> = [];
+  const claimsToInsert: KnowledgeClaim[] = [];
+
+  for (const mutation of proposal.mutations) {
+    const currentClaims =
+      await companyKnowledgePersistence.listClaims({
+        accountId: params.accountId,
+        entityId: mutation.entityId,
+        predicate: mutation.predicate,
+        currentOnly: true,
+        limit: 500,
+      });
+
+    const priorConfirmed = currentClaims
+      .filter(
+        (claim) =>
+          claim.sourceRef.sourceType === 'USER' &&
+          claim.sourceRef.sourceId ===
+            'confirmed-company-state'
+      )
+      .sort(
+        (left, right) =>
+          right.observedAt - left.observedAt ||
+          right.createdAt - left.createdAt
+      )[0];
+
+    if (
+      priorConfirmed &&
+      priorConfirmed.sourceRef.sourceVersionId !==
+        proposal.id
+    ) {
+      claimsToClose.push({
+        claimId: priorConfirmed.id,
+        validTo: now,
+      });
+    }
+
+    claimsToInsert.push(
+      claimFor({
+        proposal,
+        mutation,
+        accountId: params.accountId,
+        now,
+        sourceRef,
+        supersedesClaimId:
+          priorConfirmed?.sourceRef
+            .sourceVersionId !== proposal.id
+            ? priorConfirmed?.id
+            : undefined,
+      })
+    );
+  }
+
+  const event = eventFor({
+    proposal,
+    accountId: params.accountId,
+    now,
+    sourceRef,
+  });
+
+  const execution: ActionExecution = {
+    id: id('exe'),
+    accountId: params.accountId,
+    proposalId: proposal.id,
+    intent: proposal.intent,
+    executionMode: authorization.mode,
+    authorizedBy: authorization.actor,
+    authorizedByRole: authorization.actorRole,
+    automationPolicyId:
+      authorization.automationPolicyId,
+    automationPolicyVersion:
+      authorization.automationPolicyVersion,
+    claimIds: claimsToInsert.map(
+      (claim) => claim.id
+    ),
+    eventIds: [event.id],
+    downstreamAnalysisRunIds: [],
+    downstreamWarnings: [],
+    executedAt: now,
+  };
+
+  const audit: ActionAuditEntry = {
+    id: id('aud'),
+    accountId: params.accountId,
+    proposalId: proposal.id,
+    action: 'CONFIRMED',
+    timestamp: now,
+    detail:
+      (authorization.mode === 'AUTOMATION_POLICY'
+        ? 'Automation policy authorized this proposal without a manual confirm click. '
+        : authorization.mode ===
+            'AUTOMATION_COMPENSATION'
+          ? 'An authorized operator executed a compensating automation action. '
+          : 'User explicitly confirmed the proposal. ') +
+      'Authorization actor: ' +
+      authorization.actor +
+      (authorization.automationPolicyVersion
+        ? '; policy version: ' +
+          String(
+            authorization.automationPolicyVersion
+          )
+        : '') +
+      '. USER_CONFIRMED company-state claims and audit event were committed transactionally.',
+    executionId: execution.id,
+  };
+
+  return {
+    proposal,
+    input: {
+      accountId: params.accountId,
+      proposalId: proposal.id,
+      expectedProposalStatus: 'PROPOSED',
+      claimsToClose,
+      claimsToInsert,
+      eventToInsert: event,
+      execution,
+      auditEntry: audit,
+      confirmedAt: now,
+    },
+  };
+}
+
 export class ActionRuntimeExecutionService {
   public async confirm(params: {
     accountId: string;
@@ -210,190 +415,17 @@ export class ActionRuntimeExecutionService {
       };
     }
 
-    const proposal =
-      await actionPersistence.requireProposal(
-        params.accountId,
-        params.proposalId
+    const prepared =
+      await preparePostgresConfirmedAction(
+        params
       );
-    const now = params.now ?? Date.now();
-    const authorization: AuthorizationContext =
-      params.authorization || {
-        mode: 'MANUAL_CONFIRMATION',
-        actor: 'user:explicit-confirmation',
-      };
-
-    if (proposal.status !== 'PROPOSED') {
-      throw new ActionExecutionError(
-        'ACTION_NOT_CONFIRMABLE',
-        409,
-        `Action proposal is ${proposal.status} and cannot be confirmed.`
-      );
-    }
-
-    if (proposal.expiresAt <= now) {
-      await actionPersistence.transitionProposal({
-        accountId: params.accountId,
-        proposalId: proposal.id,
-        status: 'STALE',
-        detail: 'Proposal expired before confirmation.',
-      });
-      throw new ActionExecutionError(
-        'ACTION_EXPIRED',
-        409,
-        `Action proposal expired at ${new Date(
-          proposal.expiresAt
-        ).toISOString()}.`
-      );
-    }
-
-    for (const mutation of proposal.mutations) {
-      const entity =
-        await companyKnowledgePersistence.requireEntity(
-          params.accountId,
-          mutation.entityId
-        );
-      if (entity.type !== mutation.entityType) {
-        throw new ActionExecutionError(
-          'ACTION_MUTATION_INVALID',
-          422,
-          'Action target entity type no longer matches the validated proposal.'
-        );
-      }
-      if (mutation.operation !== 'SET') {
-        throw new ActionExecutionError(
-          'ACTION_MUTATION_INVALID',
-          422,
-          'Unsupported mutation operation.'
-        );
-      }
-    }
-
-    const sourceRef = sourceRefFor(
-      proposal,
-      authorization
-    );
-    const claimsToClose: Array<{
-      claimId: string;
-      validTo: number;
-    }> = [];
-    const claimsToInsert: KnowledgeClaim[] = [];
-
-    for (const mutation of proposal.mutations) {
-      const currentClaims =
-        await companyKnowledgePersistence.listClaims({
-          accountId: params.accountId,
-          entityId: mutation.entityId,
-          predicate: mutation.predicate,
-          currentOnly: true,
-          limit: 500,
-        });
-
-      const priorConfirmed = currentClaims
-        .filter(
-          (claim) =>
-            claim.sourceRef.sourceType === 'USER' &&
-            claim.sourceRef.sourceId ===
-              'confirmed-company-state'
-        )
-        .sort(
-          (left, right) =>
-            right.observedAt - left.observedAt ||
-            right.createdAt - left.createdAt
-        )[0];
-
-      if (
-        priorConfirmed &&
-        priorConfirmed.sourceRef.sourceVersionId !==
-          proposal.id
-      ) {
-        claimsToClose.push({
-          claimId: priorConfirmed.id,
-          validTo: now,
-        });
-      }
-
-      claimsToInsert.push(
-        claimFor({
-          proposal,
-          mutation,
-          accountId: params.accountId,
-          now,
-          sourceRef,
-          supersedesClaimId:
-            priorConfirmed?.sourceRef
-              .sourceVersionId !== proposal.id
-              ? priorConfirmed?.id
-              : undefined,
-        })
-      );
-    }
-
-    const event = eventFor({
-      proposal,
-      accountId: params.accountId,
-      now,
-      sourceRef,
-    });
-
-    const execution: ActionExecution = {
-      id: id('exe'),
-      accountId: params.accountId,
-      proposalId: proposal.id,
-      intent: proposal.intent,
-      executionMode: authorization.mode,
-      authorizedBy: authorization.actor,
-      authorizedByRole: authorization.actorRole,
-      automationPolicyId:
-        authorization.automationPolicyId,
-      automationPolicyVersion:
-        authorization.automationPolicyVersion,
-      claimIds: claimsToInsert.map((claim) => claim.id),
-      eventIds: [event.id],
-      downstreamAnalysisRunIds: [],
-      downstreamWarnings: [],
-      executedAt: now,
-    };
-
-    const audit: ActionAuditEntry = {
-      id: id('aud'),
-      accountId: params.accountId,
-      proposalId: proposal.id,
-      action: 'CONFIRMED',
-      timestamp: now,
-      detail:
-        (authorization.mode === 'AUTOMATION_POLICY'
-          ? 'Automation policy authorized this proposal without a manual confirm click. '
-          : authorization.mode ===
-              'AUTOMATION_COMPENSATION'
-            ? 'An authorized operator executed a compensating automation action. '
-            : 'User explicitly confirmed the proposal. ') +
-        'Authorization actor: ' +
-        authorization.actor +
-        (authorization.automationPolicyVersion
-          ? '; policy version: ' +
-            String(
-              authorization.automationPolicyVersion
-            )
-          : '') +
-        '. USER_CONFIRMED company-state claims and audit event were committed transactionally.',
-      executionId: execution.id,
-    };
+    const proposal = prepared.proposal;
 
     let committed;
     try {
       committed =
         await postgresConfirmedActionTransactionRepository.commitConfirmedAction(
-          {
-            accountId: params.accountId,
-            proposalId: proposal.id,
-            expectedProposalStatus: 'PROPOSED',
-            claimsToClose,
-            claimsToInsert,
-            eventToInsert: event,
-            execution,
-            auditEntry: audit,
-            confirmedAt: now,
-          }
+          prepared.input
         );
     } catch (error) {
       if (
