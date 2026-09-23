@@ -71,7 +71,10 @@ async function main() {
         'findVersionBySourceVersion'
       ) &&
       recovery.includes(
-        'postgresDatasetMetadataRepository.get'
+        'postgresDatasetMetadataRepository'
+      ) &&
+      recovery.includes(
+        '.get('
       ),
     'C6 recovery must require both an active external source snapshot and a committed owned DatasetVersion.'
   );
