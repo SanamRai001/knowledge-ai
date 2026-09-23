@@ -20,6 +20,7 @@ import {
 } from './persistence/postgresRepositories.js';
 import type { WorkspaceMetadata } from './persistence/types.js';
 import { documentDerivedPayloadService } from './storage/documentDerivedPayloadService.js';
+import { workspaceStructuredStateService } from './workspaceState/workspaceStructuredStateService.js';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -27,6 +28,79 @@ function clone<T>(value: T): T {
 
 function id(): string {
   return 'kb_' + crypto.randomBytes(8).toString('hex');
+}
+
+function processingStatusForDocuments(
+  documents: KnowledgeDocument[]
+): KnowledgeBase['processingStatus'] {
+  if (documents.length === 0) {
+    return 'empty';
+  }
+  if (
+    documents.some(
+      (doc) =>
+        doc.processingStatus ===
+          'processing' ||
+        doc.processingStatus ===
+          'pending'
+    )
+  ) {
+    return 'processing';
+  }
+  if (
+    documents.some(
+      (doc) =>
+        doc.processingStatus ===
+        'failed'
+    ) &&
+    !documents.some(
+      (doc) =>
+        doc.processingStatus ===
+        'processed'
+    )
+  ) {
+    return 'error';
+  }
+  return 'ready';
+}
+
+function projectDocumentsForVersion(
+  documents: KnowledgeDocument[]
+): Pick<
+  KnowledgeVersion,
+  'documents' | 'documentRefs'
+> {
+  const legacyDocuments:
+    KnowledgeDocument[] = [];
+  const documentRefs:
+    NonNullable<
+      KnowledgeVersion['documentRefs']
+    > = [];
+
+  for (const document of documents) {
+    if (
+      document.sourceVersionId &&
+      document.derivedPayloadId
+    ) {
+      documentRefs.push({
+        documentId: document.id,
+        filename: document.filename,
+        sourceVersionId:
+          document.sourceVersionId,
+        derivedPayloadId:
+          document.derivedPayloadId,
+      });
+    } else {
+      legacyDocuments.push(
+        clone(document)
+      );
+    }
+  }
+
+  return {
+    documents: legacyDocuments,
+    documentRefs,
+  };
 }
 
 function metadataFromKb(kb: KnowledgeBase): WorkspaceMetadata {
@@ -62,13 +136,24 @@ export class WorkspaceRuntimeService {
   private async materialize(
     metadata: WorkspaceMetadata
   ): Promise<KnowledgeBase> {
-    let payload = kbStore.getKB(
-      metadata.id,
-      metadata.accountId
-    );
-    if (!payload) {
+    const legacyPayload =
+      kbStore.getKB(
+        metadata.id,
+        metadata.accountId
+      );
+
+    const structuredState =
+      await workspaceStructuredStateService
+        .ensureInitialized({
+          accountId: metadata.accountId,
+          workspaceId: metadata.id,
+          legacyKnowledgeBase:
+            legacyPayload,
+        });
+
+    if (!structuredState) {
       throw new WorkspaceRuntimeError(
-        'Workspace metadata and durable document payloads may exist, but the remaining structured workspace payload (AI configuration/chat/evaluation state) is unavailable on this application instance.'
+        'Workspace metadata exists, but C7 structured state has not been initialized and no legacy compatibility payload is available for one-time migration.'
       );
     }
 
@@ -79,36 +164,63 @@ export class WorkspaceRuntimeService {
           workspaceId: metadata.id,
         });
 
-    if (durableAuthority) {
-      const documents =
-        await documentDerivedPayloadService
-          .listCurrentDocuments({
-            accountId: metadata.accountId,
-            workspaceId: metadata.id,
-          });
+    const documents =
+      durableAuthority
+        ? await documentDerivedPayloadService
+            .listCurrentDocuments({
+              accountId:
+                metadata.accountId,
+              workspaceId:
+                metadata.id,
+            })
+        : clone(
+            legacyPayload?.documents ||
+              []
+          );
 
-      kbStore.replaceDocuments(
-        metadata.id,
-        documents,
-        metadata.accountId
-      );
-      payload = kbStore.getKB(
-        metadata.id,
-        metadata.accountId
-      )!;
-    }
-
-    return {
-      ...clone(payload),
+    const materialized:
+      KnowledgeBase = {
       id: metadata.id,
       accountId: metadata.accountId,
       name: metadata.name,
-      description: metadata.description,
-      processingStatus: metadata.processingStatus,
-      currentVersion: metadata.currentVersionTag,
-      createdDate: metadata.createdAt,
-      updatedAt: metadata.updatedAt,
+      description:
+        metadata.description,
+      processingStatus:
+        metadata.processingStatus,
+      currentVersion:
+        metadata.currentVersionTag,
+      createdDate:
+        metadata.createdAt,
+      updatedAt:
+        metadata.updatedAt,
+      versions:
+        clone(
+          structuredState.versions
+        ),
+      documents,
+      chatHistory:
+        clone(
+          structuredState.chatHistory
+        ),
+      specializedAi:
+        clone(
+          structuredState.specializedAi
+        ),
+      testCases:
+        clone(
+          structuredState.testCases
+        ),
+      evaluationRuns:
+        clone(
+          structuredState.evaluationRuns
+        ),
     };
+
+    kbStore.hydrateKnowledgeBase(
+      materialized
+    );
+
+    return clone(materialized);
   }
 
   private async syncMetadata(kb: KnowledgeBase): Promise<void> {
@@ -149,11 +261,19 @@ export class WorkspaceRuntimeService {
 
     return Promise.all(
       metadata.map(async (item) => {
-        const payload =
+        const legacyPayload =
           kbStore.getKB(
             item.id,
             accountId
           );
+        const structuredState =
+          await workspaceStructuredStateService
+            .ensureInitialized({
+              accountId,
+              workspaceId: item.id,
+              legacyKnowledgeBase:
+                legacyPayload,
+            });
         const durableAuthority =
           await documentDerivedPayloadService
             .hasWorkspacePayloads({
@@ -167,7 +287,8 @@ export class WorkspaceRuntimeService {
                   accountId,
                   workspaceId: item.id,
                 })
-            : payload?.documents.length ||
+            : legacyPayload
+                ?.documents.length ||
               0;
 
         return {
@@ -179,8 +300,8 @@ export class WorkspaceRuntimeService {
           currentVersion:
             item.currentVersionTag,
           aiName:
-            payload?.specializedAi
-              ?.name ||
+            structuredState
+              ?.specializedAi.name ||
             item.name +
               ' Specialist',
           createdDate:
