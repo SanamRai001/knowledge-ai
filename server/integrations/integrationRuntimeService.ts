@@ -687,12 +687,41 @@ export class IntegrationRuntimeService {
       );
     }
 
-    const exact = await integrationPersistence.findExactImport({
+    let exact = await integrationPersistence.findExactImport({
       accountId,
       connectionId: connection.id,
       externalId: ref.externalId,
       externalVersion: ref.externalVersion,
     });
+
+    if (
+      this.usesPostgres() &&
+      exact?.internalKind === 'DATASET' &&
+      exact.internalId &&
+      exact.internalVersionId &&
+      !exact.sourceVersionId
+    ) {
+      const sourceVersionId =
+        await integrationSourceRecoveryService
+          .resolveDatasetSourceVersion({
+            accountId,
+            datasetId:
+              exact.internalId,
+            datasetVersionId:
+              exact.internalVersionId,
+          });
+
+      if (sourceVersionId) {
+        exact =
+          await integrationPersistence.updateImport(
+            accountId,
+            exact.id,
+            {
+              sourceVersionId,
+            }
+          );
+      }
+    }
 
     if (ref.deleted) {
       if (exact?.status === 'TOMBSTONE') {
