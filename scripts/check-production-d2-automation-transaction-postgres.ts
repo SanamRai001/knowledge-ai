@@ -821,9 +821,9 @@ async function main() {
 
   // 7) Restart reconstruction sees the same durable successful run and Action.
   const restartRunId =
-    concurrent.run.id;
+    first.run.id;
   const restartExecutionId =
-    concurrent.execution.id;
+    first.execution.id;
 
   await closePostgresPool();
 
