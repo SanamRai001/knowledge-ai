@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { kbStore } from './kbStore.js';
+import { workspaceRuntimeService } from './workspaceRuntimeService.js';
 import { answerQuestionWithGroundedDocs } from './geminiService.js';
 import { ApiSource, Citation, ChatMessage, KnowledgeDocument, ExperienceSource } from '../src/types.js';
 import { memoryRetrievalService } from './memoryRetrievalService.js';
@@ -70,20 +70,44 @@ export class SpecializedAIService {
       );
     }
 
-    // 1. Resolve Specialized AI and Knowledge Base
-    const lookup = kbStore.getSpecializedAIById(aiId);
+    // 1. Resolve Specialized AI and Knowledge Base.
+    // PostgreSQL mode requires explicit account scope; file mode preserves
+    // the legacy default-account development behavior.
+    const effectiveAccountId =
+      accountId ||
+      (workspaceRuntimeService.usesPostgres()
+        ? undefined
+        : 'acc_default');
+
+    if (!effectiveAccountId) {
+      throw new SpecializedAIError(
+        'FORBIDDEN',
+        403,
+        'Account-scoped identity is required to resolve a Specialized AI in production.'
+      );
+    }
+
+    const lookup =
+      await workspaceRuntimeService
+        .getSpecializedAIById(
+          effectiveAccountId,
+          aiId
+        );
     if (!lookup) {
-      throw new SpecializedAIError('AI_NOT_FOUND', 404, `Specialized AI with id "${aiId}" was not found.`);
+      throw new SpecializedAIError(
+        'AI_NOT_FOUND',
+        404,
+        `Specialized AI with id "${aiId}" was not found in the current account scope.`
+      );
     }
 
     const { ai, kb } = lookup;
-    const kbAccountId = kb.accountId || 'acc_default';
-    const effectiveAccountId = accountId || kbAccountId;
+    const kbAccountId =
+      kb.accountId ||
+      effectiveAccountId;
 
     // 2. Tenant & Account Isolation
-    // Exact ownership is mandatory whenever a caller supplies account context.
-    // There are no default-account or test-account bypasses in the production service.
-    if (accountId && kbAccountId !== accountId) {
+    if (kbAccountId !== effectiveAccountId) {
       throw new SpecializedAIError(
         'FORBIDDEN',
         403,
