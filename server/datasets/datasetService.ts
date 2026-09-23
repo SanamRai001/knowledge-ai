@@ -18,6 +18,7 @@ import { parseXlsxBuffer } from './xlsxParser.js';
 import { datasetRuntimePersistence } from './datasetRuntimePersistence.js';
 import { datasetSourceStorageService } from './datasetSourceStorageService.js';
 import type { SourceObjectOrigin } from '../storage/sourceObjectTypes.js';
+import { postgresAccountRepository } from '../persistence/postgresRepositories.js';
 
 const PREVIEW_ROWS = 20;
 
@@ -569,6 +570,11 @@ export class DatasetService {
       | null = null;
 
     try {
+      await postgresAccountRepository
+        .ensureAccount(
+          params.accountId
+        );
+
       storedSource =
         await datasetSourceStorageService
           .persistUploadedSource({
