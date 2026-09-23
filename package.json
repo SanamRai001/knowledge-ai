@@ -100,7 +100,9 @@
     "check:production:c6-integration-checkpoint-contract": "tsx scripts/check-production-c6-integration-checkpoint-contract.ts",
     "check:production:c6-integration-checkpoint-postgres": "tsx scripts/check-production-c6-integration-checkpoint-postgres.ts",
     "check:production:c7-workspace-structured-state-contract": "tsx scripts/check-production-c7-workspace-structured-state-contract.ts",
-    "check:production:c7-workspace-structured-state-postgres": "tsx scripts/check-production-c7-workspace-structured-state-postgres.ts"
+    "check:production:c7-workspace-structured-state-postgres": "tsx scripts/check-production-c7-workspace-structured-state-postgres.ts",
+    "check:production:d1-confirmed-action-transaction-contract": "tsx scripts/check-production-d1-confirmed-action-transaction-contract.ts",
+    "check:production:d1-confirmed-action-transaction-postgres": "tsx scripts/check-production-d1-confirmed-action-transaction-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

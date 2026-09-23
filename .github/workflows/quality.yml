@@ -217,6 +217,9 @@ jobs:
       - name: Production C7 workspace structured-state contract proof
         run: npm run check:production:c7-workspace-structured-state-contract
 
+      - name: Production D1 confirmed Action transaction contract proof
+        run: npm run check:production:d1-confirmed-action-transaction-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -356,3 +359,6 @@ jobs:
 
       - name: Production C7 workspace structured-state PostgreSQL proof
         run: npm run check:production:c7-workspace-structured-state-postgres
+
+      - name: Production D1 confirmed Action transaction PostgreSQL proof
+        run: npm run check:production:d1-confirmed-action-transaction-postgres

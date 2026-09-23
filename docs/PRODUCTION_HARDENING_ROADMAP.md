@@ -178,7 +178,8 @@ The implementation sequence is deliberately split into small slices:
 23. **C5 — Dataset Source + Analytical Payload Migration** — COMPLETE, workflow `35886051635`
 24. **C6 — Integration Snapshot + Checkpoint Commit Ordering** — COMPLETE, workflow `35892271035`
 25. **C7 — Workspace Structured State Relational Migration** — COMPLETE, workflow `35895848629`
-26. **D1 — Confirmed Action Transaction Boundary** — NEXT
+26. **D1 — Confirmed Action Transaction Boundary** — COMPLETE, workflow `35897430490`
+27. **D2 — Controlled Automation Transaction Boundary** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -229,6 +230,8 @@ C5 evidence: `docs/PRODUCTION_C5_DATASET_DURABILITY.md`.
 C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
 
 C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
+
+D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -708,22 +711,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening D1 — Confirmed Action Transaction Boundary**
+**Production Hardening D2 — Controlled Automation Transaction Boundary**
 
-Keep this slice limited to the confirmed/manual Action workflow.
+Keep this slice limited to policy-authorized Automation execution/recovery around the already-complete D1 Action transaction.
 
-1. inventory the confirmed Action execution path and every relational write it performs
-2. identify the idempotency claim, company-state mutation, Action status transition, and audit/event writes
-3. move relationally compatible writes into one explicit PostgreSQL transaction where technically possible
-4. enforce database-backed idempotency so duplicate confirmation/replay cannot execute the same state mutation twice
-5. define crash outcomes at each boundary and keep user-visible Action state truthful
-6. use compensation only for effects that cannot participate in the relational transaction
-7. preserve existing human/API-key identity, authorization, approval, and Action policy semantics
-8. preserve file-mode development compatibility without weakening PostgreSQL production correctness
-9. add focused duplicate/crash/cross-account PostgreSQL proofs
-10. stop before Controlled Automation transaction redesign, worker/queue migration, or broader Track D work
+1. inventory the Controlled Automation execution path from policy decision through execution/recovery state
+2. identify the automation idempotency/execution claim, policy decision state, linked Action proposal/execution, and audit/recovery writes
+3. preserve D1 as the authoritative company-state mutation transaction instead of duplicating Action mutation logic
+4. make relationally compatible Automation execution/recovery state changes explicit and transactional where technically possible
+5. enforce database-backed idempotency so duplicate policy execution/replay cannot launch the same governed Action twice
+6. define crash outcomes before Action commit, after Action commit, and before Automation completion is recorded
+7. make restart recovery reconcile from durable Action/Automation state without falsely re-executing committed business mutations
+8. preserve current OWNER/ADMIN-authored policy, API_KEY SERVICE actor, approval, authorization, and compensation semantics
+9. preserve file-mode development compatibility and add focused duplicate/crash/restart/cross-account PostgreSQL proofs
+10. stop before Watch scheduling transaction redesign or Track E worker/queue migration
 
-Do not start Track E workers/queues, Track F managed secrets, or deployment/observability work in D1.
+Do not start Watch transaction work, managed-secret, deployment, observability, or unrelated transaction work in D2.
 ---
 
 # Track A closure note
