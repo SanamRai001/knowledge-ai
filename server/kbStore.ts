@@ -401,6 +401,33 @@ export class KnowledgeBaseStore {
     return deleted;
   }
 
+  hydrateKnowledgeBase(
+    kb: KnowledgeBase
+  ): KnowledgeBase {
+    const hydrated =
+      structuredClone(kb);
+    hydrated.accountId =
+      hydrated.accountId ||
+      DEFAULT_ACCOUNT_ID;
+    this.kbs.set(
+      hydrated.id,
+      hydrated
+    );
+
+    try {
+      this.saveToDisk();
+    } catch (error) {
+      console.warn(
+        'Failed to persist non-authoritative workspace compatibility mirror:',
+        error
+      );
+    }
+
+    return structuredClone(
+      hydrated
+    );
+  }
+
   setActiveKB(id: string, accountId: string = DEFAULT_ACCOUNT_ID): boolean {
     if (!this.ownedKB(id, accountId)) return false;
     this.activeKbId = id;
