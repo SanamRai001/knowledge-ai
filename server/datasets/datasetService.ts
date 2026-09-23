@@ -17,6 +17,7 @@ import {
 import { parseXlsxBuffer } from './xlsxParser.js';
 import { datasetRuntimePersistence } from './datasetRuntimePersistence.js';
 import { datasetSourceStorageService } from './datasetSourceStorageService.js';
+import type { SourceObjectOrigin } from '../storage/sourceObjectTypes.js';
 
 const PREVIEW_ROWS = 20;
 
@@ -520,6 +521,10 @@ export class DatasetService {
     datasetName?: string;
     description?: string;
     existingDatasetId?: string;
+    sourceOrigin?: SourceObjectOrigin;
+    externalConnectionId?: string;
+    externalId?: string;
+    externalVersion?: string;
     schemaOverrides?: Record<
       string,
       Record<string, DatasetColumnType>
@@ -571,6 +576,14 @@ export class DatasetService {
             filename: params.filename,
             contentType,
             bytes: params.buffer,
+            origin:
+              params.sourceOrigin,
+            externalConnectionId:
+              params.externalConnectionId,
+            externalId:
+              params.externalId,
+            externalVersion:
+              params.externalVersion,
           });
 
       const parsedTables =
@@ -720,6 +733,10 @@ export class DatasetService {
     datasetName?: string;
     description?: string;
     existingDatasetId?: string;
+    sourceOrigin?: SourceObjectOrigin;
+    externalConnectionId?: string;
+    externalId?: string;
+    externalVersion?: string;
     schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
   }) {
     if (datasetRuntimePersistence.usesPostgres()) {
