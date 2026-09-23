@@ -179,7 +179,8 @@ The implementation sequence is deliberately split into small slices:
 24. **C6 — Integration Snapshot + Checkpoint Commit Ordering** — COMPLETE, workflow `35892271035`
 25. **C7 — Workspace Structured State Relational Migration** — COMPLETE, workflow `35895848629`
 26. **D1 — Confirmed Action Transaction Boundary** — COMPLETE, workflow `35897430490`
-27. **D2 — Controlled Automation Transaction Boundary** — NEXT
+27. **D2 — Controlled Automation Transaction Boundary** — COMPLETE, workflow `35903477902`
+28. **D3 — Watch Scheduling Transaction Boundary** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -232,6 +233,8 @@ C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
 C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
 
 D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
+
+D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -711,22 +714,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening D2 — Controlled Automation Transaction Boundary**
+**Production Hardening D3 — Watch Scheduling Transaction Boundary**
 
-Keep this slice limited to policy-authorized Automation execution/recovery around the already-complete D1 Action transaction.
+Keep this slice limited to Watch job scheduling/evaluation consistency.
 
-1. inventory the Controlled Automation execution path from policy decision through execution/recovery state
-2. identify the automation idempotency/execution claim, policy decision state, linked Action proposal/execution, and audit/recovery writes
-3. preserve D1 as the authoritative company-state mutation transaction instead of duplicating Action mutation logic
-4. make relationally compatible Automation execution/recovery state changes explicit and transactional where technically possible
-5. enforce database-backed idempotency so duplicate policy execution/replay cannot launch the same governed Action twice
-6. define crash outcomes before Action commit, after Action commit, and before Automation completion is recorded
-7. make restart recovery reconcile from durable Action/Automation state without falsely re-executing committed business mutations
-8. preserve current OWNER/ADMIN-authored policy, API_KEY SERVICE actor, approval, authorization, and compensation semantics
-9. preserve file-mode development compatibility and add focused duplicate/crash/restart/cross-account PostgreSQL proofs
-10. stop before Watch scheduling transaction redesign or Track E worker/queue migration
+1. inventory the Watch scheduler path from due-rule discovery through job claim, evaluation, alert lifecycle, rule state, and job completion/retry
+2. identify which job lease/claim, WatchRule state, WatchEvaluation, WatchAlert episode, and WatchJob writes are currently separate
+3. preserve existing PostgreSQL job claim/lease semantics and reuse them rather than introducing a separate queue system
+4. make relationally compatible evaluation/alert/rule/job-completion writes explicit and transactional where technically possible
+5. enforce database-backed idempotency so duplicate workers/retries cannot create duplicate evaluations or alert episodes for one claimed job
+6. define crash outcomes after job claim, after evaluation creation, after alert mutation, and before job completion persistence
+7. make stale lease/retry recovery converge on durable Watch state without repeating a committed alert episode
+8. preserve current Watch rule language, scheduler cadence, snooze/acknowledge/resolve lifecycle, and file-mode development compatibility
+9. add focused duplicate/crash/restart/cross-account PostgreSQL proofs
+10. stop before Track E worker/queue migration or managed-secret/deployment/observability work
 
-Do not start Watch transaction work, managed-secret, deployment, observability, or unrelated transaction work in D2.
+Do not start worker/queue extraction, managed-secret, deployment, observability, or unrelated transaction work in D3.
 ---
 
 # Track A closure note
