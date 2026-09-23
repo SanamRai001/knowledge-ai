@@ -2,7 +2,13 @@ import { actionPersistence } from '../actions/actionPersistence.js';
 import {
   ActionExecutionError,
 } from '../actions/actionExecutionService.js';
-import { actionRuntimeExecutionService } from '../actions/actionRuntimeExecutionService.js';
+import {
+  actionRuntimeExecutionService,
+  preparePostgresConfirmedAction,
+} from '../actions/actionRuntimeExecutionService.js';
+import {
+  postgresAutomationExecutionTransactionRepository,
+} from '../persistence/a5PostgresRepositories.js';
 import { effectiveCompanyStateRuntimeService } from '../companyKnowledge/effectiveCompanyStateRuntimeService.js';
 import type { RequestIdentity } from '../requestIdentity.js';
 import {
@@ -182,17 +188,76 @@ export class AutomationExecutionRuntimeService {
       )
     );
 
-    let run = await automationPersistence.createRun({
-      accountId: params.accountId,
-      proposalId: proposal.id,
-      status: 'RUNNING',
-      attemptCount: 0,
-      maxAttempts,
-      actor,
-      actorRole,
-      policyId: firstEvaluation.policyId,
-      policyVersion: firstEvaluation.policyVersion,
-    });
+    if (
+      !firstEvaluation.policyId ||
+      !firstEvaluation.policyVersion
+    ) {
+      throw new AutomationExecutionError(
+        'AUTOMATION_POLICY_CHANGED',
+        409,
+        'Automatic execution requires an active versioned policy.',
+        { evaluation: firstEvaluation }
+      );
+    }
+
+    let run =
+      await postgresAutomationExecutionTransactionRepository
+        .claimPolicyExecution({
+          accountId: params.accountId,
+          proposalId: proposal.id,
+          actor,
+          actorRole,
+          policyId:
+            firstEvaluation.policyId,
+          policyVersion:
+            firstEvaluation.policyVersion,
+          maxAttempts,
+          now:
+            params.now ??
+            Date.now(),
+        });
+
+    if (
+      run.status === 'SUCCEEDED' &&
+      run.executionId
+    ) {
+      const replayExecution =
+        await actionPersistence
+          .getExecutionByProposal(
+            params.accountId,
+            proposal.id
+          );
+
+      if (
+        !replayExecution ||
+        replayExecution.id !==
+          run.executionId ||
+        replayExecution.executionMode !==
+          'AUTOMATION_POLICY'
+      ) {
+        throw new AutomationExecutionError(
+          'AUTOMATION_ALREADY_EXECUTED_DIFFERENT_MODE',
+          409,
+          'Durable Automation run does not match the committed governed Action.',
+          { runId: run.id }
+        );
+      }
+
+      return {
+        replayed: true,
+        evaluation:
+          firstEvaluation,
+        run,
+        proposal:
+          await actionPersistence
+            .requireProposal(
+              params.accountId,
+              proposal.id
+            ),
+        execution:
+          replayExecution,
+      };
+    }
 
     for (
       let attemptCount = 1;
@@ -292,51 +357,76 @@ export class AutomationExecutionRuntimeService {
         );
       }
 
-      run = await automationPersistence.updateRun(
-        params.accountId,
-        run.id,
-        {
-          status: 'RUNNING',
-          attemptCount,
-          policyId: policy.id,
-          policyVersion: policy.version,
-          retryable: undefined,
-          failureCategory: undefined,
-          lastError: undefined,
-        }
-      );
-
       try {
-        const result =
-          await actionRuntimeExecutionService.confirm({
-            accountId: params.accountId,
-            proposalId: proposal.id,
+        const prepared =
+          await preparePostgresConfirmedAction({
+            accountId:
+              params.accountId,
+            proposalId:
+              proposal.id,
             now: params.now,
             authorization: {
-              mode: 'AUTOMATION_POLICY',
+              mode:
+                'AUTOMATION_POLICY',
               actor,
               actorRole,
-              automationPolicyId: policy.id,
-              automationPolicyVersion: policy.version,
+              automationPolicyId:
+                policy.id,
+              automationPolicyVersion:
+                policy.version,
             },
           });
 
-        run = await automationPersistence.updateRun(
-          params.accountId,
-          run.id,
-          {
-            status: 'SUCCEEDED',
-            executionId: result.execution.id,
-            retryable: false,
-            completedAt: Date.now(),
-          }
-        );
+        const committed =
+          await postgresAutomationExecutionTransactionRepository
+            .commitPolicyExecution({
+              accountId:
+                params.accountId,
+              proposalId:
+                proposal.id,
+              runId: run.id,
+              expectedPolicyId:
+                policy.id,
+              expectedPolicyVersion:
+                policy.version,
+              expectedControlVersion:
+                control.version,
+              attemptCount,
+              completedAt:
+                Date.now(),
+              action:
+                prepared.input,
+            });
+
+        run = committed.run;
+
+        const finalExecution =
+          await actionRuntimeExecutionService
+            .finalizeCommittedPostgresAction({
+              accountId:
+                params.accountId,
+              proposal:
+                committed.action
+                  .proposal,
+              execution:
+                committed.action
+                  .execution,
+              idempotentReplay:
+                committed
+                  .idempotentReplay,
+            });
 
         return {
-          replayed: false,
+          replayed:
+            committed
+              .idempotentReplay,
           evaluation,
           run,
-          ...result,
+          proposal:
+            committed.action
+              .proposal,
+          execution:
+            finalExecution,
         };
       } catch (error: any) {
         if (error instanceof ActionExecutionError) {
@@ -354,6 +444,96 @@ export class AutomationExecutionRuntimeService {
             }
           );
           throw error;
+        }
+
+        const transactionMessage =
+          String(
+            error?.message || ''
+          );
+
+        if (
+          transactionMessage.startsWith(
+            'AUTOMATION_KILL_SWITCH_ACTIVE'
+          ) ||
+          transactionMessage.startsWith(
+            'AUTOMATION_POLICY_CHANGED'
+          ) ||
+          transactionMessage.startsWith(
+            'AUTOMATION_CONTROL_CHANGED'
+          ) ||
+          transactionMessage.startsWith(
+            'AUTOMATION_EXECUTION_CLAIM_POLICY_MISMATCH'
+          )
+        ) {
+          const killSwitch =
+            transactionMessage.startsWith(
+              'AUTOMATION_KILL_SWITCH_ACTIVE'
+            );
+
+          run = await automationPersistence.updateRun(
+            params.accountId,
+            run.id,
+            {
+              status: 'BLOCKED',
+              attemptCount:
+                attemptCount - 1,
+              failureCategory:
+                killSwitch
+                  ? 'KILL_SWITCH'
+                  : 'POLICY',
+              retryable: false,
+              lastError:
+                transactionMessage,
+              completedAt:
+                Date.now(),
+            }
+          );
+
+          throw new AutomationExecutionError(
+            killSwitch
+              ? 'AUTOMATION_EXECUTION_NOT_ALLOWED'
+              : 'AUTOMATION_POLICY_CHANGED',
+            409,
+            killSwitch
+              ? 'Workspace emergency automation stop became active before execution commit.'
+              : 'Automation policy/control changed before execution commit.',
+            {
+              evaluation,
+              runId: run.id,
+            }
+          );
+        }
+
+        if (
+          transactionMessage.startsWith(
+            'AUTOMATION_ALREADY_EXECUTED_DIFFERENT_MODE'
+          ) ||
+          transactionMessage.startsWith(
+            'AUTOMATION_ACTION_AUTHORIZATION_MISMATCH'
+          )
+        ) {
+          run = await automationPersistence.updateRun(
+            params.accountId,
+            run.id,
+            {
+              status: 'FAILED',
+              attemptCount,
+              failureCategory:
+                'VALIDATION',
+              retryable: false,
+              lastError:
+                transactionMessage,
+              completedAt:
+                Date.now(),
+            }
+          );
+
+          throw new AutomationExecutionError(
+            'AUTOMATION_ALREADY_EXECUTED_DIFFERENT_MODE',
+            409,
+            'This action proposal was committed through a different execution mode or authorization.',
+            { runId: run.id }
+          );
         }
 
         if (attemptCount < maxAttempts) {
