@@ -672,7 +672,9 @@ export class DatasetService {
             params.existingDatasetId,
         });
     } catch (error: any) {
-      if (storedSource) {
+      if (
+        storedSource?.createdSourceVersion
+      ) {
         await datasetSourceStorageService
           .compensate({
             accountId:
@@ -684,6 +686,9 @@ export class DatasetService {
             storageKey:
               storedSource.sourceVersion
                 .storageKey,
+            tombstoneSourceObject:
+              storedSource
+                .createdSourceObject,
           })
           .catch(() => undefined);
       }
