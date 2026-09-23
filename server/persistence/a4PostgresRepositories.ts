@@ -1289,6 +1289,37 @@ export class PostgresIntegrationCheckpointRepository
               );
             }
           }
+
+          if (!imported.knowledgeProjectionRunId) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_PROJECTION_MISSING: cursor cannot advance before the DatasetVersion projection is completed.'
+            );
+          }
+
+          const projection =
+            await client.query(
+              `SELECT 1
+               FROM knowledge_projection_runs
+               WHERE account_id = $1
+                 AND id = $2
+                 AND source_type = 'DATASET'
+                 AND source_id = $3
+                 AND source_version_id = $4
+                 AND status = 'COMPLETED'
+                 AND completed_at IS NOT NULL`,
+              [
+                imported.accountId,
+                imported.knowledgeProjectionRunId,
+                imported.internalId,
+                imported.internalVersionId,
+              ]
+            );
+
+          if (!projection.rowCount) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_PROJECTION_MISSING: cursor cannot advance before the exact DatasetVersion projection is completed.'
+            );
+          }
         }
 
         await saveImportWith(client, imported);
