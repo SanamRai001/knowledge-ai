@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening D1 — Confirmed Action Transaction Boundary.**
+> **Continue with Production Hardening D2 — Controlled Automation Transaction Boundary.**
 
 Phases 0–8 are complete.
 
@@ -1086,7 +1086,8 @@ Track A relational milestones:
 - C5 Dataset Source + Analytical Payload Migration — COMPLETE, workflow `35886051635`
 - C6 Integration Snapshot + Checkpoint Commit Ordering — COMPLETE, workflow `35892271035`
 - C7 Workspace Structured State Relational Migration — COMPLETE, workflow `35895848629`
-- D1 Confirmed Action Transaction Boundary — NEXT
+- D1 Confirmed Action Transaction Boundary — COMPLETE, workflow `35897430490`
+- D2 Controlled Automation Transaction Boundary — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1142,6 +1143,8 @@ C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
 
 C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
 
+D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1194,17 +1197,19 @@ C6 now binds provider external versions to immutable source snapshots, recovers 
 
 C7 now makes Specialized AI configuration, KnowledgeVersion metadata/refs, chat history, evaluation test cases, and evaluation runs PostgreSQL-authoritative per account/workspace. Production workspace shells reconstruct without `knowledge_bases.json`, active selection remains relational, one-time legacy migration is supported, and the legacy store is memory-only compatibility in PostgreSQL mode.
 
-Next, do **D1 only — Confirmed Action Transaction Boundary**:
+D1 now proves the confirmed/manual Action boundary is one PostgreSQL transaction for state-key locking, precondition recheck, claim supersession/insertion, business event, execution, proposal CONFIRMED transition, and confirmation audit. Concurrent duplicate confirmations converge on one database-enforced execution, and a forced late-stage failure rolls back every earlier relational write. Downstream Discovery remains post-commit derived work.
 
-1. inventory the confirmed/manual Action execution path and all relational writes
-2. map the idempotency claim, company-state mutation, Action status transition, and audit/event writes
-3. create one explicit PostgreSQL transaction for relationally compatible parts of the confirmed Action workflow
-4. add database-backed idempotency so duplicate confirmation/replay cannot apply the same mutation twice
-5. define and prove crash outcomes without reporting partial work as success
-6. use compensation only where a real external side effect cannot share the transaction
-7. preserve current human/API-key identity, approval, authorization, and policy semantics
-8. preserve file-mode compatibility
-9. add focused duplicate/crash/cross-account PostgreSQL proofs
-10. stop before Controlled Automation transaction redesign or Track E worker/queue work
+Next, do **D2 only — Controlled Automation Transaction Boundary**:
 
-Do not start managed-secret, deployment, observability, or unrelated transaction work in D1.
+1. inventory policy-authorized Automation execution and recovery writes
+2. map policy decision, execution/idempotency claim, linked Action state, Automation status, and audit/recovery state
+3. reuse the D1 Action transaction as the authoritative business-state mutation boundary
+4. make compatible Automation execution/recovery writes transactional where possible
+5. enforce database-backed idempotency so duplicate policy execution cannot launch the same Action twice
+6. prove crash outcomes before Action commit, after Action commit, and before Automation completion persistence
+7. reconcile restart recovery from durable Action/Automation state without repeating committed mutations
+8. preserve human/API-key role separation, policy authorization, approval, and compensation semantics
+9. preserve file-mode compatibility and add duplicate/crash/restart/cross-account PostgreSQL proofs
+10. stop before Watch scheduling transaction redesign or Track E worker/queue work
+
+Do not start Watch transaction work, managed-secret, deployment, observability, or unrelated transaction work in D2.
