@@ -96,7 +96,9 @@
     "check:production:c4-derived-document-contract": "tsx scripts/check-production-c4-derived-document-contract.ts",
     "check:production:c4-derived-document-postgres": "tsx scripts/check-production-c4-derived-document-postgres.ts",
     "check:production:c5-dataset-durability-contract": "tsx scripts/check-production-c5-dataset-durability-contract.ts",
-    "check:production:c5-dataset-durability-postgres": "tsx scripts/check-production-c5-dataset-durability-postgres.ts"
+    "check:production:c5-dataset-durability-postgres": "tsx scripts/check-production-c5-dataset-durability-postgres.ts",
+    "check:production:c6-integration-checkpoint-contract": "tsx scripts/check-production-c6-integration-checkpoint-contract.ts",
+    "check:production:c6-integration-checkpoint-postgres": "tsx scripts/check-production-c6-integration-checkpoint-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
