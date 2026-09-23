@@ -405,7 +405,8 @@ export class KnowledgeBaseStore {
   }
 
   hydrateKnowledgeBase(
-    kb: KnowledgeBase
+    kb: KnowledgeBase,
+    persist: boolean = true
   ): KnowledgeBase {
     const hydrated =
       structuredClone(kb);
@@ -417,13 +418,15 @@ export class KnowledgeBaseStore {
       hydrated
     );
 
-    try {
-      this.saveToDisk();
-    } catch (error) {
-      console.warn(
-        'Failed to persist non-authoritative workspace compatibility mirror:',
-        error
-      );
+    if (persist) {
+      try {
+        this.saveToDisk();
+      } catch (error) {
+        console.warn(
+          'Failed to persist non-authoritative workspace compatibility mirror:',
+          error
+        );
+      }
     }
 
     return structuredClone(
