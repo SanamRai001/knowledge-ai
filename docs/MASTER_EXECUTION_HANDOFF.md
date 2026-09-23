@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening D2 — Controlled Automation Transaction Boundary.**
+> **Continue with Production Hardening D3 — Watch Scheduling Transaction Boundary.**
 
 Phases 0–8 are complete.
 
@@ -1087,7 +1087,8 @@ Track A relational milestones:
 - C6 Integration Snapshot + Checkpoint Commit Ordering — COMPLETE, workflow `35892271035`
 - C7 Workspace Structured State Relational Migration — COMPLETE, workflow `35895848629`
 - D1 Confirmed Action Transaction Boundary — COMPLETE, workflow `35897430490`
-- D2 Controlled Automation Transaction Boundary — NEXT
+- D2 Controlled Automation Transaction Boundary — COMPLETE, workflow `35903477902`
+- D3 Watch Scheduling Transaction Boundary — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1145,6 +1146,8 @@ C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
 
 D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
 
+D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1199,17 +1202,19 @@ C7 now makes Specialized AI configuration, KnowledgeVersion metadata/refs, chat 
 
 D1 now proves the confirmed/manual Action boundary is one PostgreSQL transaction for state-key locking, precondition recheck, claim supersession/insertion, business event, execution, proposal CONFIRMED transition, and confirmation audit. Concurrent duplicate confirmations converge on one database-enforced execution, and a forced late-stage failure rolls back every earlier relational write. Downstream Discovery remains post-commit derived work.
 
-Next, do **D2 only — Controlled Automation Transaction Boundary**:
+D2 now composes the D1 Action commit inside a policy-authorized Automation execution transaction. A durable RUNNING claim exists before business mutation, the locked policy/control snapshot is revalidated at commit, D1 Action state and AutomationRun SUCCEEDED commit together, duplicate policy execution converges on one run/execution, and restart recovery settles historical partial-success states without reapplying company mutations.
 
-1. inventory policy-authorized Automation execution and recovery writes
-2. map policy decision, execution/idempotency claim, linked Action state, Automation status, and audit/recovery state
-3. reuse the D1 Action transaction as the authoritative business-state mutation boundary
-4. make compatible Automation execution/recovery writes transactional where possible
-5. enforce database-backed idempotency so duplicate policy execution cannot launch the same Action twice
-6. prove crash outcomes before Action commit, after Action commit, and before Automation completion persistence
-7. reconcile restart recovery from durable Action/Automation state without repeating committed mutations
-8. preserve human/API-key role separation, policy authorization, approval, and compensation semantics
-9. preserve file-mode compatibility and add duplicate/crash/restart/cross-account PostgreSQL proofs
-10. stop before Watch scheduling transaction redesign or Track E worker/queue work
+Next, do **D3 only — Watch Scheduling Transaction Boundary**:
 
-Do not start Watch transaction work, managed-secret, deployment, observability, or unrelated transaction work in D2.
+1. inventory due-rule scheduling, job claim/lease, evaluation, alert episode, rule state, and job completion/retry writes
+2. preserve the existing PostgreSQL Watch job claim/lease boundary rather than introducing workers/queues yet
+3. identify the relational writes that must commit together after one claimed Watch job is evaluated
+4. make evaluation + alert/rule/job completion transactional where technically possible
+5. enforce database-backed idempotency so concurrent workers/retries cannot duplicate one evaluation or alert episode
+6. prove crash outcomes after claim, after evaluation persistence, after alert mutation, and before completion
+7. reconcile stale leases/retries from durable Watch state without replaying a committed alert episode
+8. preserve Watch language, scheduling cadence, alert acknowledge/snooze/resolve semantics, and file mode
+9. add duplicate/crash/restart/cross-account PostgreSQL proofs
+10. stop before Track E worker/queue extraction
+
+Do not start worker/queue extraction, managed-secret, deployment, observability, or unrelated transaction work in D3.
