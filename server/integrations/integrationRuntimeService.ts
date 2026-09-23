@@ -5,6 +5,8 @@ import { datasetService } from '../datasets/datasetService.js';
 import { connectorRegistry } from './connectorRegistry.js';
 import { classifyIntegrationFailure } from './integrationFailure.js';
 import { integrationPersistence } from './integrationPersistence.js';
+import { integrationSourceRecoveryService } from './integrationSourceRecoveryService.js';
+import type { SourceObjectOrigin } from '../storage/sourceObjectTypes.js';
 import {
   IntegrationStateError,
   publicConnection,
@@ -66,6 +68,26 @@ function provenanceFor(ref: ExternalSourceRef) {
 function isStructuredFile(ref: ExternalSourceRef): boolean {
   const lower = ref.name.toLowerCase();
   return lower.endsWith('.csv') || lower.endsWith('.xlsx');
+}
+
+function sourceOriginForProvider(
+  provider: IntegrationProvider
+): SourceObjectOrigin | undefined {
+  if (
+    provider === 'GOOGLE_DRIVE' ||
+    provider === 'GOOGLE_SHEETS'
+  ) {
+    return 'GOOGLE_DRIVE';
+  }
+
+  if (
+    provider === 'MICROSOFT_ONEDRIVE' ||
+    provider === 'MICROSOFT_EXCEL'
+  ) {
+    return 'MICROSOFT_ONEDRIVE';
+  }
+
+  return undefined;
 }
 
 function retryBaseMs(): number {
@@ -741,6 +763,51 @@ export class IntegrationRuntimeService {
       return this.finishPendingImport(accountId, exact);
     }
 
+    const recovered =
+      await integrationSourceRecoveryService
+        .findCommittedDataset({
+          accountId,
+          connectionId: connection.id,
+          externalId: ref.externalId,
+          externalVersion:
+            ref.externalVersion,
+        });
+
+    if (recovered) {
+      const recoveredImport =
+        await integrationPersistence.recordImport({
+          status: 'INGESTED',
+          accountId,
+          connectionId:
+            connection.id,
+          provider:
+            connection.provider,
+          externalId:
+            ref.externalId,
+          externalVersion:
+            ref.externalVersion,
+          externalName: ref.name,
+          resourceKind:
+            ref.resourceKind,
+          internalKind: 'DATASET',
+          internalId:
+            recovered.datasetId,
+          internalVersionId:
+            recovered.datasetVersionId,
+          sourceVersionId:
+            recovered.sourceVersionId,
+          importedAt: Date.now(),
+          updatedAt: Date.now(),
+          provenance:
+            provenanceFor(ref),
+        });
+
+      return this.finishPendingImport(
+        accountId,
+        recoveredImport
+      );
+    }
+
     const record = await connector.fetchRecord(
       { connection },
       ref
@@ -794,8 +861,30 @@ export class IntegrationRuntimeService {
         ' external resource ' +
         record.ref.externalId +
         '.',
-      existingDatasetId: priorDataset?.internalId,
+      existingDatasetId:
+        priorDataset?.internalId,
+      sourceOrigin:
+        sourceOriginForProvider(
+          connection.provider
+        ),
+      externalConnectionId:
+        connection.id,
+      externalId:
+        record.ref.externalId,
+      externalVersion:
+        record.ref.externalVersion,
     });
+
+    if (
+      this.usesPostgres() &&
+      !imported.version.sourceVersionId
+    ) {
+      throw new IntegrationSyncError(
+        'EXTERNAL_SOURCE_VERSION_MISSING',
+        500,
+        'Durable integration Dataset import completed without a sourceVersionId.'
+      );
+    }
 
     const importState = await integrationPersistence.recordImport({
       status: 'INGESTED',
@@ -808,7 +897,10 @@ export class IntegrationRuntimeService {
       resourceKind: record.ref.resourceKind,
       internalKind: 'DATASET',
       internalId: imported.dataset.id,
-      internalVersionId: imported.version.id,
+      internalVersionId:
+        imported.version.id,
+      sourceVersionId:
+        imported.version.sourceVersionId,
       importedAt: Date.now(),
       updatedAt: Date.now(),
       provenance: provenanceFor(record.ref),

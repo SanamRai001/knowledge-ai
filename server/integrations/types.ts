@@ -122,6 +122,7 @@ export interface ExternalImportState {
   internalKind: 'DATASET' | 'DOCUMENT' | 'TOMBSTONE';
   internalId?: string;
   internalVersionId?: string;
+  sourceVersionId?: string;
   knowledgeProjectionRunId?: string;
   lastError?: string;
   importedAt: number;

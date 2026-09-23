@@ -248,6 +248,40 @@ export class PostgresSourceObjectRepository
       : null;
   }
 
+  async listExternalVersions(params: {
+    accountId: string;
+    externalConnectionId: string;
+    externalId: string;
+    externalVersion: string;
+  }): Promise<SourceVersion[]> {
+    const result =
+      await postgresPool().query(
+        `SELECT sv.*
+         FROM source_versions sv
+         JOIN source_objects so
+           ON so.account_id = sv.account_id
+          AND so.id = sv.source_object_id
+         WHERE sv.account_id = $1
+           AND so.external_connection_id = $2
+           AND so.external_id = $3
+           AND sv.external_version = $4
+           AND so.kind = 'DATASET_SOURCE'
+           AND so.status = 'ACTIVE'
+           AND sv.retention_state = 'ACTIVE'
+         ORDER BY sv.created_at DESC, sv.id DESC`,
+        [
+          params.accountId,
+          params.externalConnectionId,
+          params.externalId,
+          params.externalVersion,
+        ]
+      );
+
+    return result.rows.map(
+      versionFromRow
+    );
+  }
+
   async getVersionForWorkspace(
     accountId: string,
     workspaceId: string,

@@ -659,6 +659,33 @@ export class PostgresDatasetMetadataRepository
       : null;
   }
 
+  async findVersionBySourceVersion(
+    accountId: string,
+    sourceVersionId: string
+  ): Promise<DatasetVersionMetadata | null> {
+    const result =
+      await postgresPool().query(
+        `SELECT version.*
+         FROM dataset_versions version
+         JOIN datasets dataset
+           ON dataset.account_id = version.account_id
+          AND dataset.id = version.dataset_id
+         WHERE version.account_id = $1
+           AND version.source_version_id = $2
+         LIMIT 1`,
+        [
+          accountId,
+          sourceVersionId,
+        ]
+      );
+
+    return result.rowCount
+      ? versionFromRow(
+          result.rows[0]
+        )
+      : null;
+  }
+
   async listVersions(
     accountId: string,
     datasetId: string

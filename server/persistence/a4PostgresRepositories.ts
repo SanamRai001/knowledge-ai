@@ -214,6 +214,8 @@ function externalImportFromRow(row: any): ExternalImportState {
     internalKind: row.internal_kind,
     internalId: row.internal_id ?? undefined,
     internalVersionId: row.internal_version_id ?? undefined,
+    sourceVersionId:
+      row.source_version_id ?? undefined,
     knowledgeProjectionRunId:
       row.knowledge_projection_run_id ?? undefined,
     lastError: row.last_error ?? undefined,
@@ -604,15 +606,20 @@ async function saveImportWith(
     `INSERT INTO integration_external_imports
       (id, status, account_id, connection_id, provider, external_id,
        external_version, external_name, resource_kind, internal_kind,
-       internal_id, internal_version_id, knowledge_projection_run_id,
-       last_error, imported_at, updated_at, provenance)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb)
+       internal_id, internal_version_id, source_version_id,
+       knowledge_projection_run_id, last_error, imported_at,
+       updated_at, provenance)
+     VALUES (
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+       $14,$15,$16,$17,$18::jsonb
+     )
      ON CONFLICT (id) DO UPDATE SET
        status = EXCLUDED.status,
        external_name = EXCLUDED.external_name,
        internal_kind = EXCLUDED.internal_kind,
        internal_id = EXCLUDED.internal_id,
        internal_version_id = EXCLUDED.internal_version_id,
+       source_version_id = EXCLUDED.source_version_id,
        knowledge_projection_run_id = EXCLUDED.knowledge_projection_run_id,
        last_error = EXCLUDED.last_error,
        updated_at = EXCLUDED.updated_at,
@@ -635,6 +642,7 @@ async function saveImportWith(
       imported.internalKind,
       imported.internalId ?? null,
       imported.internalVersionId ?? null,
+      imported.sourceVersionId ?? null,
       imported.knowledgeProjectionRunId ?? null,
       imported.lastError ?? null,
       new Date(imported.importedAt),
@@ -1192,6 +1200,49 @@ export class PostgresIntegrationCheckpointRepository
             'External import does not belong to this checkpoint account/connection.'
           );
         }
+
+        if (imported.status === 'INGESTED') {
+          throw new Error(
+            'INTEGRATION_CHECKPOINT_INCOMPLETE: cursor cannot advance while an external import is still INGESTED.'
+          );
+        }
+
+        if (
+          imported.internalKind === 'DATASET' &&
+          imported.sourceVersionId
+        ) {
+          if (
+            !imported.internalId ||
+            !imported.internalVersionId
+          ) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_SOURCE_MISMATCH: Dataset import with sourceVersionId is missing Dataset identity.'
+            );
+          }
+
+          const durableVersion =
+            await client.query(
+              `SELECT 1
+               FROM dataset_versions
+               WHERE account_id = $1
+                 AND dataset_id = $2
+                 AND id = $3
+                 AND source_version_id = $4`,
+              [
+                input.accountId,
+                imported.internalId,
+                imported.internalVersionId,
+                imported.sourceVersionId,
+              ]
+            );
+
+          if (!durableVersion.rowCount) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_SOURCE_MISMATCH: external import source snapshot does not match its DatasetVersion.'
+            );
+          }
+        }
+
         await saveImportWith(client, imported);
       }
 
