@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { postgresPool, withTransaction } from './postgres.js';
 import {
