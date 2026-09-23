@@ -177,7 +177,8 @@ The implementation sequence is deliberately split into small slices:
 22. **C4 — Durable Derived Document Payload + Workspace Reconstruction** — COMPLETE, workflow `35762662087`
 23. **C5 — Dataset Source + Analytical Payload Migration** — COMPLETE, workflow `35886051635`
 24. **C6 — Integration Snapshot + Checkpoint Commit Ordering** — COMPLETE, workflow `35892271035`
-25. **C7 — Workspace Structured State Relational Migration** — NEXT
+25. **C7 — Workspace Structured State Relational Migration** — COMPLETE, workflow `35895848629`
+26. **D1 — Confirmed Action Transaction Boundary** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -227,6 +228,8 @@ C5 evidence: `docs/PRODUCTION_C5_DATASET_DURABILITY.md`.
 
 C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
 
+C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
+
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
 B2B1 added salted scrypt human credentials, one-time OWNER bootstrap, same-origin browser login, secure HttpOnly session cookies, `/api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -274,6 +277,8 @@ C4 added PostgreSQL-backed derived-document payload metadata, integrity-verified
 C5 added immutable durable CSV/XLSX SourceVersions, durable integrity-verified Dataset analytical payloads, PostgreSQL DatasetVersion linkage to source/payload integrity metadata, restart reconstruction of current and historical Dataset rows from object storage, cross-account/tamper guards, and failed-import compensation while keeping legacy local payloads compatibility-readable.
 
 C6 linked external imports to immutable provider source snapshots, made exact provider versions idempotently reusable, added crash recovery from committed SourceVersion/DatasetVersion identity, repaired pre-C6 source linkage, and hardened the existing PostgreSQL checkpoint transaction so cursor movement requires READY/TOMBSTONE journal state, committed Dataset/source identity, and an exact completed Living Knowledge projection.
+
+C7 moved Specialized AI configuration, KnowledgeVersion metadata/refs, chat history, evaluation test cases, and evaluation runs to account/workspace-scoped PostgreSQL state; made workspace reconstruction independent of local JSON; preserved one-time legacy migration and file-mode compatibility; kept active workspace selection relational; and removed direct Specialized AI/Evaluation production dependence on `kbStore`.
 
 ## Security rules
 
@@ -703,22 +708,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening C7 — Workspace Structured State Relational Migration**
+**Production Hardening D1 — Confirmed Action Transaction Boundary**
 
-Keep this slice limited to removing the remaining production dependency on local `data/knowledge_bases.json` structured workspace state.
+Keep this slice limited to the confirmed/manual Action workflow.
 
-1. add PostgreSQL models/repositories for KnowledgeVersion metadata + durable document refs
-2. add account/workspace-scoped relational chat history persistence
-3. add relational Specialized AI configuration persistence
-4. add relational evaluation test-case and evaluation-run persistence
-5. treat PostgreSQL workspace metadata + C4 durable document payloads + C7 structured state as sufficient to reconstruct a workspace shell when the local compatibility file is absent
-6. retire production authority of legacy global active-workspace state; session/account selection remains authoritative
-7. preserve file-mode development compatibility without letting local JSON override PostgreSQL in production
-8. preserve existing Unified Ask, historical version, rollback, AI config, chat, and evaluation API behavior
-9. add restart reconstruction + cross-account isolation proofs for every migrated structured-state family
-10. stop before worker/queue, secret-manager, or broad Track D workflow work
+1. inventory the confirmed Action execution path and every relational write it performs
+2. identify the idempotency claim, company-state mutation, Action status transition, and audit/event writes
+3. move relationally compatible writes into one explicit PostgreSQL transaction where technically possible
+4. enforce database-backed idempotency so duplicate confirmation/replay cannot execute the same state mutation twice
+5. define crash outcomes at each boundary and keep user-visible Action state truthful
+6. use compensation only for effects that cannot participate in the relational transaction
+7. preserve existing human/API-key identity, authorization, approval, and Action policy semantics
+8. preserve file-mode development compatibility without weakening PostgreSQL production correctness
+9. add focused duplicate/crash/cross-account PostgreSQL proofs
+10. stop before Controlled Automation transaction redesign, worker/queue migration, or broader Track D work
 
-Do not re-migrate C3/C4 document bytes/payloads, C5 Dataset payloads, C6 integration snapshots, workers/queues, or unrelated Track D workflows in C7.
+Do not start Track E workers/queues, Track F managed secrets, or deployment/observability work in D1.
 ---
 
 # Track A closure note
