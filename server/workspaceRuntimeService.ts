@@ -554,7 +554,7 @@ export class WorkspaceRuntimeService {
   }
 
   public async getSpecializedAIById(
-    accountId: string,
+    accountId: string | undefined,
     aiId: string
   ): Promise<{
     ai: SpecializedAI;
@@ -572,6 +572,10 @@ export class WorkspaceRuntimeService {
             kb: clone(lookup.kb),
           }
         : null;
+    }
+
+    if (!accountId) {
+      return null;
     }
 
     const workspaceId =
