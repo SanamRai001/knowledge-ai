@@ -12,6 +12,22 @@ export interface RecoveredIntegrationDatasetImport {
 }
 
 export class IntegrationSourceRecoveryService {
+  async resolveDatasetSourceVersion(input: {
+    accountId: string;
+    datasetId: string;
+    datasetVersionId: string;
+  }): Promise<string | undefined> {
+    const version =
+      await postgresDatasetMetadataRepository
+        .getVersionMetadata(
+          input.accountId,
+          input.datasetId,
+          input.datasetVersionId
+        );
+
+    return version?.sourceVersionId;
+  }
+
   async recoverDatasetImport(input: {
     accountId: string;
     connectionId: string;
