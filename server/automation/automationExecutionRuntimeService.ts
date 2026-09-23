@@ -201,21 +201,61 @@ export class AutomationExecutionRuntimeService {
       });
 
     if (firstEvaluation.decision !== 'ALLOW_AUTO_EXECUTE') {
-      const run = await automationPersistence.createRun({
-        accountId: params.accountId,
-        proposalId: proposal.id,
-        status: 'BLOCKED',
-        attemptCount: 0,
-        maxAttempts: 0,
-        actor,
-        actorRole,
-        policyId: firstEvaluation.policyId,
-        policyVersion: firstEvaluation.policyVersion,
-        failureCategory: blockedCategory(firstEvaluation),
-        retryable: false,
-        lastError: firstEvaluation.reasons.join(' '),
-        completedAt: Date.now(),
-      });
+      const existingRunning =
+        (
+          await automationPersistence.listRuns({
+            accountId:
+              params.accountId,
+            proposalId: proposal.id,
+            status: 'RUNNING',
+            limit: 1,
+          })
+        )[0];
+
+      const run = existingRunning
+        ? await automationPersistence.updateRun(
+            params.accountId,
+            existingRunning.id,
+            {
+              status: 'BLOCKED',
+              failureCategory:
+                blockedCategory(
+                  firstEvaluation
+                ),
+              retryable: false,
+              lastError:
+                firstEvaluation.reasons.join(
+                  ' '
+                ),
+              completedAt:
+                Date.now(),
+            }
+          )
+        : await automationPersistence.createRun({
+            accountId:
+              params.accountId,
+            proposalId: proposal.id,
+            status: 'BLOCKED',
+            attemptCount: 0,
+            maxAttempts: 0,
+            actor,
+            actorRole,
+            policyId:
+              firstEvaluation.policyId,
+            policyVersion:
+              firstEvaluation.policyVersion,
+            failureCategory:
+              blockedCategory(
+                firstEvaluation
+              ),
+            retryable: false,
+            lastError:
+              firstEvaluation.reasons.join(
+                ' '
+              ),
+            completedAt:
+              Date.now(),
+          });
 
       throw new AutomationExecutionError(
         'AUTOMATION_EXECUTION_NOT_ALLOWED',
