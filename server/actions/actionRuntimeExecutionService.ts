@@ -462,46 +462,63 @@ export class ActionRuntimeExecutionService {
       throw error;
     }
 
-    if (committed.idempotentReplay) {
-      return {
-        proposal: committed.proposal,
-        execution: committed.execution,
-      };
+    return {
+      proposal: committed.proposal,
+      execution:
+        await this.finalizeCommittedPostgresAction({
+          accountId:
+            params.accountId,
+          proposal:
+            committed.proposal,
+          execution:
+            committed.execution,
+          idempotentReplay:
+            committed.idempotentReplay,
+        }),
+    };
+  }
+
+  public async finalizeCommittedPostgresAction(params: {
+    accountId: string;
+    proposal: ActionProposal;
+    execution: ActionExecution;
+    idempotentReplay?: boolean;
+  }): Promise<ActionExecution> {
+    if (params.idempotentReplay) {
+      return params.execution;
     }
 
     const downstream =
       await this.runDownstreamDiscovery({
         accountId: params.accountId,
-        proposal: committed.proposal,
+        proposal: params.proposal,
       });
 
-    let finalExecution = committed.execution;
     try {
-      finalExecution =
-        await postgresActionRepository.updateExecutionAnalysis({
-          accountId: params.accountId,
-          executionId: committed.execution.id,
+      return await postgresActionRepository
+        .updateExecutionAnalysis({
+          accountId:
+            params.accountId,
+          executionId:
+            params.execution.id,
           downstreamAnalysisRunIds:
             downstream.runIds,
-          downstreamWarnings: downstream.warnings,
+          downstreamWarnings:
+            downstream.warnings,
         });
     } catch (error: any) {
-      finalExecution = {
-        ...committed.execution,
+      return {
+        ...params.execution,
         downstreamAnalysisRunIds:
           downstream.runIds,
         downstreamWarnings: [
           ...downstream.warnings,
           'Could not persist downstream analysis metadata: ' +
-            (error?.message || 'unknown error'),
+            (error?.message ||
+              'unknown error'),
         ],
       };
     }
-
-    return {
-      proposal: committed.proposal,
-      execution: finalExecution,
-    };
   }
 
   public async cancel(params: {
