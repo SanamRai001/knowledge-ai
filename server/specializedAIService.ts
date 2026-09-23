@@ -73,13 +73,11 @@ export class SpecializedAIService {
     // 1. Resolve Specialized AI and Knowledge Base.
     // PostgreSQL mode requires explicit account scope; file mode preserves
     // the legacy default-account development behavior.
-    const effectiveAccountId =
-      accountId ||
-      (workspaceRuntimeService.usesPostgres()
-        ? undefined
-        : 'acc_default');
+    const postgresMode =
+      workspaceRuntimeService
+        .usesPostgres();
 
-    if (!effectiveAccountId) {
+    if (postgresMode && !accountId) {
       throw new SpecializedAIError(
         'FORBIDDEN',
         403,
@@ -90,7 +88,9 @@ export class SpecializedAIService {
     const lookup =
       await workspaceRuntimeService
         .getSpecializedAIById(
-          effectiveAccountId,
+          postgresMode
+            ? accountId
+            : undefined,
           aiId
         );
     if (!lookup) {
@@ -104,10 +104,16 @@ export class SpecializedAIService {
     const { ai, kb } = lookup;
     const kbAccountId =
       kb.accountId ||
-      effectiveAccountId;
+      'acc_default';
+    const effectiveAccountId =
+      accountId ||
+      kbAccountId;
 
     // 2. Tenant & Account Isolation
-    if (kbAccountId !== effectiveAccountId) {
+    if (
+      accountId &&
+      kbAccountId !== accountId
+    ) {
       throw new SpecializedAIError(
         'FORBIDDEN',
         403,
