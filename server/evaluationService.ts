@@ -1,10 +1,14 @@
-import { kbStore } from './kbStore.js';
+import { workspaceRuntimeService } from './workspaceRuntimeService.js';
 import { specializedAIService } from './specializedAIService.js';
 import { EvaluationRun, TestCaseResult, EvaluationTestCase } from '../src/types.js';
 
 export async function runEvaluationSuite(kbId: string, accountId: string = 'acc_default'): Promise<EvaluationRun> {
-  const kb = kbStore.getKB(kbId, accountId);
-  if (!kb) throw new Error(`Knowledge base ${kbId} not found`);
+  const kb =
+    await workspaceRuntimeService
+      .requireKB(
+        accountId,
+        kbId
+      );
 
   const testCases: EvaluationTestCase[] = kb.testCases && kb.testCases.length > 0 ? kb.testCases : [];
   const results: TestCaseResult[] = [];
@@ -157,6 +161,11 @@ export async function runEvaluationSuite(kbId: string, accountId: string = 'acc_
     results,
   };
 
-  kbStore.recordEvaluationRun(kbId, run, accountId);
+  await workspaceRuntimeService
+    .recordEvaluationRun(
+      accountId,
+      kbId,
+      run
+    );
   return run;
 }
