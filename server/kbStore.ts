@@ -585,7 +585,8 @@ export class KnowledgeBaseStore {
   addDocument(
     kbId: string,
     doc: KnowledgeDocument,
-    accountId: string = DEFAULT_ACCOUNT_ID
+    accountId: string = DEFAULT_ACCOUNT_ID,
+    persist: boolean = true
   ): void {
     const kb = this.ownedKB(kbId, accountId);
     if (!kb) throw new Error(`Knowledge base ${kbId} not found`);
@@ -627,7 +628,9 @@ export class KnowledgeBaseStore {
 
     kb.updatedAt = Date.now();
     this.updateKBStatus(kb);
-    this.saveToDisk();
+    if (persist) {
+      this.saveToDisk();
+    }
   }
 
   replaceDocuments(
@@ -707,7 +710,8 @@ export class KnowledgeBaseStore {
   removeDocument(
     kbId: string,
     docId: string,
-    accountId: string = DEFAULT_ACCOUNT_ID
+    accountId: string = DEFAULT_ACCOUNT_ID,
+    persist: boolean = true
   ): boolean {
     const kb = this.ownedKB(kbId, accountId);
     if (!kb) return false;
@@ -715,7 +719,9 @@ export class KnowledgeBaseStore {
     kb.documents = kb.documents.filter((d) => d.id !== docId);
     kb.updatedAt = Date.now();
     this.updateKBStatus(kb);
-    this.saveToDisk();
+    if (persist) {
+      this.saveToDisk();
+    }
     return kb.documents.length < initialLen;
   }
 
@@ -724,7 +730,8 @@ export class KnowledgeBaseStore {
     docId: string,
     status: KnowledgeDocument['processingStatus'],
     errorMessage?: string,
-    accountId: string = DEFAULT_ACCOUNT_ID
+    accountId: string = DEFAULT_ACCOUNT_ID,
+    persist: boolean = true
   ): void {
     const kb = this.ownedKB(kbId, accountId);
     if (!kb) return;
@@ -734,7 +741,9 @@ export class KnowledgeBaseStore {
       if (errorMessage) doc.errorMessage = errorMessage;
       kb.updatedAt = Date.now();
       this.updateKBStatus(kb);
-      this.saveToDisk();
+      if (persist) {
+        this.saveToDisk();
+      }
     }
   }
 
