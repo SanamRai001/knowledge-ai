@@ -553,6 +553,51 @@ export class WorkspaceRuntimeService {
       .specializedAi;
   }
 
+  public async getSpecializedAIById(
+    accountId: string,
+    aiId: string
+  ): Promise<{
+    ai: SpecializedAI;
+    kb: KnowledgeBase;
+  } | null> {
+    if (!this.usesPostgres()) {
+      const lookup =
+        kbStore.getSpecializedAIById(
+          aiId,
+          accountId
+        );
+      return lookup
+        ? {
+            ai: clone(lookup.ai),
+            kb: clone(lookup.kb),
+          }
+        : null;
+    }
+
+    const workspaceId =
+      await workspaceStructuredStateService
+        .findWorkspaceIdByAiId(
+          accountId,
+          aiId
+        );
+    if (!workspaceId) {
+      return null;
+    }
+
+    const kb = await this.requireKB(
+      accountId,
+      workspaceId
+    );
+    if (kb.specializedAi.id !== aiId) {
+      return null;
+    }
+
+    return {
+      ai: clone(kb.specializedAi),
+      kb,
+    };
+  }
+
   public async updateSpecializedAI(
     accountId: string,
     kbId: string,
