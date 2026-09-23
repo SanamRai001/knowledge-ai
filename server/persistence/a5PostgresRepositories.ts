@@ -1,5 +1,9 @@
+import crypto from 'crypto';
 import type { PoolClient } from 'pg';
 import { postgresPool, withTransaction } from './postgres.js';
+import {
+  commitConfirmedActionWithClient,
+} from './a3PostgresRepositories.js';
 import type {
   AutomationApprovalRequest,
   AutomationControlRevision,
@@ -12,6 +16,10 @@ import type { DomainPackInstallation } from '../platform/domainPacks/types.js';
 import type { ToolInvocationAudit } from '../platform/tools/types.js';
 import type {
   AutomationControlCommitInput,
+  AutomationExecutionClaimInput,
+  AutomationExecutionCommitInput,
+  AutomationExecutionCommitResult,
+  AutomationExecutionTransactionRepository,
   AutomationGovernanceTransactionRepository,
   AutomationPolicyCommitInput,
   AutomationRepository,
@@ -41,6 +49,32 @@ function num(value: unknown): number | undefined {
 
 function json(value: unknown): string {
   return JSON.stringify(value);
+}
+
+async function lockAutomationAccount(
+  client: Pick<PoolClient, 'query'>,
+  accountId: string
+): Promise<void> {
+  await client.query(
+    'SELECT pg_advisory_xact_lock(hashtext($1))',
+    ['knowledge-ai:automation-account:' + accountId]
+  );
+}
+
+async function lockAutomationProposal(
+  client: Pick<PoolClient, 'query'>,
+  accountId: string,
+  proposalId: string
+): Promise<void> {
+  await client.query(
+    'SELECT pg_advisory_xact_lock(hashtext($1))',
+    [
+      'knowledge-ai:automation-execution:' +
+        accountId +
+        ':' +
+        proposalId,
+    ]
+  );
 }
 
 async function assertOwnedUpsert(
@@ -723,6 +757,11 @@ export class PostgresAutomationGovernanceTransactionRepository
     input: AutomationPolicyCommitInput
   ): Promise<AutomationPolicy> {
     return withTransaction(async (client) => {
+      await lockAutomationAccount(
+        client,
+        input.policy.accountId
+      );
+
       const currentResult = await client.query(
         `SELECT * FROM automation_policies
          WHERE account_id = $1
@@ -768,6 +807,11 @@ export class PostgresAutomationGovernanceTransactionRepository
     input: AutomationControlCommitInput
   ): Promise<AutomationControlState> {
     return withTransaction(async (client) => {
+      await lockAutomationAccount(
+        client,
+        input.control.accountId
+      );
+
       const currentResult = await client.query(
         `SELECT * FROM automation_controls
          WHERE account_id = $1
@@ -801,6 +845,322 @@ export class PostgresAutomationGovernanceTransactionRepository
       await saveControlWith(client, input.control);
       await saveControlRevisionWith(client, input.revision);
       return input.control;
+    });
+  }
+}
+
+export class PostgresAutomationExecutionTransactionRepository
+  implements AutomationExecutionTransactionRepository
+{
+  async claimPolicyExecution(
+    input: AutomationExecutionClaimInput
+  ): Promise<AutomationRun> {
+    return withTransaction(async (client) => {
+      await lockAutomationProposal(
+        client,
+        input.accountId,
+        input.proposalId
+      );
+
+      const existingResult =
+        await client.query(
+          `SELECT *
+           FROM automation_runs
+           WHERE account_id = $1
+             AND proposal_id = $2
+             AND status IN ('RUNNING','SUCCEEDED')
+           ORDER BY started_at DESC, id DESC
+           FOR UPDATE`,
+          [
+            input.accountId,
+            input.proposalId,
+          ]
+        );
+
+      const existing = existingResult.rowCount
+        ? automationRunFromRow(
+            existingResult.rows[0]
+          )
+        : null;
+
+      if (
+        existing &&
+        existing.status === 'SUCCEEDED'
+      ) {
+        return existing;
+      }
+
+      if (
+        existing &&
+        existing.status === 'RUNNING' &&
+        existing.policyId ===
+          input.policyId &&
+        existing.policyVersion ===
+          input.policyVersion
+      ) {
+        return existing;
+      }
+
+      if (
+        existing &&
+        existing.status === 'RUNNING'
+      ) {
+        await saveRunWith(client, {
+          ...existing,
+          status: 'BLOCKED',
+          failureCategory:
+            'POLICY',
+          retryable: false,
+          lastError:
+            'Automation execution claim was superseded by a newer policy revision before Action commit.',
+          updatedAt: input.now,
+          completedAt: input.now,
+        });
+      }
+
+      const run: AutomationRun = {
+        id:
+          'autorun_' +
+          crypto.randomBytes(10).toString('hex'),
+        accountId: input.accountId,
+        proposalId: input.proposalId,
+        status: 'RUNNING',
+        attemptCount: 0,
+        maxAttempts: input.maxAttempts,
+        actor: input.actor,
+        actorRole: input.actorRole,
+        policyId: input.policyId,
+        policyVersion:
+          input.policyVersion,
+        startedAt: input.now,
+        updatedAt: input.now,
+      };
+
+      await saveRunWith(client, run);
+      return run;
+    });
+  }
+
+  async commitPolicyExecution(
+    input: AutomationExecutionCommitInput
+  ): Promise<AutomationExecutionCommitResult> {
+    return withTransaction(async (client) => {
+      await lockAutomationAccount(
+        client,
+        input.accountId
+      );
+      await lockAutomationProposal(
+        client,
+        input.accountId,
+        input.proposalId
+      );
+
+      const runResult = await client.query(
+        `SELECT *
+         FROM automation_runs
+         WHERE account_id = $1
+           AND id = $2
+           AND proposal_id = $3
+         FOR UPDATE`,
+        [
+          input.accountId,
+          input.runId,
+          input.proposalId,
+        ]
+      );
+
+      if (!runResult.rowCount) {
+        throw new Error(
+          'AUTOMATION_EXECUTION_CLAIM_MISSING: durable Automation run claim was not found.'
+        );
+      }
+
+      const currentRun =
+        automationRunFromRow(
+          runResult.rows[0]
+        );
+
+      if (
+        currentRun.status ===
+          'SUCCEEDED' &&
+        currentRun.executionId
+      ) {
+        const action =
+          await commitConfirmedActionWithClient(
+            client,
+            input.action
+          );
+
+        if (
+          action.execution.id !==
+          currentRun.executionId
+        ) {
+          throw new Error(
+            'AUTOMATION_EXECUTION_REPLAY_MISMATCH: successful Automation run points to a different Action execution.'
+          );
+        }
+
+        return {
+          run: currentRun,
+          action,
+          idempotentReplay: true,
+        };
+      }
+
+      if (
+        currentRun.status !== 'RUNNING'
+      ) {
+        throw new Error(
+          'AUTOMATION_EXECUTION_CLAIM_NOT_RUNNING: Automation run is not eligible to commit an Action.'
+        );
+      }
+
+      const policyResult =
+        await client.query(
+          `SELECT *
+           FROM automation_policies
+           WHERE account_id = $1
+           FOR UPDATE`,
+          [input.accountId]
+        );
+      if (!policyResult.rowCount) {
+        throw new Error(
+          'AUTOMATION_POLICY_CHANGED: active Automation policy disappeared before execution commit.'
+        );
+      }
+
+      const policy =
+        policyFromRow(
+          policyResult.rows[0]
+        );
+
+      if (
+        policy.id !==
+          input.expectedPolicyId ||
+        policy.version !==
+          input.expectedPolicyVersion ||
+        !policy.enabled ||
+        policy.mode !==
+          'AUTO_EXECUTE_LOW_RISK'
+      ) {
+        throw new Error(
+          'AUTOMATION_POLICY_CHANGED: policy identity/version/mode changed before execution commit.'
+        );
+      }
+
+      const controlResult =
+        await client.query(
+          `SELECT *
+           FROM automation_controls
+           WHERE account_id = $1
+           FOR UPDATE`,
+          [input.accountId]
+        );
+      const control =
+        controlResult.rowCount
+          ? controlFromRow(
+              controlResult.rows[0]
+            )
+          : {
+              accountId:
+                input.accountId,
+              version: 0,
+              emergencyDisabled: false,
+              updatedAt: 0,
+              updatedBy:
+                'system:default',
+            };
+
+      if (
+        control.version !==
+          input.expectedControlVersion ||
+        control.emergencyDisabled
+      ) {
+        throw new Error(
+          control.emergencyDisabled
+            ? 'AUTOMATION_KILL_SWITCH_ACTIVE: emergency automation stop became active before execution commit.'
+            : 'AUTOMATION_CONTROL_CHANGED: automation control version changed before execution commit.'
+        );
+      }
+
+      if (
+        currentRun.policyId !==
+          policy.id ||
+        currentRun.policyVersion !==
+          policy.version
+      ) {
+        throw new Error(
+          'AUTOMATION_EXECUTION_CLAIM_POLICY_MISMATCH: durable run claim does not match the locked policy revision.'
+        );
+      }
+
+      if (
+        input.action.accountId !==
+          input.accountId ||
+        input.action.proposalId !==
+          input.proposalId ||
+        input.action.execution
+          .executionMode !==
+          'AUTOMATION_POLICY' ||
+        input.action.execution
+          .automationPolicyId !==
+          policy.id ||
+        input.action.execution
+          .automationPolicyVersion !==
+          policy.version
+      ) {
+        throw new Error(
+          'AUTOMATION_ACTION_AUTHORIZATION_MISMATCH: prepared Action does not match the locked Automation policy.'
+        );
+      }
+
+      const action =
+        await commitConfirmedActionWithClient(
+          client,
+          input.action
+        );
+
+      if (
+        action.execution.executionMode !==
+          'AUTOMATION_POLICY' ||
+        action.execution.automationPolicyId !==
+          policy.id ||
+        action.execution
+          .automationPolicyVersion !==
+          policy.version
+      ) {
+        throw new Error(
+          'AUTOMATION_ALREADY_EXECUTED_DIFFERENT_MODE: governed proposal was committed through a different execution mode or policy.'
+        );
+      }
+
+      const completedRun: AutomationRun = {
+        ...currentRun,
+        status: 'SUCCEEDED',
+        attemptCount:
+          input.attemptCount,
+        executionId:
+          action.execution.id,
+        failureCategory: undefined,
+        retryable: false,
+        lastError: undefined,
+        updatedAt:
+          input.completedAt,
+        completedAt:
+          input.completedAt,
+      };
+
+      await saveRunWith(
+        client,
+        completedRun
+      );
+
+      return {
+        run: completedRun,
+        action,
+        idempotentReplay:
+          action.idempotentReplay,
+      };
     });
   }
 }
@@ -882,6 +1242,9 @@ export const postgresAutomationRepository =
 
 export const postgresAutomationGovernanceTransactionRepository =
   new PostgresAutomationGovernanceTransactionRepository();
+
+export const postgresAutomationExecutionTransactionRepository =
+  new PostgresAutomationExecutionTransactionRepository();
 
 export const postgresPlatformStateRepository =
   new PostgresPlatformStateRepository();

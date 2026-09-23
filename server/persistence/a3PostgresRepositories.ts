@@ -1304,13 +1304,10 @@ export class PostgresActionRepository
   }
 }
 
-export class PostgresConfirmedActionTransactionRepository
-  implements ConfirmedActionTransactionRepository
-{
-  async commitConfirmedAction(
-    input: ConfirmedActionTransactionInput
-  ): Promise<ConfirmedActionTransactionResult> {
-    return withTransaction(async (client) => {
+export async function commitConfirmedActionWithClient(
+  client: Pick<PoolClient, 'query'>,
+  input: ConfirmedActionTransactionInput
+): Promise<ConfirmedActionTransactionResult> {
       const proposal = await loadProposal(
         client,
         input.accountId,
@@ -1553,7 +1550,20 @@ export class PostgresConfirmedActionTransactionRepository
         auditEntry: input.auditEntry,
         idempotentReplay: false,
       };
-    });
+}
+
+export class PostgresConfirmedActionTransactionRepository
+  implements ConfirmedActionTransactionRepository
+{
+  async commitConfirmedAction(
+    input: ConfirmedActionTransactionInput
+  ): Promise<ConfirmedActionTransactionResult> {
+    return withTransaction((client) =>
+      commitConfirmedActionWithClient(
+        client,
+        input
+      )
+    );
   }
 }
 

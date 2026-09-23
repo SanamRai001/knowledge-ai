@@ -1,4 +1,8 @@
 import type {
+  ConfirmedActionTransactionInput,
+  ConfirmedActionTransactionResult,
+} from './a3Types.js';
+import type {
   AutomationApprovalRequest,
   AutomationControlRevision,
   AutomationControlState,
@@ -76,6 +80,45 @@ export interface AutomationGovernanceTransactionRepository {
   commitControlRevision(
     input: AutomationControlCommitInput
   ): Promise<AutomationControlState>;
+}
+
+export interface AutomationExecutionClaimInput {
+  accountId: string;
+  proposalId: string;
+  actor: string;
+  actorRole: AutomationRun['actorRole'];
+  policyId: string;
+  policyVersion: number;
+  maxAttempts: number;
+  now: number;
+}
+
+export interface AutomationExecutionCommitInput {
+  accountId: string;
+  proposalId: string;
+  runId: string;
+  expectedPolicyId: string;
+  expectedPolicyVersion: number;
+  expectedControlVersion: number;
+  attemptCount: number;
+  completedAt: number;
+  action: ConfirmedActionTransactionInput;
+}
+
+export interface AutomationExecutionCommitResult {
+  run: AutomationRun;
+  action: ConfirmedActionTransactionResult;
+  idempotentReplay: boolean;
+}
+
+export interface AutomationExecutionTransactionRepository {
+  claimPolicyExecution(
+    input: AutomationExecutionClaimInput
+  ): Promise<AutomationRun>;
+
+  commitPolicyExecution(
+    input: AutomationExecutionCommitInput
+  ): Promise<AutomationExecutionCommitResult>;
 }
 
 export interface PlatformStateRepository {
