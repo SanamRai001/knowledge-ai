@@ -152,15 +152,17 @@ async function main() {
     datasetPayloadStore.includes("'dataset_runtime_payloads.json'") &&
       datasetPayloadStore.includes("backend: 'local-dataset-payload'") &&
       datasetPayloadStore.includes('fs.writeFileSync'),
-    'Analytical DatasetVersion payloads must remain identified as local-file backed during C1.'
+    'The legacy local Dataset payload backend must remain explicit for backward compatibility after C5.'
   );
 
   assert(
     datasetPersistence.includes('private async loadPayload') &&
-      datasetPersistence.includes("locator.backend === 'local-dataset-payload'") &&
+      datasetPersistence.includes("'durable-dataset-payload'") &&
+      datasetPersistence.includes("'local-dataset-payload'") &&
+      datasetPersistence.includes('durableDatasetPayloadStore.get') &&
       datasetPersistence.includes('public async bootstrap()') &&
       datasetPersistence.includes('await this.loadPayload'),
-    'Dataset runtime reconstruction must still depend on the explicit local payload backend.'
+    'C1 regression proof must accept C5 durable Dataset reconstruction while retaining legacy local payload compatibility.'
   );
 
   assert(
@@ -208,7 +210,7 @@ async function main() {
     'PRODUCTION_C1_OBJECT_STORAGE_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'C1 historical audit boundaries remain guarded after C4: original PDF bytes and parsed document payloads are durable, while chat/config/evaluation state, Dataset analytical payloads, and Drive/OneDrive checkpoint durability remain explicit later work.'
+    'C1 historical audit boundaries remain guarded after C5: original/derived document payloads and new Dataset source/analytical payloads are durable, while chat/config/evaluation state and integration checkpoint atomicity remain explicit later work.'
   );
 }
 

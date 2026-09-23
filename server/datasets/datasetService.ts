@@ -16,6 +16,9 @@ import {
 } from './types.js';
 import { parseXlsxBuffer } from './xlsxParser.js';
 import { datasetRuntimePersistence } from './datasetRuntimePersistence.js';
+import { datasetSourceStorageService } from './datasetSourceStorageService.js';
+import type { SourceObjectOrigin } from '../storage/sourceObjectTypes.js';
+import { postgresAccountRepository } from '../persistence/postgresRepositories.js';
 
 const PREVIEW_ROWS = 20;
 
@@ -519,6 +522,10 @@ export class DatasetService {
     datasetName?: string;
     description?: string;
     existingDatasetId?: string;
+    sourceOrigin?: SourceObjectOrigin;
+    externalConnectionId?: string;
+    externalId?: string;
+    externalVersion?: string;
     schemaOverrides?: Record<
       string,
       Record<string, DatasetColumnType>
@@ -535,9 +542,16 @@ export class DatasetService {
               'Supported structured-data formats are .csv and .xlsx.'
             );
           })();
+    const contentType =
+      params.mimeType ||
+      (format === 'CSV'
+        ? 'text/csv'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
     const importRun: DatasetImportRun = {
-      id: 'imp_' + crypto.randomBytes(8).toString('hex'),
+      id:
+        'imp_' +
+        crypto.randomBytes(8).toString('hex'),
       accountId: params.accountId,
       status: 'IMPORTED',
       createdAt: Date.now(),
@@ -547,58 +561,137 @@ export class DatasetService {
       warnings: [],
     };
 
+    let storedSource:
+      | Awaited<
+          ReturnType<
+            typeof datasetSourceStorageService.persistUploadedSource
+          >
+        >
+      | null = null;
+
     try {
+      await postgresAccountRepository
+        .ensureAccount(
+          params.accountId
+        );
+
+      storedSource =
+        await datasetSourceStorageService
+          .persistUploadedSource({
+            accountId: params.accountId,
+            filename: params.filename,
+            contentType,
+            bytes: params.buffer,
+            origin:
+              params.sourceOrigin,
+            externalConnectionId:
+              params.externalConnectionId,
+            externalId:
+              params.externalId,
+            externalVersion:
+              params.externalVersion,
+          });
+
       const parsedTables =
         format === 'CSV'
           ? [
               parseCsvBuffer(
                 params.buffer,
-                datasetNameFromFilename(params.filename)
+                datasetNameFromFilename(
+                  params.filename
+                )
               ),
             ]
-          : await parseXlsxBuffer(params.buffer);
+          : await parseXlsxBuffer(
+              params.buffer
+            );
 
-      const tables = parsedTables.map((parsed) =>
-        tableFromParsed(
-          parsed,
-          params.schemaOverrides?.[parsed.name]
-        )
+      const tables = parsedTables.map(
+        (parsed) =>
+          tableFromParsed(
+            parsed,
+            params.schemaOverrides?.[
+              parsed.name
+            ]
+          )
       );
       const source = sourceFor(
         params.buffer,
         params.filename,
-        params.mimeType ||
-          (format === 'CSV'
-            ? 'text/csv'
-            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        contentType,
         format
       );
 
+      if (
+        source.sha256 !==
+          storedSource.sourceVersion
+            .sha256 ||
+        source.sizeBytes !==
+          storedSource.sourceVersion
+            .sizeBytes
+      ) {
+        throw new Error(
+          'Dataset source integrity metadata does not match the durable source version.'
+        );
+      }
+
       for (const table of tables) {
-        if (table.duplicateRowCount > 0) {
+        if (
+          table.duplicateRowCount > 0
+        ) {
           importRun.warnings.push(
-            (format === 'XLSX' ? 'Sheet "' + table.name + '" contains ' : '') +
-              String(table.duplicateRowCount) +
+            (format === 'XLSX'
+              ? 'Sheet "' +
+                table.name +
+                '" contains '
+              : '') +
+              String(
+                table.duplicateRowCount
+              ) +
               ' duplicate row(s) that were preserved.'
           );
         }
       }
 
-      return await datasetRuntimePersistence.commitImportedDataset({
-        accountId: params.accountId,
-        name:
-          params.datasetName?.trim() ||
-          datasetNameFromFilename(params.filename),
-        description: params.description,
-        source,
-        tables,
-        importRun,
-        existingDatasetId: params.existingDatasetId,
-      });
+      return await datasetRuntimePersistence
+        .commitImportedDataset({
+          accountId: params.accountId,
+          name:
+            params.datasetName?.trim() ||
+            datasetNameFromFilename(
+              params.filename
+            ),
+          description:
+            params.description,
+          source,
+          sourceVersionId:
+            storedSource.sourceVersion.id,
+          tables,
+          importRun,
+          existingDatasetId:
+            params.existingDatasetId,
+        });
     } catch (error: any) {
+      if (storedSource) {
+        await datasetSourceStorageService
+          .compensate({
+            accountId:
+              params.accountId,
+            sourceObjectId:
+              storedSource.sourceObject.id,
+            sourceVersionId:
+              storedSource.sourceVersion.id,
+            storageKey:
+              storedSource.sourceVersion
+                .storageKey,
+          })
+          .catch(() => undefined);
+      }
+
       importRun.status = 'FAILED';
       importRun.error =
-        error?.message || 'Dataset import failed.';
+        error?.message ||
+        'Dataset import failed.';
       importRun.completedAt = Date.now();
       await datasetRuntimePersistence
         .recordImportRun(importRun)
@@ -646,6 +739,10 @@ export class DatasetService {
     datasetName?: string;
     description?: string;
     existingDatasetId?: string;
+    sourceOrigin?: SourceObjectOrigin;
+    externalConnectionId?: string;
+    externalId?: string;
+    externalVersion?: string;
     schemaOverrides?: Record<string, Record<string, DatasetColumnType>>;
   }) {
     if (datasetRuntimePersistence.usesPostgres()) {

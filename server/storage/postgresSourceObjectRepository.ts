@@ -225,6 +225,29 @@ export class PostgresSourceObjectRepository
       : null;
   }
 
+  async getVersionById(
+    accountId: string,
+    sourceVersionId: string
+  ): Promise<SourceVersion | null> {
+    const result =
+      await postgresPool().query(
+        `SELECT *
+         FROM source_versions
+         WHERE account_id = $1
+           AND id = $2`,
+        [
+          accountId,
+          sourceVersionId,
+        ]
+      );
+
+    return result.rowCount
+      ? versionFromRow(
+          result.rows[0]
+        )
+      : null;
+  }
+
   async getVersionForWorkspace(
     accountId: string,
     workspaceId: string,

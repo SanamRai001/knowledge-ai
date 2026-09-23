@@ -47,6 +47,7 @@ export interface DatasetVersion {
   versionNumber: number;
   createdAt: number;
   source: DatasetSource;
+  sourceVersionId?: string;
   tables: DatasetTable[];
   importRunId: string;
 }

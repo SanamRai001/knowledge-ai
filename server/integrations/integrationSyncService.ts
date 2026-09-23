@@ -713,7 +713,22 @@ export class IntegrationSyncService {
         ' external resource ' +
         record.ref.externalId +
         '.',
-      existingDatasetId: priorDataset?.internalId,
+      existingDatasetId:
+        priorDataset?.internalId,
+      sourceOrigin:
+        connection.provider ===
+        'GOOGLE_DRIVE'
+          ? 'GOOGLE_DRIVE'
+          : connection.provider ===
+              'MICROSOFT_ONEDRIVE'
+            ? 'MICROSOFT_ONEDRIVE'
+            : undefined,
+      externalConnectionId:
+        connection.id,
+      externalId:
+        record.ref.externalId,
+      externalVersion:
+        record.ref.externalVersion,
     });
 
     const importState = integrationStore.recordImport({

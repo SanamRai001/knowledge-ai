@@ -12,6 +12,9 @@ import {
   datasetRuntimePayloadStore,
 } from './datasetRuntimePayloadStore.js';
 import {
+  durableDatasetPayloadStore,
+} from './durableDatasetPayloadStore.js';
+import {
   LegacyDatasetPayloadRepository,
 } from '../persistence/legacyMetadata.js';
 import { postgresPersistenceEnabled } from '../persistence/postgres.js';
@@ -83,18 +86,76 @@ export class DatasetRuntimePersistence {
     return postgresPersistenceEnabled();
   }
 
-  private async loadPayload(
-    locator: DatasetPayloadLocator
-  ): Promise<DatasetVersion> {
-    if (locator.backend === 'local-dataset-payload') {
-      return this.runtimePayload.get(locator);
+  private async loadPayload(params: {
+    accountId: string;
+    version: DatasetVersionMetadata;
+  }): Promise<DatasetVersion> {
+    const { accountId, version } = params;
+    const locator = version.payload;
+
+    if (
+      locator.backend ===
+      'durable-dataset-payload'
+    ) {
+      const tables =
+        await durableDatasetPayloadStore.get({
+          accountId,
+          datasetId: version.datasetId,
+          versionId: version.id,
+          locator,
+        });
+
+      return {
+        id: version.id,
+        datasetId: version.datasetId,
+        versionNumber:
+          version.versionNumber,
+        createdAt: version.createdAt,
+        source: clone(version.source),
+        sourceVersionId:
+          version.sourceVersionId,
+        tables,
+        importRunId:
+          version.importRunId,
+      };
     }
-    if (locator.backend === 'legacy-dataset-json') {
-      return this.legacyPayload.get(locator);
+
+    if (
+      locator.backend ===
+      'local-dataset-payload'
+    ) {
+      return this.runtimePayload.get(
+        locator
+      );
+    }
+    if (
+      locator.backend ===
+      'legacy-dataset-json'
+    ) {
+      return this.legacyPayload.get(
+        locator
+      );
     }
     throw new Error(
       'Unsupported Dataset payload backend: ' +
         locator.backend
+    );
+  }
+
+  private async deletePayload(
+    locator: DatasetPayloadLocator
+  ): Promise<void> {
+    if (
+      locator.backend ===
+      'durable-dataset-payload'
+    ) {
+      await durableDatasetPayloadStore.delete(
+        locator
+      );
+      return;
+    }
+    await this.runtimePayload.delete(
+      locator
     );
   }
 
@@ -126,9 +187,10 @@ export class DatasetRuntimePersistence {
 
         const loadedVersions: DatasetVersion[] = [];
         for (const version of versionMetadata) {
-          const payload = await this.loadPayload(
-            version.payload
-          );
+          const payload = await this.loadPayload({
+            accountId: account.id,
+            version,
+          });
           if (
             payload.id !== version.id ||
             payload.datasetId !== metadata.id
@@ -146,7 +208,10 @@ export class DatasetRuntimePersistence {
             versionNumber: version.versionNumber,
             createdAt: version.createdAt,
             source: clone(version.source),
-            importRunId: version.importRunId,
+            sourceVersionId:
+              version.sourceVersionId,
+            importRunId:
+              version.importRunId,
           };
           loadedVersions.push(materialized);
           versions.push(materialized);
@@ -217,6 +282,7 @@ export class DatasetRuntimePersistence {
     tables: DatasetTable[];
     importRun: DatasetImportRun;
     existingDatasetId?: string;
+    sourceVersionId?: string;
   }): Promise<{
     dataset: Dataset;
     version: DatasetVersion;
@@ -290,11 +356,22 @@ export class DatasetRuntimePersistence {
       versionNumber: nextVersionNumber,
       createdAt: now,
       source: clone(params.source),
+      sourceVersionId:
+        params.sourceVersionId,
       tables: clone(params.tables),
       importRunId: params.importRun.id,
     };
 
-    const locator = await this.runtimePayload.put(version);
+    const locator =
+      params.sourceVersionId
+        ? await durableDatasetPayloadStore.put({
+            accountId:
+              params.accountId,
+            version,
+          })
+        : await this.runtimePayload.put(
+            version
+          );
 
     const metadata: DatasetMetadata = creating
       ? {
@@ -319,7 +396,10 @@ export class DatasetRuntimePersistence {
       versionNumber: version.versionNumber,
       createdAt: version.createdAt,
       source: clone(version.source),
-      importRunId: version.importRunId,
+      sourceVersionId:
+        version.sourceVersionId,
+      importRunId:
+        version.importRunId,
       payload: locator,
     };
 
@@ -334,9 +414,9 @@ export class DatasetRuntimePersistence {
         }
       );
     } catch (error) {
-      await this.runtimePayload.delete(locator).catch(
-        () => undefined
-      );
+      await this.deletePayload(
+        locator
+      ).catch(() => undefined);
       throw error;
     }
 

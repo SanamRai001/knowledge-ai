@@ -17,6 +17,7 @@ import { CSV_LIMITS, CsvParseError } from './csvParser.js';
 import { XLSX_LIMITS, XlsxParseError } from './xlsxParser.js';
 import { SchemaCorrectionError } from './schemaInference.js';
 import { DatasetColumnType } from './types.js';
+import { SourceStorageConfigurationError } from '../storage/sourceByteStorageRuntime.js';
 import { structuredKnowledgeProjectionService } from '../companyKnowledge/structuredKnowledgeProjectionService.js';
 import {
   AnalyticalQueryError,
@@ -83,6 +84,16 @@ function handleError(
   fallback: string,
   defaultStatus = 500
 ) {
+  if (
+    error instanceof
+      SourceStorageConfigurationError
+  ) {
+    res.status(503).json({
+      error: error.message,
+      code: error.code,
+    });
+    return;
+  }
   if (error instanceof RequestIdentityError) {
     res.status(error.statusCode).json({
       error: error.message,

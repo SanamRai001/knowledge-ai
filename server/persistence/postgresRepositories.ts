@@ -97,10 +97,27 @@ function versionFromRow(row: any): DatasetVersionMetadata {
       sha256: row.source_sha256,
       format: row.source_format,
     },
+    sourceVersionId:
+      row.source_version_id ?? undefined,
     importRunId: row.import_run_id,
     payload: {
       backend: row.payload_backend,
       ref: row.payload_ref,
+      storageBackend:
+        row.payload_storage_backend ??
+        undefined,
+      sizeBytes:
+        row.payload_size_bytes ===
+        null ||
+        row.payload_size_bytes ===
+        undefined
+          ? undefined
+          : Number(
+              row.payload_size_bytes
+            ),
+      sha256:
+        row.payload_sha256 ??
+        undefined,
     },
   };
 }
@@ -591,9 +608,14 @@ export class PostgresDatasetMetadataRepository
       `INSERT INTO dataset_versions
         (id, account_id, dataset_id, version_number, created_at,
          source_filename, source_mime_type, source_size_bytes,
-         source_sha256, source_format, import_run_id,
-         payload_backend, payload_ref)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+         source_sha256, source_format, source_version_id,
+         import_run_id, payload_backend, payload_ref,
+         payload_storage_backend, payload_size_bytes,
+         payload_sha256)
+       VALUES (
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+         $13,$14,$15,$16,$17
+       )`,
       [
         version.id,
         accountId,
@@ -605,9 +627,13 @@ export class PostgresDatasetMetadataRepository
         version.source.sizeBytes,
         version.source.sha256,
         version.source.format,
+        version.sourceVersionId ?? null,
         version.importRunId,
         version.payload.backend,
         version.payload.ref,
+        version.payload.storageBackend ?? null,
+        version.payload.sizeBytes ?? null,
+        version.payload.sha256 ?? null,
       ]
     );
   }
@@ -725,9 +751,14 @@ export class PostgresDatasetMetadataRepository
         `INSERT INTO dataset_versions
           (id, account_id, dataset_id, version_number, created_at,
            source_filename, source_mime_type, source_size_bytes,
-           source_sha256, source_format, import_run_id,
-           payload_backend, payload_ref)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+           source_sha256, source_format, source_version_id,
+           import_run_id, payload_backend, payload_ref,
+           payload_storage_backend, payload_size_bytes,
+           payload_sha256)
+         VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+           $13,$14,$15,$16,$17
+         )`,
         [
           params.version.id,
           params.accountId,
@@ -739,9 +770,13 @@ export class PostgresDatasetMetadataRepository
           params.version.source.sizeBytes,
           params.version.source.sha256,
           params.version.source.format,
+          params.version.sourceVersionId ?? null,
           params.version.importRunId,
           params.version.payload.backend,
           params.version.payload.ref,
+          params.version.payload.storageBackend ?? null,
+          params.version.payload.sizeBytes ?? null,
+          params.version.payload.sha256 ?? null,
         ]
       );
 

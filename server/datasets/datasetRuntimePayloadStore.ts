@@ -36,11 +36,11 @@ export class DatasetRuntimePayloadError extends Error {
 }
 
 /**
- * Temporary production payload backend for structured analytical rows.
+ * Legacy compatibility payload backend for structured analytical rows.
  *
- * PostgreSQL owns Dataset/DatasetVersion metadata in A7G. Large table rows
- * stay behind an explicit payload backend until Track C moves them to durable
- * object/analytical storage.
+ * PostgreSQL owns Dataset/DatasetVersion metadata. C5 moves new production
+ * analytical payloads to durable object storage; this file-backed repository
+ * remains readable for pre-C5 rows and development compatibility only.
  */
 export class DatasetRuntimePayloadStore
   implements DatasetPayloadRepository<DatasetVersion>

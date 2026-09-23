@@ -17,6 +17,8 @@ import {
 } from '../server/persistence/postgres.js';
 import { runPostgresMigrations } from '../server/persistence/migrationRunner.js';
 import { postgresAccountRepository } from '../server/persistence/postgresRepositories.js';
+import { setSourceByteStorageForTesting } from '../server/storage/sourceByteStorageRuntime.js';
+import { MemorySourceByteStorage } from './support/memorySourceByteStorage.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -38,6 +40,10 @@ async function main() {
   );
 
   await runPostgresMigrations();
+
+  setSourceByteStorageForTesting(
+    new MemorySourceByteStorage()
+  );
 
   await postgresPool().query(
     'TRUNCATE TABLE integration_external_imports, integration_sync_runs, integration_connections CASCADE'
@@ -437,6 +443,9 @@ async function main() {
       'All A7B production Integration operations must leave integrations.json unchanged.'
     );
   } finally {
+    setSourceByteStorageForTesting(
+      null
+    );
     await new Promise<void>((resolve) =>
       server.close(() => resolve())
     );
@@ -450,6 +459,9 @@ async function main() {
 }
 
 main().catch(async (error) => {
+  setSourceByteStorageForTesting(
+    null
+  );
   console.error('PRODUCTION_A7B_INTEGRATION_RUNTIME_CHECK_FAILED');
   console.error(error);
   await closePostgresPool();

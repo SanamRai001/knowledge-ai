@@ -14,6 +14,8 @@ import { testIntegrationConnector } from '../server/integrations/connectors/test
 import { closePostgresPool, postgresPool } from '../server/persistence/postgres.js';
 import { postgresAccountRepository } from '../server/persistence/postgresRepositories.js';
 import { runPostgresMigrations } from '../server/persistence/migrationRunner.js';
+import { setSourceByteStorageForTesting } from '../server/storage/sourceByteStorageRuntime.js';
+import { MemorySourceByteStorage } from './support/memorySourceByteStorage.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -39,6 +41,11 @@ async function main() {
   );
 
   await runPostgresMigrations();
+
+  setSourceByteStorageForTesting(
+    new MemorySourceByteStorage()
+  );
+
   await postgresPool().query(
     `TRUNCATE TABLE
       action_audit_entries,
@@ -519,6 +526,9 @@ async function main() {
       'A7D selected persistence must report PostgreSQL runtime mode.'
     );
   } finally {
+    setSourceByteStorageForTesting(
+      null
+    );
     await new Promise<void>((resolve) =>
       server.close(() => resolve())
     );
@@ -534,6 +544,9 @@ async function main() {
 }
 
 main().catch(async (error) => {
+  setSourceByteStorageForTesting(
+    null
+  );
   console.error(
     'PRODUCTION_A7D_KNOWLEDGE_ACTIONS_RUNTIME_CHECK_FAILED'
   );

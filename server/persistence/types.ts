@@ -62,6 +62,7 @@ export interface DatasetVersionMetadata {
     sha256: string;
     format: 'CSV' | 'XLSX';
   };
+  sourceVersionId?: string;
   importRunId: string;
   payload: DatasetPayloadLocator;
 }
@@ -81,6 +82,9 @@ export interface DatasetImportRunMetadata {
 export interface DatasetPayloadLocator {
   backend: string;
   ref: string;
+  storageBackend?: string;
+  sizeBytes?: number;
+  sha256?: string;
 }
 
 export interface AccountRepository {
