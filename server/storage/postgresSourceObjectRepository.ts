@@ -248,6 +248,94 @@ export class PostgresSourceObjectRepository
       : null;
   }
 
+  async findExternalObject(
+    accountId: string,
+    externalConnectionId: string,
+    externalId: string
+  ): Promise<SourceObject | null> {
+    const result =
+      await postgresPool().query(
+        `SELECT *
+         FROM source_objects
+         WHERE account_id = $1
+           AND external_connection_id = $2
+           AND external_id = $3
+           AND status = 'ACTIVE'
+         ORDER BY created_at ASC, id ASC
+         LIMIT 1`,
+        [
+          accountId,
+          externalConnectionId,
+          externalId,
+        ]
+      );
+
+    return result.rowCount
+      ? objectFromRow(result.rows[0])
+      : null;
+  }
+
+  async findExternalVersion(
+    accountId: string,
+    sourceObjectId: string,
+    externalVersion: string
+  ): Promise<SourceVersion | null> {
+    const result =
+      await postgresPool().query(
+        `SELECT *
+         FROM source_versions
+         WHERE account_id = $1
+           AND source_object_id = $2
+           AND external_version = $3
+           AND retention_state = 'ACTIVE'
+         ORDER BY created_at ASC, id ASC
+         LIMIT 1`,
+        [
+          accountId,
+          sourceObjectId,
+          externalVersion,
+        ]
+      );
+
+    return result.rowCount
+      ? versionFromRow(result.rows[0])
+      : null;
+  }
+
+  async findExternalVersionByIdentity(
+    accountId: string,
+    externalConnectionId: string,
+    externalId: string,
+    externalVersion: string
+  ): Promise<SourceVersion | null> {
+    const result =
+      await postgresPool().query(
+        `SELECT sv.*
+         FROM source_versions sv
+         JOIN source_objects so
+           ON so.account_id = sv.account_id
+          AND so.id = sv.source_object_id
+         WHERE sv.account_id = $1
+           AND so.external_connection_id = $2
+           AND so.external_id = $3
+           AND sv.external_version = $4
+           AND so.status = 'ACTIVE'
+           AND sv.retention_state = 'ACTIVE'
+         ORDER BY sv.created_at ASC, sv.id ASC
+         LIMIT 1`,
+        [
+          accountId,
+          externalConnectionId,
+          externalId,
+          externalVersion,
+        ]
+      );
+
+    return result.rowCount
+      ? versionFromRow(result.rows[0])
+      : null;
+  }
+
   async getVersionForWorkspace(
     accountId: string,
     workspaceId: string,

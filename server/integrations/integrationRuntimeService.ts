@@ -5,6 +5,7 @@ import { datasetService } from '../datasets/datasetService.js';
 import { connectorRegistry } from './connectorRegistry.js';
 import { classifyIntegrationFailure } from './integrationFailure.js';
 import { integrationPersistence } from './integrationPersistence.js';
+import { integrationSourceRecoveryService } from './integrationSourceRecoveryService.js';
 import {
   IntegrationStateError,
   publicConnection,
@@ -631,8 +632,13 @@ export class IntegrationRuntimeService {
             externalId: ref.externalId,
             externalVersion: ref.externalVersion,
           });
+          if (!state) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_IMPORT_MISSING: processed provider record has no durable external-import journal row.'
+            );
+          }
+
           if (
-            state &&
             !result.checkpointImports.some(
               (item) => item.id === state.id
             )
@@ -681,12 +687,41 @@ export class IntegrationRuntimeService {
       );
     }
 
-    const exact = await integrationPersistence.findExactImport({
+    let exact = await integrationPersistence.findExactImport({
       accountId,
       connectionId: connection.id,
       externalId: ref.externalId,
       externalVersion: ref.externalVersion,
     });
+
+    if (
+      this.usesPostgres() &&
+      exact?.internalKind === 'DATASET' &&
+      exact.internalId &&
+      exact.internalVersionId &&
+      !exact.sourceVersionId
+    ) {
+      const sourceVersionId =
+        await integrationSourceRecoveryService
+          .resolveDatasetSourceVersion({
+            accountId,
+            datasetId:
+              exact.internalId,
+            datasetVersionId:
+              exact.internalVersionId,
+          });
+
+      if (sourceVersionId) {
+        exact =
+          await integrationPersistence.updateImport(
+            accountId,
+            exact.id,
+            {
+              sourceVersionId,
+            }
+          );
+      }
+    }
 
     if (ref.deleted) {
       if (exact?.status === 'TOMBSTONE') {
@@ -739,6 +774,62 @@ export class IntegrationRuntimeService {
 
     if (exact?.status === 'INGESTED') {
       return this.finishPendingImport(accountId, exact);
+    }
+
+    if (
+      this.usesPostgres() &&
+      isStructuredFile(ref)
+    ) {
+      const recovered =
+        await integrationSourceRecoveryService
+          .recoverDatasetImport({
+            accountId,
+            connectionId:
+              connection.id,
+            externalId:
+              ref.externalId,
+            externalVersion:
+              ref.externalVersion,
+          });
+
+      if (recovered) {
+        const recoveredImport =
+          await integrationPersistence.recordImport({
+            status: 'INGESTED',
+            accountId,
+            connectionId:
+              connection.id,
+            provider:
+              connection.provider,
+            externalId:
+              ref.externalId,
+            externalVersion:
+              ref.externalVersion,
+            externalName:
+              ref.name,
+            resourceKind:
+              ref.resourceKind,
+            internalKind:
+              'DATASET',
+            internalId:
+              recovered.datasetId,
+            internalVersionId:
+              recovered.datasetVersionId,
+            sourceVersionId:
+              recovered.sourceVersionId,
+            importedAt:
+              Date.now(),
+            updatedAt:
+              Date.now(),
+            provenance:
+              provenanceFor(ref),
+          });
+
+        return this.finishPendingImport(
+          accountId,
+          recoveredImport
+        );
+      }
     }
 
     const record = await connector.fetchRecord(
@@ -794,8 +885,31 @@ export class IntegrationRuntimeService {
         ' external resource ' +
         record.ref.externalId +
         '.',
-      existingDatasetId: priorDataset?.internalId,
+      existingDatasetId:
+        priorDataset?.internalId,
+      sourceOrigin:
+        connection.provider ===
+        'GOOGLE_DRIVE'
+          ? 'GOOGLE_DRIVE'
+          : connection.provider ===
+              'MICROSOFT_ONEDRIVE'
+            ? 'MICROSOFT_ONEDRIVE'
+            : undefined,
+      externalConnectionId:
+        connection.id,
+      externalId:
+        record.ref.externalId,
+      externalVersion:
+        record.ref.externalVersion,
     });
+
+    if (!imported.version.sourceVersionId) {
+      throw new IntegrationSyncError(
+        'EXTERNAL_RECORD_INVALID',
+        500,
+        'Durable integration Dataset import completed without a source snapshot identity.'
+      );
+    }
 
     const importState = await integrationPersistence.recordImport({
       status: 'INGESTED',
@@ -809,6 +923,8 @@ export class IntegrationRuntimeService {
       internalKind: 'DATASET',
       internalId: imported.dataset.id,
       internalVersionId: imported.version.id,
+      sourceVersionId:
+        imported.version.sourceVersionId,
       importedAt: Date.now(),
       updatedAt: Date.now(),
       provenance: provenanceFor(record.ref),

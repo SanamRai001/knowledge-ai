@@ -214,6 +214,8 @@ function externalImportFromRow(row: any): ExternalImportState {
     internalKind: row.internal_kind,
     internalId: row.internal_id ?? undefined,
     internalVersionId: row.internal_version_id ?? undefined,
+    sourceVersionId:
+      row.source_version_id ?? undefined,
     knowledgeProjectionRunId:
       row.knowledge_projection_run_id ?? undefined,
     lastError: row.last_error ?? undefined,
@@ -604,15 +606,20 @@ async function saveImportWith(
     `INSERT INTO integration_external_imports
       (id, status, account_id, connection_id, provider, external_id,
        external_version, external_name, resource_kind, internal_kind,
-       internal_id, internal_version_id, knowledge_projection_run_id,
-       last_error, imported_at, updated_at, provenance)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb)
+       internal_id, internal_version_id, source_version_id,
+       knowledge_projection_run_id, last_error, imported_at,
+       updated_at, provenance)
+     VALUES (
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
+       $15,$16,$17,$18::jsonb
+     )
      ON CONFLICT (id) DO UPDATE SET
        status = EXCLUDED.status,
        external_name = EXCLUDED.external_name,
        internal_kind = EXCLUDED.internal_kind,
        internal_id = EXCLUDED.internal_id,
        internal_version_id = EXCLUDED.internal_version_id,
+       source_version_id = EXCLUDED.source_version_id,
        knowledge_projection_run_id = EXCLUDED.knowledge_projection_run_id,
        last_error = EXCLUDED.last_error,
        updated_at = EXCLUDED.updated_at,
@@ -635,6 +642,7 @@ async function saveImportWith(
       imported.internalKind,
       imported.internalId ?? null,
       imported.internalVersionId ?? null,
+      imported.sourceVersionId ?? null,
       imported.knowledgeProjectionRunId ?? null,
       imported.lastError ?? null,
       new Date(imported.importedAt),
@@ -1186,12 +1194,134 @@ export class PostgresIntegrationCheckpointRepository
       for (const imported of input.imports) {
         if (
           imported.accountId !== input.accountId ||
-          imported.connectionId !== input.connectionId
+          imported.connectionId !== input.connectionId ||
+          imported.provider !==
+            locked.rows[0].provider
         ) {
           throw new Error(
-            'External import does not belong to this checkpoint account/connection.'
+            'External import does not belong to this checkpoint account/connection/provider.'
           );
         }
+
+        if (
+          imported.status !== 'READY' &&
+          imported.status !== 'TOMBSTONE'
+        ) {
+          throw new Error(
+            'INTEGRATION_CHECKPOINT_IMPORT_NOT_READY: cursor cannot advance while a provider record is not fully committed.'
+          );
+        }
+
+        if (
+          imported.internalKind ===
+            'DATASET' &&
+          imported.status === 'READY'
+        ) {
+          if (
+            !imported.internalId ||
+            !imported.internalVersionId
+          ) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_DATASET_IDENTITY_MISSING: READY Dataset import lacks dataset/version identity.'
+            );
+          }
+
+          const datasetVersion =
+            await client.query(
+              `SELECT source_version_id
+               FROM dataset_versions
+               WHERE account_id = $1
+                 AND dataset_id = $2
+                 AND id = $3`,
+              [
+                imported.accountId,
+                imported.internalId,
+                imported.internalVersionId,
+              ]
+            );
+
+          if (!datasetVersion.rowCount) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_DATASET_MISSING: cursor cannot advance before the DatasetVersion is committed.'
+            );
+          }
+
+          const committedSourceVersionId:
+            | string
+            | undefined =
+            datasetVersion.rows[0]
+              .source_version_id ??
+            undefined;
+
+          if (committedSourceVersionId) {
+            if (
+              imported.sourceVersionId !==
+              committedSourceVersionId
+            ) {
+              throw new Error(
+                'INTEGRATION_CHECKPOINT_SOURCE_MISMATCH: external import does not reference the DatasetVersion source snapshot.'
+              );
+            }
+
+            const sourceSnapshot =
+              await client.query(
+                `SELECT 1
+                 FROM source_versions sv
+                 JOIN source_objects so
+                   ON so.account_id = sv.account_id
+                  AND so.id = sv.source_object_id
+                 WHERE sv.account_id = $1
+                   AND sv.id = $2
+                   AND sv.retention_state = 'ACTIVE'
+                   AND so.status = 'ACTIVE'
+                   AND so.kind = 'DATASET_SOURCE'`,
+                [
+                  imported.accountId,
+                  committedSourceVersionId,
+                ]
+              );
+
+            if (
+              !sourceSnapshot.rowCount
+            ) {
+              throw new Error(
+                'INTEGRATION_CHECKPOINT_SOURCE_UNAVAILABLE: cursor cannot advance without the active immutable Dataset source snapshot.'
+              );
+            }
+          }
+
+          if (!imported.knowledgeProjectionRunId) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_PROJECTION_MISSING: cursor cannot advance before the DatasetVersion projection is completed.'
+            );
+          }
+
+          const projection =
+            await client.query(
+              `SELECT 1
+               FROM knowledge_projection_runs
+               WHERE account_id = $1
+                 AND id = $2
+                 AND source_type = 'DATASET'
+                 AND source_id = $3
+                 AND source_version_id = $4
+                 AND status = 'COMPLETED'
+                 AND completed_at IS NOT NULL`,
+              [
+                imported.accountId,
+                imported.knowledgeProjectionRunId,
+                imported.internalId,
+                imported.internalVersionId,
+              ]
+            );
+
+          if (!projection.rowCount) {
+            throw new Error(
+              'INTEGRATION_CHECKPOINT_PROJECTION_MISSING: cursor cannot advance before the exact DatasetVersion projection is completed.'
+            );
+          }
+        }
+
         await saveImportWith(client, imported);
       }
 

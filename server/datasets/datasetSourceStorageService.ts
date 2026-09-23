@@ -28,6 +28,8 @@ function id(prefix: string): string {
 export interface StoredDatasetSource {
   sourceObject: SourceObject;
   sourceVersion: SourceVersion;
+  createdSourceObject: boolean;
+  createdSourceVersion: boolean;
 }
 
 export class DatasetSourceStorageService {
@@ -50,22 +52,129 @@ export class DatasetSourceStorageService {
     externalId?: string;
     externalVersion?: string;
   }): Promise<StoredDatasetSource> {
-    const sourceObjectId =
-      id('srcobj_');
-    const sourceVersionId =
-      id('srcver_');
+    const hasConnection =
+      Boolean(
+        input.externalConnectionId?.trim()
+      );
+    const hasExternalId =
+      Boolean(input.externalId?.trim());
+
+    if (hasConnection !== hasExternalId) {
+      throw new Error(
+        'External Dataset source identity requires both connection ID and external resource ID.'
+      );
+    }
+
+    if (
+      input.externalVersion &&
+      (!hasConnection || !hasExternalId)
+    ) {
+      throw new Error(
+        'External Dataset source version requires connection and external resource identity.'
+      );
+    }
+
     const sizeBytes =
       input.bytes.byteLength;
     const sha256 =
       sha256Bytes(input.bytes);
+    const storage =
+      this.storageProvider();
+
+    let sourceObject:
+      | SourceObject
+      | null = null;
+
+    if (
+      input.externalConnectionId &&
+      input.externalId
+    ) {
+      if (input.externalVersion) {
+        const exactVersion =
+          await this.repository
+            .findExternalVersionByIdentity(
+              input.accountId,
+              input.externalConnectionId,
+              input.externalId,
+              input.externalVersion
+            );
+
+        if (exactVersion) {
+          sourceObject =
+            await this.repository
+              .getObject(
+                input.accountId,
+                exactVersion.sourceObjectId
+              );
+
+          if (!sourceObject) {
+            throw new Error(
+              'External source snapshot exists without its owning SourceObject.'
+            );
+          }
+
+          if (
+            exactVersion.sizeBytes !==
+              sizeBytes ||
+            exactVersion.sha256 !==
+              sha256
+          ) {
+            throw new Error(
+              'External source version identity was reused with different bytes.'
+            );
+          }
+
+          if (
+            exactVersion.storageBackend !==
+              storage.backend
+          ) {
+            throw new Error(
+              'Configured object storage backend does not match the existing external source snapshot.'
+            );
+          }
+
+          const existingBytes =
+            await storage.get(
+              exactVersion.storageKey
+            );
+          verifySourceIntegrity({
+            bytes: existingBytes,
+            expectedSizeBytes:
+              exactVersion.sizeBytes,
+            expectedSha256:
+              exactVersion.sha256,
+          });
+
+          return {
+            sourceObject,
+            sourceVersion:
+              exactVersion,
+            createdSourceObject: false,
+            createdSourceVersion: false,
+          };
+        }
+      }
+
+      sourceObject =
+        await this.repository
+          .findExternalObject(
+            input.accountId,
+            input.externalConnectionId,
+            input.externalId
+          );
+    }
+
+    const sourceObjectId =
+      sourceObject?.id ||
+      id('srcobj_');
+    const sourceVersionId =
+      id('srcver_');
     const storageKey =
       buildSourceStorageKey({
         accountId: input.accountId,
         sourceObjectId,
         sourceVersionId,
       });
-    const storage =
-      this.storageProvider();
 
     const stored = await storage.put({
       key: storageKey,
@@ -95,33 +204,36 @@ export class DatasetSourceStorageService {
       );
     }
 
-    let sourceObject:
-      | SourceObject
-      | null = null;
+    let createdSourceObject = false;
 
     try {
       const now = Date.now();
-      sourceObject =
-        await this.repository.createObject({
-          id: sourceObjectId,
-          accountId: input.accountId,
-          kind: 'DATASET_SOURCE',
-          origin:
-            input.origin ||
-            'UPLOAD',
-          externalConnectionId:
-            input.externalConnectionId,
-          externalId:
-            input.externalId,
-          createdAt: now,
-          updatedAt: now,
-        });
+
+      if (!sourceObject) {
+        sourceObject =
+          await this.repository.createObject({
+            id: sourceObjectId,
+            accountId: input.accountId,
+            kind: 'DATASET_SOURCE',
+            origin:
+              input.origin ||
+              'UPLOAD',
+            externalConnectionId:
+              input.externalConnectionId,
+            externalId:
+              input.externalId,
+            createdAt: now,
+            updatedAt: now,
+          });
+        createdSourceObject = true;
+      }
 
       const sourceVersion =
         await this.repository.createVersion({
           id: sourceVersionId,
           accountId: input.accountId,
-          sourceObjectId,
+          sourceObjectId:
+            sourceObject.id,
           externalVersion:
             input.externalVersion,
           originalFilename:
@@ -140,13 +252,18 @@ export class DatasetSourceStorageService {
       return {
         sourceObject,
         sourceVersion,
+        createdSourceObject,
+        createdSourceVersion: true,
       };
     } catch (error) {
       await storage
         .delete(storageKey)
         .catch(() => undefined);
 
-      if (sourceObject) {
+      if (
+        createdSourceObject &&
+        sourceObject
+      ) {
         await this.repository
           .tombstoneObject(
             input.accountId,
@@ -233,6 +350,7 @@ export class DatasetSourceStorageService {
     sourceObjectId: string;
     sourceVersionId: string;
     storageKey: string;
+    tombstoneSourceObject?: boolean;
   }): Promise<void> {
     const storage =
       this.storageProvider();
@@ -259,12 +377,14 @@ export class DatasetSourceStorageService {
         )
         .catch(() => undefined);
     } finally {
-      await this.repository
-        .tombstoneObject(
-          input.accountId,
-          input.sourceObjectId
-        )
-        .catch(() => undefined);
+      if (input.tombstoneSourceObject) {
+        await this.repository
+          .tombstoneObject(
+            input.accountId,
+            input.sourceObjectId
+          )
+          .catch(() => undefined);
+      }
     }
   }
 }

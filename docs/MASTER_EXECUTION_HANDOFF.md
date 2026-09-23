@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening C6 — Integration Snapshot + Checkpoint Commit Ordering.**
+> **Continue with Production Hardening C7 — Workspace Structured State Relational Migration.**
 
 Phases 0–8 are complete.
 
@@ -1084,7 +1084,8 @@ Track A relational milestones:
 - C3 Durable Object Backend + Document Source Migration — COMPLETE, workflow `35757955890`
 - C4 Durable Derived Document Payload + Workspace Reconstruction — COMPLETE, workflow `35762662087`
 - C5 Dataset Source + Analytical Payload Migration — COMPLETE, workflow `35886051635`
-- C6 Integration Snapshot + Checkpoint Commit Ordering — NEXT
+- C6 Integration Snapshot + Checkpoint Commit Ordering — COMPLETE, workflow `35892271035`
+- C7 Workspace Structured State Relational Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1136,6 +1137,8 @@ C4 evidence: `docs/PRODUCTION_C4_DERIVED_DOCUMENT_RECONSTRUCTION.md`.
 
 C5 evidence: `docs/PRODUCTION_C5_DATASET_DURABILITY.md`.
 
+C6 evidence: `docs/PRODUCTION_C6_INTEGRATION_CHECKPOINT_HARDENING.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1184,17 +1187,19 @@ C4 now persists parsed PDF document payloads in integrity-verified durable objec
 
 C5 now persists original CSV/XLSX bytes as immutable DATASET_SOURCE SourceVersions, stores new PostgreSQL Dataset analytical payloads in integrity-verified durable object storage, links DatasetVersion metadata to source/payload integrity metadata, reconstructs current and historical analytical rows after runtime-cache loss, rejects cross-account/tampered payloads, and compensates failed source-first imports. Legacy local Dataset payloads remain compatibility-readable.
 
-Next, do **C6 only — Integration Snapshot + Checkpoint Commit Ordering**:
+C6 now binds provider external versions to immutable source snapshots, recovers crash-orphaned Dataset imports before provider refetch, carries opaque sourceVersionId through external-import state, preserves exact-version idempotency, and uses the existing transactional checkpoint boundary with stronger Dataset/source/projection prerequisites before cursor movement.
 
-1. bind provider external versions to immutable durable SourceVersions wherever integration source-byte provenance is required
-2. link external import state/provenance to those durable snapshots without exposing physical object keys
-3. keep connection/externalId/externalVersion idempotency stable across retries
-4. advance provider cursors only after all required durable imports/projections for that checkpoint are committed
-5. define crash/partial-failure outcomes so retry cannot skip an uncommitted provider record
-6. preserve PostgreSQL IntegrationConnection/SyncRun/import metadata authority
-7. preserve current lease, retry/backoff, permission-loss, cursor-reset, and reauthorization behavior
-8. preserve same-Dataset versioning and Living Knowledge projection
-9. add focused source-provenance + checkpoint crash/retry PostgreSQL proofs
-10. stop before worker/queue migration or broad Track D transaction redesign
+Next, do **C7 only — Workspace Structured State Relational Migration**:
 
-Do not migrate chat/config/evaluation structured state, workers/queues, or unrelated Track D workflows in C6.
+1. persist KnowledgeVersion metadata + durable document refs relationally
+2. persist account/workspace-scoped chat history relationally
+3. persist Specialized AI configuration relationally
+4. persist evaluation test cases and evaluation runs relationally
+5. reconstruct the workspace shell from PostgreSQL + C4 durable document payloads when `knowledge_bases.json` is absent
+6. remove production authority from legacy global active-workspace state
+7. keep file-mode development compatibility without allowing JSON to override PostgreSQL production state
+8. preserve current KB/query/chat/AI-config/evaluation/version/rollback behavior
+9. prove restart reconstruction and cross-account isolation for all migrated state
+10. stop before worker/queue, managed-secret, or broad Track D workflow work
+
+Do not revisit C3/C4 document payloads, C5 Dataset durability, C6 integration snapshots, workers/queues, or unrelated Track D workflows in C7.
