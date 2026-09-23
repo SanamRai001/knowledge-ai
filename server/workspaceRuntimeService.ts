@@ -860,13 +860,37 @@ export class WorkspaceRuntimeService {
     kbStore.addDocument(
       kbId,
       durableDocument,
-      accountId
+      accountId,
+      false
     );
-    await this.syncMetadata(
+
+    const mirrored =
       kbStore.getKB(
         kbId,
         accountId
-      )!
+      )!;
+
+    const mirroredCurrentVersion =
+      mirrored.versions.find(
+        (version) =>
+          version.isCurrent
+      ) ||
+      mirrored.versions.find(
+        (version) =>
+          version.versionTag ===
+          mirrored.currentVersion
+      );
+    if (mirroredCurrentVersion) {
+      await workspaceStructuredStateService
+        .saveVersion(
+          accountId,
+          kbId,
+          mirroredCurrentVersion
+        );
+    }
+
+    await this.syncMetadata(
+      mirrored
     );
     return durableDocument;
   }
@@ -908,7 +932,8 @@ export class WorkspaceRuntimeService {
     const removed = kbStore.removeDocument(
       kbId,
       docId,
-      accountId
+      accountId,
+      false
     );
     if (removed) {
       await this.syncMetadata(
@@ -974,13 +999,36 @@ export class WorkspaceRuntimeService {
       kbId,
       persisted?.document ||
         updatedDocument,
-      accountId
+      accountId,
+      false
     );
-    await this.syncMetadata(
+
+    const mirrored =
       kbStore.getKB(
         kbId,
         accountId
-      )!
+      )!;
+    const mirroredCurrentVersion =
+      mirrored.versions.find(
+        (version) =>
+          version.isCurrent
+      ) ||
+      mirrored.versions.find(
+        (version) =>
+          version.versionTag ===
+          mirrored.currentVersion
+      );
+    if (mirroredCurrentVersion) {
+      await workspaceStructuredStateService
+        .saveVersion(
+          accountId,
+          kbId,
+          mirroredCurrentVersion
+        );
+    }
+
+    await this.syncMetadata(
+      mirrored
     );
   }
 
