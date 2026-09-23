@@ -14,6 +14,7 @@ import {
 import type {
   SourceObjectRepository,
   SourceObject,
+  SourceObjectOrigin,
   SourceVersion,
 } from '../storage/sourceObjectTypes.js';
 
@@ -44,6 +45,10 @@ export class DatasetSourceStorageService {
     filename: string;
     contentType: string;
     bytes: Buffer;
+    origin?: SourceObjectOrigin;
+    externalConnectionId?: string;
+    externalId?: string;
+    externalVersion?: string;
   }): Promise<StoredDatasetSource> {
     const sourceObjectId =
       id('srcobj_');
@@ -101,7 +106,13 @@ export class DatasetSourceStorageService {
           id: sourceObjectId,
           accountId: input.accountId,
           kind: 'DATASET_SOURCE',
-          origin: 'UPLOAD',
+          origin:
+            input.origin ||
+            'UPLOAD',
+          externalConnectionId:
+            input.externalConnectionId,
+          externalId:
+            input.externalId,
           createdAt: now,
           updatedAt: now,
         });
@@ -111,6 +122,8 @@ export class DatasetSourceStorageService {
           id: sourceVersionId,
           accountId: input.accountId,
           sourceObjectId,
+          externalVersion:
+            input.externalVersion,
           originalFilename:
             input.filename,
           contentType:
@@ -143,6 +156,76 @@ export class DatasetSourceStorageService {
       }
       throw error;
     }
+  }
+
+  async loadSourceBytes(input: {
+    accountId: string;
+    sourceVersionId: string;
+  }): Promise<{
+    sourceVersion: SourceVersion;
+    bytes: Buffer;
+  }> {
+    const sourceVersion =
+      await this.repository
+        .getVersionById(
+          input.accountId,
+          input.sourceVersionId
+        );
+
+    if (
+      !sourceVersion ||
+      sourceVersion.retentionState !==
+        'ACTIVE'
+    ) {
+      throw new Error(
+        'Dataset source version was not found in the current account scope.'
+      );
+    }
+
+    const sourceObject =
+      await this.repository.getObject(
+        input.accountId,
+        sourceVersion.sourceObjectId
+      );
+
+    if (
+      !sourceObject ||
+      sourceObject.status !==
+        'ACTIVE' ||
+      sourceObject.kind !==
+        'DATASET_SOURCE'
+    ) {
+      throw new Error(
+        'Dataset source object is unavailable in the current account scope.'
+      );
+    }
+
+    const storage =
+      this.storageProvider();
+    if (
+      storage.backend !==
+      sourceVersion.storageBackend
+    ) {
+      throw new Error(
+        'Configured object storage backend does not match Dataset source metadata.'
+      );
+    }
+
+    const bytes = await storage.get(
+      sourceVersion.storageKey
+    );
+    verifySourceIntegrity({
+      bytes,
+      expectedSizeBytes:
+        sourceVersion.sizeBytes,
+      expectedSha256:
+        sourceVersion.sha256,
+    });
+
+    return {
+      sourceVersion,
+      bytes,
+    };
   }
 
   async compensate(input: {
