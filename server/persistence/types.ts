@@ -158,6 +158,10 @@ export interface DatasetMetadataRepository {
     datasetId: string,
     versionId: string
   ): Promise<DatasetVersionMetadata | null>;
+  findVersionBySourceVersionId(
+    accountId: string,
+    sourceVersionId: string
+  ): Promise<DatasetVersionMetadata | null>;
   listVersions(
     accountId: string,
     datasetId: string
