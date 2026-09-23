@@ -36,7 +36,6 @@ import {
 } from '../server/companyKnowledge/structuredKnowledgeRuntimeProjectionService.js';
 import type {
   ExternalImportState,
-  SyncRun,
 } from '../server/integrations/types.js';
 import {
   MemorySourceByteStorage,
