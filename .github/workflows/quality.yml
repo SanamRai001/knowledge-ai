@@ -208,6 +208,9 @@ jobs:
       - name: Production C4 derived document contract proof
         run: npm run check:production:c4-derived-document-contract
 
+      - name: Production C5 Dataset durability contract proof
+        run: npm run check:production:c5-dataset-durability-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -338,3 +341,6 @@ jobs:
 
       - name: Production C4 derived document PostgreSQL proof
         run: npm run check:production:c4-derived-document-postgres
+
+      - name: Production C5 Dataset durability PostgreSQL proof
+        run: npm run check:production:c5-dataset-durability-postgres
