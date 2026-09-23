@@ -41,6 +41,7 @@ export class IntegrationSyncError extends Error {
     | 'CONNECTION_NAME_INVALID'
     | 'UNSUPPORTED_EXTERNAL_RESOURCE'
     | 'EXTERNAL_RECORD_INVALID'
+    | 'EXTERNAL_SOURCE_VERSION_MISSING'
     | 'CURSOR_RESET_NOT_REQUIRED';
 
   constructor(
@@ -48,6 +49,7 @@ export class IntegrationSyncError extends Error {
       | 'CONNECTION_NAME_INVALID'
       | 'UNSUPPORTED_EXTERNAL_RESOURCE'
       | 'EXTERNAL_RECORD_INVALID'
+      | 'EXTERNAL_SOURCE_VERSION_MISSING'
       | 'CURSOR_RESET_NOT_REQUIRED',
     statusCode: number,
     message: string
