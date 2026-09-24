@@ -29,6 +29,8 @@ export class DiscoveryRuntimeService {
     datasetId: string;
     versionId?: string;
     referenceTime?: number;
+    analysisRunId?: string;
+    startedAt?: number;
   }): Promise<{ run: AnalysisRun; insights: Insight[] }> {
     const version = params.versionId
       ? datasetStore.getVersion(
@@ -49,21 +51,84 @@ export class DiscoveryRuntimeService {
       throw new Error('Dataset version not found.');
     }
 
-    const referenceTime = params.referenceTime || Date.now();
+    const referenceTime =
+      params.referenceTime ??
+      Date.now();
+    const startedAt =
+      params.startedAt ??
+      Date.now();
+    const runId =
+      params.analysisRunId ||
+      'anr_' +
+        crypto
+          .randomBytes(8)
+          .toString('hex');
+
+    if (params.analysisRunId) {
+      const existing =
+        await discoveryPersistence
+          .getRun(
+            params.accountId,
+            runId
+          );
+
+      if (existing) {
+        if (
+          existing.sourceType !==
+            'DATASET' ||
+          existing.datasetId !==
+            params.datasetId ||
+          existing.datasetVersionId !==
+            version.id ||
+          existing.referenceTime !==
+            referenceTime ||
+          existing.startedAt !==
+            startedAt
+        ) {
+          throw new Error(
+            'Discovery analysis run identity is already bound to different immutable source/timing metadata.'
+          );
+        }
+
+        if (
+          existing.status ===
+            'COMPLETED'
+        ) {
+          return {
+            run: existing,
+            insights:
+              await discoveryPersistence
+                .listInsights({
+                  accountId:
+                    params.accountId,
+                  datasetId:
+                    params.datasetId,
+                  runId,
+                  limit: 1000,
+                }),
+          };
+        }
+      }
+    }
+
     const run: AnalysisRun = {
-      id: 'anr_' + crypto.randomBytes(8).toString('hex'),
+      id: runId,
       accountId: params.accountId,
       sourceType: 'DATASET',
       datasetId: params.datasetId,
       datasetVersionId: version.id,
       status: 'RUNNING',
-      startedAt: Date.now(),
+      startedAt,
       referenceTime,
-      detectorIds: [...PHASE_2A_DETECTOR_IDS],
+      detectorIds: [
+        ...PHASE_2A_DETECTOR_IDS,
+      ],
       insightIds: [],
     };
 
-    await discoveryPersistence.saveRun(run);
+    await discoveryPersistence.saveRun(
+      run
+    );
 
     try {
       const effectiveView =
