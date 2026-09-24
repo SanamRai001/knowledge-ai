@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening E5 — Automation Execution/Recovery Worker Migration.**
+> **Continue with Production Hardening F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan.**
 
 Phases 0–8 are complete.
 
@@ -1093,7 +1093,8 @@ Track A relational milestones:
 - E2 PostgreSQL Worker Job Contract + Queue Foundation — COMPLETE, workflow `36015433343`
 - E3 Action Post-Commit Discovery Refresh Worker Migration — COMPLETE, workflow `36022612284`
 - E4 Integration Sync Worker Migration — COMPLETE, workflow `36029571982`
-- E5 Automation Execution/Recovery Worker Migration — NEXT
+- E5 Automation Execution/Recovery Worker Migration — COMPLETE, workflow `36035111875`
+- F1 Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1163,6 +1164,8 @@ E3 evidence: `docs/PRODUCTION_E3_ACTION_DISCOVERY_WORKER.md`.
 
 E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
 
+E5 evidence: `docs/PRODUCTION_E5_AUTOMATION_EXECUTION_WORKER.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1225,17 +1228,19 @@ E3 now moves Action-triggered post-commit Dataset Discovery refresh onto the E2 
 
 E4 now moves Integration synchronization onto the E2 durable worker runtime with deterministic connection-baseline enqueue identity, an account/connection concurrency lane, worker-only execution through the existing C6 Integration runtime, restart/replay recovery, truthful queued/job UI state, and preserved synchronous compatibility. C6 immutable source snapshots/import recovery/projection prerequisites/atomic cursor advancement remain authoritative.
 
-Next, do **E5 only — Automation Execution/Recovery Worker Migration**:
+E5 now moves Controlled Automation execution onto the E2 durable worker runtime while preserving D2 as the sole governed execution/recovery engine. Queued principals are revalidated at execution time, worker crash/restart safely replays durable D2 state without duplicate company mutation, deterministic policy outcomes remain distinct from queue transport health, and synchronous execution/manual compensation compatibility remains available.
 
-1. inventory all current request-driven Controlled Automation execution/recovery callers before changing semantics
-2. define one versioned `AUTOMATION_EXECUTION_V1` worker payload with account-scoped policy/Automation/proposal identity and minimal actor/audit metadata
-3. derive deterministic worker idempotency from the durable D2 execution identity
-4. define a conflict-safe Automation concurrency lane while retaining D2 database idempotency underneath it
-5. register a worker-only handler that invokes the existing PostgreSQL Automation runtime/recovery path
-6. preserve D2 policy revalidation + Automation execution claim + D1 Action commit + AutomationRun completion/compensation/recovery semantics unchanged
-7. add truthful queued/running/succeeded/failed/dead-letter job state and migrate callers deliberately while retaining request-driven compatibility
-8. prove worker restart/stale-lease/retry cannot apply the linked company-state mutation twice
-9. surface terminal worker failure without falsely marking the AutomationRun or Action successful
-10. preserve policy administration, manual Action confirmation, Watch, Integration/OAuth, and explicit/manual Discovery behavior
+Next, do **F1 only — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan**:
 
-Do not remove request-driven Automation compatibility before caller migration. Do not add Redis/BullMQ/managed queue infrastructure in E5.
+1. inventory all deployment/account/provider/OAuth/encryption/signing secret sources and storage locations
+2. trace create/read/update/revoke/delete/rotation flows for each secret family
+3. identify plaintext exposure risk in logs, APIs, worker payloads, PostgreSQL metadata, backups, and runtime/source files
+4. audit current local encryption key origin/storage/restart/rotation/multi-replica behavior
+5. separate deployment-injected secrets from account-scoped managed credentials
+6. define provider-neutral SecretStore/KMS contracts and metadata-vs-secret boundaries without selecting a vendor SDK
+7. define migration/rollback for existing persisted Integration OAuth credentials and any other local encrypted secrets
+8. define rotation, deletion/revocation, audit, and secret-backend outage semantics
+9. add an executable secret-boundary proof
+10. produce the exact F2 managed-secret implementation slice from evidence
+
+Do not add a cloud secret-manager SDK or migrate credentials in F1. Preserve current product/OAuth/API-key behavior during the audit.
