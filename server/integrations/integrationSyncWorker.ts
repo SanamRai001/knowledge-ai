@@ -768,6 +768,70 @@ export async function handleIntegrationSyncJob(
     );
   }
 
+  if (link.syncRunId) {
+    const linkedRun =
+      await integrationPersistence
+        .getSyncRun(
+          job.accountId,
+          link.syncRunId
+        );
+
+    if (linkedRun?.status === 'COMPLETED') {
+      return;
+    }
+
+    if (linkedRun?.status === 'FAILED') {
+      throw new WorkerJobHandlerError(
+        linkedRun.error ||
+          'The linked Integration SyncRun already failed.',
+        false
+      );
+    }
+
+    if (linkedRun?.status === 'RUNNING') {
+      const linkedConnection =
+        await integrationPersistence
+          .requireConnection(
+            job.accountId,
+            payload.connectionId
+          );
+      const now = Date.now();
+
+      if (
+        linkedConnection.syncLeaseExpiresAt &&
+        linkedConnection.syncLeaseExpiresAt >
+          now
+      ) {
+        throw new WorkerJobHandlerError(
+          'The linked Integration SyncRun is still owned by an active sync lease.',
+          true,
+          Math.max(
+            5_000,
+            linkedConnection.syncLeaseExpiresAt -
+              now +
+              1_000
+          )
+        );
+      }
+
+      await integrationPersistence
+        .updateSyncRun(
+          job.accountId,
+          linkedRun.id,
+          {
+            status: 'FAILED',
+            completedAt: now,
+            retryable: true,
+            failureCategory:
+              'TRANSIENT',
+            nextRetryAt: undefined,
+            error:
+              'Worker restart recovered an orphaned RUNNING Integration SyncRun after its sync lease expired.',
+          }
+        );
+    }
+  }
+
   const alreadyCompleted =
     await completedRunAfterBaseline({
       accountId:
