@@ -187,11 +187,12 @@ async function main() {
       .sort()
       .join(',') ===
       [
+        'AUTOMATION_EXECUTION',
         'DISCOVERY_ANALYSIS',
         'INTEGRATION_SYNC',
         'WATCH_EVALUATION',
       ].join(','),
-    'E1 historical role proof must accept the later E3 Discovery and E4 Integration worker migrations while keeping autonomous ownership explicit.'
+    'E1 historical role proof must accept the later E3 Discovery, E4 Integration, and E5 Automation worker migrations while keeping autonomous ownership explicit.'
   );
 
   const byId = new Map(
@@ -208,11 +209,11 @@ async function main() {
       byId.get(
         'AUTOMATION_EXECUTION'
       )?.executionModel ===
-        'REQUEST_DRIVEN' &&
+        'AUTONOMOUS_LOOP' &&
       byId.get(
         'AUTOMATION_EXECUTION'
       )?.e1Owner ===
-        'REQUEST_PATH' &&
+        'WORKER' &&
       byId.get(
         'DISCOVERY_ANALYSIS'
       )?.executionModel ===
@@ -221,7 +222,7 @@ async function main() {
         'DISCOVERY_ANALYSIS'
       )?.e1Owner ===
         'WORKER',
-    'E1 historical role proof must accept E3 Discovery and E4 Integration worker ownership while preserving Automation request ownership.'
+    'E1 historical role proof must accept E3 Discovery, E4 Integration, and E5 Automation worker ownership.'
   );
 
   const server = read('server.ts');
@@ -265,12 +266,18 @@ async function main() {
         'SELECT 1 FROM action_execution_discovery_jobs'
       ) &&
       worker.includes(
+        'SELECT 1 FROM integration_sync_worker_jobs'
+      ) &&
+      worker.includes(
+        'SELECT 1 FROM automation_execution_worker_jobs'
+      ) &&
+      worker.includes(
         "process.once('SIGTERM'"
       ) &&
       worker.includes(
         "process.once('SIGINT'"
       ),
-    'Dedicated worker entrypoint must fail closed on role/persistence/E1-E3 schemas and own graceful worker startup/shutdown.'
+    'Dedicated worker entrypoint must fail closed on role/persistence/E1-E5 schemas and own graceful worker startup/shutdown.'
   );
 
   const scheduler = read(
