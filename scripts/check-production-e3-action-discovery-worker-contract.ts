@@ -54,18 +54,19 @@ async function main() {
     );
   }
 
-  const enqueueIndex =
-    worker.indexOf(
-      'enqueueWorkerJobWithClient'
-    );
-  const linkIndex =
-    worker.indexOf(
-      'linkExecutionDiscoveryJobWithClient',
-      enqueueIndex
-    );
   const transactionIndex =
     worker.indexOf(
       'return withTransaction('
+    );
+  const enqueueIndex =
+    worker.indexOf(
+      'await enqueueWorkerJobWithClient(',
+      transactionIndex
+    );
+  const linkIndex =
+    worker.indexOf(
+      'await linkExecutionDiscoveryJobWithClient(',
+      enqueueIndex
     );
   assert(
     transactionIndex >= 0 &&
