@@ -10,7 +10,6 @@ import {
 import {
   WorkerJobHandlerError,
   WorkerJobLeaseError,
-  type WorkerJob,
 } from './workerJobTypes.js';
 
 const DEFAULT_TICK_MS = 5_000;
@@ -59,7 +58,7 @@ export class WorkerJobRuntime {
     leaseMs?: number;
     maxJobs?: number;
   }): Promise<WorkerJobRuntimeCycleResult> {
-    const now =
+    const recoveryNow =
       params?.now ?? Date.now();
     const leaseMs = Math.max(
       5_000,
@@ -98,7 +97,7 @@ export class WorkerJobRuntime {
 
     const recovered =
       await this.repository.recoverStale({
-        now,
+        now: recoveryNow,
         jobTypes,
       });
     result.recoveredJobIds =
@@ -111,11 +110,13 @@ export class WorkerJobRuntime {
       index < maxJobs;
       index += 1
     ) {
+      const claimNow =
+        params?.now ?? Date.now();
       const job =
         await this.repository.claim({
           workerId: this.workerId,
           leaseMs,
-          now,
+          now: claimNow,
           jobTypes,
         });
 
@@ -145,7 +146,9 @@ export class WorkerJobRuntime {
               job.jobType +
               '.',
             retryable: false,
-            now,
+            now:
+              params?.now ??
+              Date.now(),
           });
 
         result.failedJobIds.push(
