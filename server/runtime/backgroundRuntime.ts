@@ -13,6 +13,9 @@ import {
   workerJobRuntime,
   type WorkerJobRuntime,
 } from '../worker/workerJobRuntime.js';
+import {
+  registerActionDiscoveryWorkerHandler,
+} from '../actions/actionDiscoveryWorker.js';
 
 type WorkerLoop = Pick<
   WatchRuntimeScheduler,
@@ -54,6 +57,8 @@ export class BackgroundRuntime {
     }
 
     if (!this.started) {
+      registerActionDiscoveryWorkerHandler();
+
       this.watchLoop.start({
         keepProcessAlive:
           options?.keepProcessAlive,
