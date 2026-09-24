@@ -15,6 +15,12 @@ import {
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import { googleDriveOAuthService } from './googleDriveOAuthService.js';
 import { microsoftOneDriveOAuthService } from './microsoftOneDriveOAuthService.js';
+import {
+  enqueueIntegrationSyncJob,
+  getIntegrationSyncJob,
+  integrationSyncJobRun,
+  listIntegrationSyncJobs,
+} from './integrationSyncWorker.js';
 
 export const integrationRouter = express.Router();
 
@@ -28,6 +34,53 @@ function limitFrom(value: unknown, fallback: number): number {
   if (typeof value !== 'string') return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function integrationRequestedBy(
+  requestIdentity: RequestIdentity
+): string {
+  if (
+    requestIdentity.source ===
+      'HUMAN_SESSION' &&
+    requestIdentity.userId
+  ) {
+    return (
+      'user:' +
+      requestIdentity.userId
+    );
+  }
+
+  if (
+    requestIdentity.source ===
+      'API_KEY' &&
+    requestIdentity.apiKeyId
+  ) {
+    return (
+      'api-key:' +
+      requestIdentity.apiKeyId
+    );
+  }
+
+  return 'default-web';
+}
+
+function requireIntegrationWorkerQueue(
+  res: express.Response
+): boolean {
+  if (
+    integrationRuntimeService
+      .usesPostgres()
+  ) {
+    return true;
+  }
+
+  res.status(409).json({
+    error:
+      'Queued Integration sync requires PostgreSQL worker runtime. Use the synchronous compatibility route in file-mode development.',
+    code:
+      'INTEGRATION_WORKER_QUEUE_REQUIRES_POSTGRES',
+  });
+  return false;
 }
 
 function wantsHtml(req: express.Request): boolean {
@@ -381,6 +434,134 @@ integrationRouter.get('/connections/:id/imports', async (req, res) => {
     handleError(res, error);
   }
 });
+
+integrationRouter.post(
+  '/connections/:id/sync-jobs',
+  async (req, res) => {
+    try {
+      if (
+        !requireIntegrationWorkerQueue(
+          res
+        )
+      ) {
+        return;
+      }
+
+      const requestIdentity =
+        identity(res);
+      const job =
+        await enqueueIntegrationSyncJob({
+          accountId:
+            requestIdentity.accountId,
+          connectionId:
+            req.params.id,
+          requestedBy:
+            integrationRequestedBy(
+              requestIdentity
+            ),
+        });
+
+      res.status(202).json({
+        job,
+        run: null,
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/connections/:id/sync-jobs',
+  async (req, res) => {
+    try {
+      if (
+        !requireIntegrationWorkerQueue(
+          res
+        )
+      ) {
+        return;
+      }
+
+      const { accountId } =
+        identity(res);
+      await integrationRuntimeService
+        .getConnection(
+          accountId,
+          req.params.id
+        );
+
+      res.json({
+        jobs:
+          await listIntegrationSyncJobs({
+            accountId,
+            connectionId:
+              req.params.id,
+            limit: limitFrom(
+              req.query.limit,
+              40
+            ),
+          }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+integrationRouter.get(
+  '/connections/:id/sync-jobs/:jobId',
+  async (req, res) => {
+    try {
+      if (
+        !requireIntegrationWorkerQueue(
+          res
+        )
+      ) {
+        return;
+      }
+
+      const { accountId } =
+        identity(res);
+      await integrationRuntimeService
+        .getConnection(
+          accountId,
+          req.params.id
+        );
+
+      const job =
+        await getIntegrationSyncJob({
+          accountId,
+          connectionId:
+            req.params.id,
+          jobId:
+            req.params.jobId,
+        });
+
+      if (!job) {
+        res.status(404).json({
+          error:
+            'Integration sync job was not found in the current account/connection scope.',
+          code:
+            'INTEGRATION_SYNC_JOB_NOT_FOUND',
+        });
+        return;
+      }
+
+      res.json({
+        job,
+        run:
+          await integrationSyncJobRun({
+            accountId,
+            syncRunId:
+              job.syncRunId,
+          }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
 
 integrationRouter.post('/connections/:id/sync', async (req, res) => {
   try {

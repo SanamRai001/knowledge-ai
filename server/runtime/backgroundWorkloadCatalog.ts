@@ -37,13 +37,13 @@ export const BACKGROUND_WORKLOAD_CATALOG:
     {
       id: 'INTEGRATION_SYNC',
       executionModel:
-        'REQUEST_DRIVEN',
+        'AUTONOMOUS_LOOP',
       durableState:
-        'PostgreSQL integration sync runs/import journal/checkpoint state',
+        'PostgreSQL worker_jobs + integration_sync_worker_jobs + integration sync runs/import journal/checkpoint state',
       claimOrLease:
-        'per-connection PostgreSQL sync lease',
-      e1Owner: 'REQUEST_PATH',
-      futureQueueCandidate: true,
+        'E2 worker_jobs fenced lease + account/connection concurrency lane + C6 per-connection PostgreSQL sync lease',
+      e1Owner: 'WORKER',
+      futureQueueCandidate: false,
     },
     {
       id: 'AUTOMATION_EXECUTION',

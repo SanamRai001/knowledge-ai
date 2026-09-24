@@ -122,3 +122,27 @@ export interface ExternalImportRecord {
     webUrl?: string;
   };
 }
+
+export type IntegrationSyncJobStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'DEAD_LETTER';
+
+export interface IntegrationSyncJob {
+  id: string;
+  connectionId: string;
+  status: IntegrationSyncJobStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
+  requestedAt: number;
+  requestedBy?: string;
+  syncRunId?: string;
+}

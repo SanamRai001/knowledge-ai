@@ -41,6 +41,9 @@ async function startWorker() {
   await postgresPool().query(
     'SELECT 1 FROM action_execution_discovery_jobs LIMIT 1'
   );
+  await postgresPool().query(
+    'SELECT 1 FROM integration_sync_worker_jobs LIMIT 1'
+  );
 
   const started =
     backgroundRuntime.startForRole(

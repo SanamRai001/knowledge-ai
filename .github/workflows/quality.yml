@@ -235,6 +235,9 @@ jobs:
       - name: Production E3 Action Discovery worker contract proof
         run: npm run check:production:e3-action-discovery-worker-contract
 
+      - name: Production E4 Integration sync worker contract proof
+        run: npm run check:production:e4-integration-sync-worker-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -389,3 +392,6 @@ jobs:
 
       - name: Production E3 Action Discovery worker PostgreSQL proof
         run: npm run check:production:e3-action-discovery-worker-postgres
+
+      - name: Production E4 Integration sync worker PostgreSQL proof
+        run: npm run check:production:e4-integration-sync-worker-postgres

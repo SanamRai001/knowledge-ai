@@ -184,7 +184,8 @@ The implementation sequence is deliberately split into small slices:
 29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — COMPLETE, workflow `35950002619`
 30. **E2 — PostgreSQL Worker Job Contract + Queue Foundation** — COMPLETE, workflow `36015433343`
 31. **E3 — Action Post-Commit Discovery Refresh Worker Migration** — COMPLETE, workflow `36022612284`
-32. **E4 — Integration Sync Worker Migration** — NEXT
+32. **E4 — Integration Sync Worker Migration** — COMPLETE, workflow `36029571982`
+33. **E5 — Automation Execution/Recovery Worker Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -247,6 +248,8 @@ E1 evidence: `docs/PRODUCTION_E1_WORKER_RUNTIME_SEPARATION.md`.
 E2 evidence: `docs/PRODUCTION_E2_WORKER_JOB_FOUNDATION.md`.
 
 E3 evidence: `docs/PRODUCTION_E3_ACTION_DISCOVERY_WORKER.md`.
+
+E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -726,24 +729,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening E4 — Integration Sync Worker Migration**
+**Production Hardening E5 — Automation Execution/Recovery Worker Migration**
 
-Keep E4 limited to Integration synchronization execution. Preserve OAuth connection lifecycle, Integration administration, and the C6 source/checkpoint transaction semantics.
+Keep E5 limited to Controlled Automation execution/recovery. Preserve D1/D2 as the authoritative Action + Automation transaction/recovery boundary.
 
-The current `POST /api/integrations/connections/:id/sync` contract is synchronous and returns a completed/failed SyncRun. Do not silently change that response contract before auditing and migrating its callers.
+1. inventory every current caller of request-driven Controlled Automation execution/recovery before changing response semantics
+2. define one versioned `AUTOMATION_EXECUTION_V1` worker payload containing only account-scoped Automation/policy/proposal identity plus minimal actor/audit metadata
+3. derive deterministic idempotency from the durable Automation execution identity so request replay cannot create duplicate logical execution work
+4. choose a concurrency lane that prevents conflicting worker execution for the same governed Automation/action while preserving D2 database idempotency underneath it
+5. register one worker-only handler that invokes the existing PostgreSQL Automation runtime/recovery path instead of reimplementing policy or Action mutation logic
+6. preserve D2 policy revalidation, AutomationRun execution claim, D1 Action transaction, AutomationRun completion, compensation, and restart recovery semantics unchanged inside the worker execution
+7. expose truthful queued/running/succeeded/failed/dead-letter Automation job state and migrate product/API callers deliberately; keep current synchronous/request-driven compatibility until callers are verified
+8. prove stale-lease/restart/retry recovery cannot execute the governed company-state mutation twice
+9. surface terminal worker failure without falsely marking the AutomationRun or linked Action as successfully applied
+10. preserve Automation policy administration, manual Action confirmation, Watch evaluation, Integration sync, OAuth/admin flows, and explicit/manual Discovery semantics
 
-1. inventory every current caller of the synchronous Integration sync endpoint and document the compatibility contract before changing request behavior
-2. define one versioned `INTEGRATION_SYNC_V1` worker-job payload carrying only account-scoped connection identity plus the minimal request/actor/reference metadata needed for auditability
-3. use an account + connection concurrency key so at most one worker sync owns a connection at a time; preserve the existing PostgreSQL sync lease as a second correctness boundary
-4. define deterministic/idempotent enqueue semantics so request replay does not create duplicate logical sync work
-5. register one worker-only handler that invokes the existing PostgreSQL `integrationRuntimeService.sync(...)` path rather than duplicating connector/import/checkpoint business logic
-6. preserve C6 immutable provider source snapshots, external-import recovery, exact DatasetVersion/source linkage, projection prerequisites, and atomic cursor advancement unchanged inside the worker execution
-7. introduce a truthful asynchronous job/run surface for queued/running/succeeded/failed/dead-letter sync work and migrate product callers deliberately; retain the existing synchronous sync path as compatibility until its callers are explicitly cut over
-8. prove worker restart/stale-lease recovery cannot duplicate Dataset imports or advance a provider cursor twice
-9. surface terminal worker failure through inspectable job + Integration sync health metadata without corrupting the last committed checkpoint
-10. preserve OAuth connect/callback/disconnect, pause/resume/reset-cursor, Automation execution, and manual Discovery semantics; do not migrate them in E4
-
-Do not introduce Redis/BullMQ/managed queue infrastructure in E4. Do not remove the synchronous Integration sync contract until all current callers are verified and migrated.
+Do not introduce Redis/BullMQ/managed queue infrastructure in E5. Do not remove synchronous/request-driven Automation compatibility before caller migration.
 ---
 
 # Track A closure note

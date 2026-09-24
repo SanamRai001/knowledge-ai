@@ -64,9 +64,19 @@ function main() {
 
   assert(
     workspace.includes('/api/integrations/connections') &&
-      workspace.includes("action: 'sync' | 'pause' | 'resume' | 'reset-cursor'") &&
-      workspace.includes("'/api/integrations/connections/' + connection.id + '/' + action"),
-    'Integrations UI must be backed by persisted connection lifecycle APIs.'
+      workspace.includes(
+        "'/sync-jobs'"
+      ) &&
+      workspace.includes(
+        'INTEGRATION_WORKER_QUEUE_REQUIRES_POSTGRES'
+      ) &&
+      workspace.includes(
+        "action: 'sync' | 'pause' | 'resume' | 'reset-cursor'"
+      ) &&
+      workspace.includes(
+        "'/api/integrations/connections/' +\n              connection.id +\n              '/' +\n              action"
+      ),
+    'Integrations UI must queue production sync work while preserving persisted lifecycle APIs and file-mode sync compatibility.'
   );
 
   assert(
@@ -89,13 +99,18 @@ function main() {
   );
 
   assert(
-    workspace.includes('/runs?limit=40') &&
+    workspace.includes('/sync-jobs?limit=40') &&
+      workspace.includes('/runs?limit=40') &&
       workspace.includes('/imports?limit=80') &&
+      workspace.includes('Sync jobs') &&
       workspace.includes('Sync runs') &&
       workspace.includes('External sources') &&
+      workspace.includes('PENDING') &&
+      workspace.includes('RUNNING') &&
+      workspace.includes('DEAD_LETTER') &&
       workspace.includes('provenance.externalId') &&
       workspace.includes('provenance.externalVersion'),
-    'Integrations UI must expose sync-run history and external source/version provenance.'
+    'Integrations UI must expose truthful worker-job state, sync-run history, and external source/version provenance.'
   );
 
   assert(

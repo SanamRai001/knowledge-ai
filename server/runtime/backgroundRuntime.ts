@@ -16,6 +16,9 @@ import {
 import {
   registerActionDiscoveryWorkerHandler,
 } from '../actions/actionDiscoveryWorker.js';
+import {
+  registerIntegrationSyncWorkerHandler,
+} from '../integrations/integrationSyncWorker.js';
 
 type WorkerLoop = Pick<
   WatchRuntimeScheduler,
@@ -58,6 +61,7 @@ export class BackgroundRuntime {
 
     if (!this.started) {
       registerActionDiscoveryWorkerHandler();
+      registerIntegrationSyncWorkerHandler();
 
       this.watchLoop.start({
         keepProcessAlive:

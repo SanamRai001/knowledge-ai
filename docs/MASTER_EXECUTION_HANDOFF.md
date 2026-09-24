@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening E4 — Integration Sync Worker Migration.**
+> **Continue with Production Hardening E5 — Automation Execution/Recovery Worker Migration.**
 
 Phases 0–8 are complete.
 
@@ -1092,7 +1092,8 @@ Track A relational milestones:
 - E1 Worker/Queue Forensic Audit + Runtime Separation Foundation — COMPLETE, workflow `35950002619`
 - E2 PostgreSQL Worker Job Contract + Queue Foundation — COMPLETE, workflow `36015433343`
 - E3 Action Post-Commit Discovery Refresh Worker Migration — COMPLETE, workflow `36022612284`
-- E4 Integration Sync Worker Migration — NEXT
+- E4 Integration Sync Worker Migration — COMPLETE, workflow `36029571982`
+- E5 Automation Execution/Recovery Worker Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1160,6 +1161,8 @@ E2 evidence: `docs/PRODUCTION_E2_WORKER_JOB_FOUNDATION.md`.
 
 E3 evidence: `docs/PRODUCTION_E3_ACTION_DISCOVERY_WORKER.md`.
 
+E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1220,17 +1223,19 @@ D3 now links each scheduled evaluation to its claimed WatchJob, enforces one eva
 
 E3 now moves Action-triggered post-commit Dataset Discovery refresh onto the E2 durable worker runtime. Action confirmation commits first through D1/D2; enqueue + Action execution linkage is atomic, job/analysis identities are deterministic, worker restart/retry cannot replay the business mutation, successful runs append downstream analysis IDs, terminal failures dead-letter and append downstream warnings, and explicit/manual Discovery remains synchronous.
 
-Next, do **E4 only — Integration Sync Worker Migration**:
+E4 now moves Integration synchronization onto the E2 durable worker runtime with deterministic connection-baseline enqueue identity, an account/connection concurrency lane, worker-only execution through the existing C6 Integration runtime, restart/replay recovery, truthful queued/job UI state, and preserved synchronous compatibility. C6 immutable source snapshots/import recovery/projection prerequisites/atomic cursor advancement remain authoritative.
 
-1. inventory all callers of the current synchronous `POST /api/integrations/connections/:id/sync` contract before changing request semantics
-2. define one versioned `INTEGRATION_SYNC_V1` worker payload with account-scoped connection identity and minimal audit/reference metadata
-3. use account + connection as the worker concurrency lane and retain the existing PostgreSQL sync lease underneath it
-4. make enqueue deterministic/idempotent so client retries do not create duplicate logical sync work
-5. register one worker-only handler that calls the existing PostgreSQL `integrationRuntimeService.sync(...)` path
-6. preserve C6 provider snapshots, import recovery, projection prerequisites, and atomic cursor advancement unchanged
-7. add a truthful queued/running/succeeded/failed/dead-letter sync job/run surface and deliberately migrate product callers; keep the existing synchronous path as compatibility until callers are cut over
-8. prove stale-lease/restart recovery cannot duplicate Dataset versions/imports or advance the provider cursor twice
-9. surface terminal worker failure in durable job + Integration health metadata without corrupting the last committed checkpoint
-10. preserve OAuth lifecycle/admin routes, pause/resume/reset-cursor, Automation execution, and manual Discovery behavior
+Next, do **E5 only — Automation Execution/Recovery Worker Migration**:
 
-Do not remove the synchronous Integration sync contract before caller migration. Do not add Redis/BullMQ/managed queue infrastructure in E4.
+1. inventory all current request-driven Controlled Automation execution/recovery callers before changing semantics
+2. define one versioned `AUTOMATION_EXECUTION_V1` worker payload with account-scoped policy/Automation/proposal identity and minimal actor/audit metadata
+3. derive deterministic worker idempotency from the durable D2 execution identity
+4. define a conflict-safe Automation concurrency lane while retaining D2 database idempotency underneath it
+5. register a worker-only handler that invokes the existing PostgreSQL Automation runtime/recovery path
+6. preserve D2 policy revalidation + Automation execution claim + D1 Action commit + AutomationRun completion/compensation/recovery semantics unchanged
+7. add truthful queued/running/succeeded/failed/dead-letter job state and migrate callers deliberately while retaining request-driven compatibility
+8. prove worker restart/stale-lease/retry cannot apply the linked company-state mutation twice
+9. surface terminal worker failure without falsely marking the AutomationRun or Action successful
+10. preserve policy administration, manual Action confirmation, Watch, Integration/OAuth, and explicit/manual Discovery behavior
+
+Do not remove request-driven Automation compatibility before caller migration. Do not add Redis/BullMQ/managed queue infrastructure in E5.
