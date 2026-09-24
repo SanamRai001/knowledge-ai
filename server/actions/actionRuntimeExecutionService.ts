@@ -496,11 +496,38 @@ export class ActionRuntimeExecutionService {
     execution: ActionExecution;
     idempotentReplay?: boolean;
   }): Promise<ActionExecution> {
-    const datasetIds =
-      await this.collectDownstreamDatasetIds({
-        accountId: params.accountId,
-        proposal: params.proposal,
-      });
+    let datasetIds: string[] = [];
+    try {
+      datasetIds =
+        await this.collectDownstreamDatasetIds({
+          accountId:
+            params.accountId,
+          proposal:
+            params.proposal,
+        });
+    } catch (error: any) {
+      await postgresActionRepository
+        .appendExecutionWarning({
+          accountId:
+            params.accountId,
+          executionId:
+            params.execution.id,
+          warning:
+            'Discovery refresh planning failed after Action commit: ' +
+            (error?.message ||
+              'unknown error'),
+        })
+        .catch(() => undefined);
+
+      return (
+        (await postgresActionRepository
+          .getExecution(
+            params.accountId,
+            params.execution.id
+          )) ||
+        params.execution
+      );
+    }
 
     for (const datasetId of datasetIds) {
       try {
