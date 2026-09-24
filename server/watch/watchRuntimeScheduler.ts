@@ -277,6 +277,7 @@ export class WatchRuntimeScheduler {
     tickMs?: number;
     leaseMs?: number;
     maxJobs?: number;
+    keepProcessAlive?: boolean;
   }): void {
     if (!watchPersistence.usesPostgres()) {
       watchScheduler.start(params);
@@ -300,7 +301,9 @@ export class WatchRuntimeScheduler {
 
     run();
     this.timer = setInterval(run, tickMs);
-    this.timer.unref?.();
+    if (!params?.keepProcessAlive) {
+      this.timer.unref?.();
+    }
   }
 
   public stop(): void {
