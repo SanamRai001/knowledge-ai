@@ -16,6 +16,10 @@ import type {
   IntegrationCheckpointCommitInput,
   IntegrationCheckpointRepository,
   IntegrationRepository,
+  WatchJobEvaluationCommitInput,
+  WatchJobEvaluationCommitResult,
+  WatchJobTerminalFailureCommitInput,
+  WatchJobTerminalFailureCommitResult,
   WatchRepository,
 } from './a4Types.js';
 
@@ -36,6 +40,25 @@ function date(value: number | undefined): Date | null {
 
 function json(value: unknown): string {
   return JSON.stringify(value);
+}
+
+export class PostgresWatchTransactionError
+  extends Error
+{
+  constructor(
+    public readonly code:
+      | 'WATCH_JOB_NOT_FOUND'
+      | 'WATCH_JOB_NOT_CLAIMED'
+      | 'WATCH_JOB_RULE_STALE'
+      | 'WATCH_JOB_RULE_STATE_CHANGED'
+      | 'WATCH_JOB_EVALUATION_INVALID',
+    public readonly statusCode: number,
+    message: string
+  ) {
+    super(message);
+    this.name =
+      'PostgresWatchTransactionError';
+  }
 }
 
 function watchRuleFromRow(row: any): WatchRule {
@@ -82,6 +105,7 @@ function watchEvaluationFromRow(row: any): WatchEvaluation {
   return {
     id: row.id,
     accountId: row.account_id,
+    jobId: row.job_id ?? undefined,
     watchRuleId: row.watch_rule_id,
     ruleVersion: row.rule_version,
     status: row.status,
@@ -336,12 +360,13 @@ async function saveEvaluationWith(
 ): Promise<void> {
   const result = await client.query(
     `INSERT INTO watch_evaluations
-      (id, account_id, watch_rule_id, rule_version, status,
+      (id, account_id, job_id, watch_rule_id, rule_version, status,
        condition_matched, observed_value, comparison_operator, threshold,
        previous_condition_state, next_condition_state, evidence,
        evaluated_at, error)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15)
      ON CONFLICT (id) DO UPDATE SET
+       job_id = EXCLUDED.job_id,
        status = EXCLUDED.status,
        condition_matched = EXCLUDED.condition_matched,
        observed_value = EXCLUDED.observed_value,
@@ -358,6 +383,7 @@ async function saveEvaluationWith(
     [
       evaluation.id,
       evaluation.accountId,
+      evaluation.jobId ?? null,
       evaluation.watchRuleId,
       evaluation.ruleVersion,
       evaluation.status,
