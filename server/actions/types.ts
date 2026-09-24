@@ -102,6 +102,7 @@ export interface ActionExecution {
   automationPolicyVersion?: number;
   claimIds: string[];
   eventIds: string[];
+  downstreamDiscoveryJobIds?: string[];
   downstreamAnalysisRunIds?: string[];
   downstreamWarnings?: string[];
   executedAt: number;
