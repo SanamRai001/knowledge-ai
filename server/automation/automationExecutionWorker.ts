@@ -507,6 +507,37 @@ export async function enqueueAutomationExecutionJob(
           throw error;
         }
 
+        const completedExecution =
+          await client.query(
+            `SELECT l.worker_job_id
+             FROM automation_execution_worker_jobs l
+             JOIN worker_jobs j
+               ON j.account_id =
+                    l.account_id
+              AND j.id =
+                    l.worker_job_id
+             WHERE l.account_id = $1
+               AND l.proposal_id = $2
+               AND l.action_execution_id IS NOT NULL
+               AND j.status = 'SUCCEEDED'
+             ORDER BY
+               j.completed_at DESC,
+               j.id DESC
+             LIMIT 1`,
+            [
+              input.accountId,
+              input.proposalId,
+            ]
+          );
+
+        if (completedExecution.rowCount) {
+          return {
+            jobId:
+              completedExecution.rows[0]
+                .worker_job_id,
+          };
+        }
+
         const active =
           await client.query(
             `SELECT l.worker_job_id
