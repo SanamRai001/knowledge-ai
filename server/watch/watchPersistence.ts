@@ -1,6 +1,12 @@
 import crypto from 'crypto';
 import { postgresPersistenceEnabled } from '../persistence/postgres.js';
 import { postgresWatchRepository } from '../persistence/a4PostgresRepositories.js';
+import type {
+  WatchJobEvaluationCommitInput,
+  WatchJobEvaluationCommitResult,
+  WatchJobTerminalFailureCommitInput,
+  WatchJobTerminalFailureCommitResult,
+} from '../persistence/a4Types.js';
 import { postgresAccountRepository } from '../persistence/postgresRepositories.js';
 import {
   WatchAccessError,
@@ -625,6 +631,30 @@ export class WatchPersistence {
       });
     }
     return postgresWatchRepository.claimReadyJob(params);
+  }
+
+  public async commitClaimedJobEvaluation(
+    input: WatchJobEvaluationCommitInput
+  ): Promise<WatchJobEvaluationCommitResult> {
+    if (!this.usesPostgres()) {
+      throw new Error(
+        'Claimed Watch job evaluation transactions require PostgreSQL persistence.'
+      );
+    }
+    return postgresWatchRepository
+      .commitClaimedJobEvaluation(input);
+  }
+
+  public async commitClaimedJobTerminalFailure(
+    input: WatchJobTerminalFailureCommitInput
+  ): Promise<WatchJobTerminalFailureCommitResult> {
+    if (!this.usesPostgres()) {
+      throw new Error(
+        'Claimed Watch job failure transactions require PostgreSQL persistence.'
+      );
+    }
+    return postgresWatchRepository
+      .commitClaimedJobTerminalFailure(input);
   }
 }
 
