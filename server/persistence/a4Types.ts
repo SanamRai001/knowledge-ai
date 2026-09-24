@@ -12,6 +12,42 @@ import type {
   SyncRun,
 } from '../integrations/types.js';
 
+export interface WatchJobEvaluationCommitInput {
+  accountId: string;
+  jobId: string;
+  expectedRuleVersion: number;
+  completedAt: number;
+  evaluation: WatchEvaluation;
+  newAlert?: {
+    id: string;
+    episodeKey: string;
+    title: string;
+    summary: string;
+  };
+}
+
+export interface WatchJobEvaluationCommitResult {
+  job: WatchJob;
+  rule: WatchRule;
+  evaluation: WatchEvaluation;
+  alert?: WatchAlert;
+  idempotentReplay: boolean;
+}
+
+export interface WatchJobTerminalFailureCommitInput {
+  accountId: string;
+  jobId: string;
+  expectedRuleVersion: number;
+  failedAt: number;
+  error: string;
+}
+
+export interface WatchJobTerminalFailureCommitResult {
+  job: WatchJob;
+  rule: WatchRule;
+  idempotentReplay: boolean;
+}
+
 export interface WatchRepository {
   getRule(accountId: string, ruleId: string): Promise<WatchRule | null>;
   listRules(params: {
@@ -73,6 +109,12 @@ export interface WatchRepository {
     now: number;
     leaseMs: number;
   }): Promise<WatchJob[]>;
+  commitClaimedJobEvaluation(
+    input: WatchJobEvaluationCommitInput
+  ): Promise<WatchJobEvaluationCommitResult>;
+  commitClaimedJobTerminalFailure(
+    input: WatchJobTerminalFailureCommitInput
+  ): Promise<WatchJobTerminalFailureCommitResult>;
 }
 
 export interface IntegrationRepository {
