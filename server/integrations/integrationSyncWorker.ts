@@ -6,6 +6,9 @@ import {
   integrationPersistence,
 } from './integrationPersistence.js';
 import {
+  classifyIntegrationFailure,
+} from './integrationFailure.js';
+import {
   withTransaction,
 } from '../persistence/postgres.js';
 import {
@@ -18,8 +21,13 @@ import {
 } from '../worker/workerJobHandlerRegistry.js';
 import {
   WorkerJobHandlerError,
+  WorkerJobLeaseError,
   type WorkerJob,
+  type WorkerJobStatus,
 } from '../worker/workerJobTypes.js';
+import type {
+  SyncRun,
+} from './types.js';
 
 export const INTEGRATION_SYNC_JOB_TYPE =
   'INTEGRATION_SYNC_V1';
@@ -29,26 +37,78 @@ export interface IntegrationSyncJobPayload {
   connectionId: string;
   requestedAt: number;
   requestedBy?: string;
+  cursorBefore?: string;
+  lastSuccessfulSyncAtBefore?: number;
+  connectionUpdatedAtBefore: number;
 }
 
 export interface IntegrationSyncJobView {
-  job: WorkerJob;
+  id: string;
   connectionId: string;
+  status: WorkerJobStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
   requestedAt: number;
   requestedBy?: string;
   syncRunId?: string;
 }
 
-function clean(value: string | undefined):
-  string | undefined {
+type Heartbeat =
+  | ((
+      leaseMs?: number
+    ) => Promise<WorkerJob>)
+  | undefined;
+
+function clean(
+  value: string | undefined
+): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
 }
 
-function randomRequestId(): string {
+function epoch(
+  value:
+    | Date
+    | string
+    | number
+    | null
+    | undefined
+): number | undefined {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return undefined;
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  const parsed =
+    value instanceof Date
+      ? value.getTime()
+      : Date.parse(String(value));
+  if (!Number.isFinite(parsed)) {
+    throw new Error(
+      'Integration sync worker received an invalid timestamp.'
+    );
+  }
+  return parsed;
+}
+
+function stableHash(
+  parts: unknown[]
+): string {
   return crypto
-    .randomBytes(16)
-    .toString('hex');
+    .createHash('sha256')
+    .update(JSON.stringify(parts))
+    .digest('hex')
+    .slice(0, 24);
 }
 
 function parsePayload(
@@ -67,11 +127,33 @@ function parsePayload(
     !Number.isFinite(
       payload.requestedAt
     ) ||
+    typeof payload.connectionUpdatedAtBefore !==
+      'number' ||
+    !Number.isFinite(
+      payload.connectionUpdatedAtBefore
+    ) ||
     (
       payload.requestedBy !==
         undefined &&
       typeof payload.requestedBy !==
         'string'
+    ) ||
+    (
+      payload.cursorBefore !==
+        undefined &&
+      typeof payload.cursorBefore !==
+        'string'
+    ) ||
+    (
+      payload.lastSuccessfulSyncAtBefore !==
+        undefined &&
+      (
+        typeof payload.lastSuccessfulSyncAtBefore !==
+          'number' ||
+        !Number.isFinite(
+          payload.lastSuccessfulSyncAtBefore
+        )
+      )
     )
   ) {
     throw new WorkerJobHandlerError(
@@ -83,11 +165,17 @@ function parsePayload(
   return {
     schemaVersion: 1,
     connectionId:
-      payload.connectionId,
+      payload.connectionId.trim(),
     requestedAt:
       payload.requestedAt,
     requestedBy:
       clean(payload.requestedBy),
+    cursorBefore:
+      clean(payload.cursorBefore),
+    lastSuccessfulSyncAtBefore:
+      payload.lastSuccessfulSyncAtBefore,
+    connectionUpdatedAtBefore:
+      payload.connectionUpdatedAtBefore,
   };
 }
 
@@ -129,9 +217,7 @@ async function linkForJob(input: {
     connectionId:
       row.connection_id,
     requestedAt:
-      new Date(
-        row.requested_at
-      ).getTime(),
+      epoch(row.requested_at)!,
     requestedBy:
       row.requested_by ??
       undefined,
@@ -141,18 +227,54 @@ async function linkForJob(input: {
   };
 }
 
+function jobView(
+  job: WorkerJob,
+  link: NonNullable<
+    Awaited<
+      ReturnType<
+        typeof linkForJob
+      >
+    >
+  >
+): IntegrationSyncJobView {
+  return {
+    id: job.id,
+    connectionId:
+      link.connectionId,
+    status: job.status,
+    attemptCount:
+      job.attemptCount,
+    maxAttempts:
+      job.maxAttempts,
+    nextAttemptAt:
+      job.nextAttemptAt,
+    startedAt:
+      job.startedAt,
+    completedAt:
+      job.completedAt,
+    lastError:
+      job.lastError,
+    createdAt:
+      job.createdAt,
+    updatedAt:
+      job.updatedAt,
+    requestedAt:
+      link.requestedAt,
+    requestedBy:
+      link.requestedBy,
+    syncRunId:
+      link.syncRunId,
+  };
+}
+
 export async function enqueueIntegrationSyncJob(
   input: {
     accountId: string;
     connectionId: string;
-    requestId?: string;
     requestedBy?: string;
     requestedAt?: number;
   }
 ): Promise<IntegrationSyncJobView> {
-  const requestId =
-    clean(input.requestId) ||
-    randomRequestId();
   const requestedAt =
     input.requestedAt ??
     Date.now();
@@ -162,7 +284,11 @@ export async function enqueueIntegrationSyncJob(
       async (client) => {
         const connection =
           await client.query(
-            `SELECT status
+            `SELECT
+               status,
+               cursor,
+               last_successful_sync_at,
+               updated_at
              FROM integration_connections
              WHERE account_id = $1
                AND id = $2
@@ -184,9 +310,11 @@ export async function enqueueIntegrationSyncJob(
           throw error;
         }
 
+        const row =
+          connection.rows[0];
+
         if (
-          connection.rows[0]
-            .status !== 'ACTIVE'
+          row.status !== 'ACTIVE'
         ) {
           const error: any =
             new Error(
@@ -229,9 +357,29 @@ export async function enqueueIntegrationSyncJob(
             jobId:
               active.rows[0]
                 .worker_job_id,
-            coalesced: true,
           };
         }
+
+        const cursorBefore =
+          row.cursor ?? undefined;
+        const lastSuccessfulSyncAtBefore =
+          epoch(
+            row.last_successful_sync_at
+          );
+        const connectionUpdatedAtBefore =
+          epoch(
+            row.updated_at
+          )!;
+
+        const baselineKey =
+          stableHash([
+            input.accountId,
+            input.connectionId,
+            cursorBefore ?? null,
+            lastSuccessfulSyncAtBefore ??
+              null,
+            connectionUpdatedAtBefore,
+          ]);
 
         const job =
           await enqueueWorkerJobWithClient(
@@ -250,16 +398,19 @@ export async function enqueueIntegrationSyncJob(
                   clean(
                     input.requestedBy
                   ),
+                cursorBefore,
+                lastSuccessfulSyncAtBefore,
+                connectionUpdatedAtBefore,
               },
               idempotencyKey:
                 'integration-sync:' +
                 input.connectionId +
                 ':' +
-                requestId,
+                baselineKey,
               concurrencyKey:
                 'integration:' +
                 input.connectionId,
-              maxAttempts: 3,
+              maxAttempts: 5,
             }
           );
 
@@ -296,7 +447,6 @@ export async function enqueueIntegrationSyncJob(
 
         return {
           jobId: job.id,
-          coalesced: false,
         };
       }
     );
@@ -320,10 +470,10 @@ export async function enqueueIntegrationSyncJob(
     );
   }
 
-  return {
+  return jobView(
     job,
-    ...link,
-  };
+    link
+  );
 }
 
 export async function getIntegrationSyncJob(
@@ -357,10 +507,68 @@ export async function getIntegrationSyncJob(
     return null;
   }
 
-  return {
+  return jobView(
     job,
-    ...link,
-  };
+    link
+  );
+}
+
+export async function listIntegrationSyncJobs(
+  input: {
+    accountId: string;
+    connectionId: string;
+    limit?: number;
+  }
+): Promise<IntegrationSyncJobView[]> {
+  const { postgresPool } =
+    await import(
+      '../persistence/postgres.js'
+    );
+  const limit = Math.max(
+    1,
+    Math.min(
+      100,
+      Math.trunc(
+        input.limit ?? 40
+      )
+    )
+  );
+  const links =
+    await postgresPool().query(
+      `SELECT worker_job_id
+       FROM integration_sync_worker_jobs
+       WHERE account_id = $1
+         AND connection_id = $2
+       ORDER BY
+         created_at DESC,
+         worker_job_id DESC
+       LIMIT $3`,
+      [
+        input.accountId,
+        input.connectionId,
+        limit,
+      ]
+    );
+
+  const views:
+    IntegrationSyncJobView[] = [];
+
+  for (const row of links.rows) {
+    const view =
+      await getIntegrationSyncJob({
+        accountId:
+          input.accountId,
+        connectionId:
+          input.connectionId,
+        jobId:
+          row.worker_job_id,
+      });
+    if (view) {
+      views.push(view);
+    }
+  }
+
+  return views;
 }
 
 async function attachSyncRun(input: {
@@ -387,8 +595,157 @@ async function attachSyncRun(input: {
   );
 }
 
+async function completedRunAfterBaseline(
+  input: {
+    accountId: string;
+    connectionId: string;
+    lastSuccessfulSyncAtBefore?: number;
+  }
+): Promise<SyncRun | null> {
+  const connection =
+    await integrationPersistence
+      .requireConnection(
+        input.accountId,
+        input.connectionId
+      );
+
+  const completedAt =
+    connection.lastSuccessfulSyncAt;
+
+  if (
+    !completedAt ||
+    (
+      input.lastSuccessfulSyncAtBefore !==
+        undefined &&
+      completedAt <=
+        input.lastSuccessfulSyncAtBefore
+    )
+  ) {
+    return null;
+  }
+
+  const runs =
+    await integrationPersistence
+      .listSyncRuns({
+        accountId:
+          input.accountId,
+        connectionId:
+          input.connectionId,
+        limit: 100,
+      });
+
+  return (
+    runs.find(
+      (run) =>
+        run.status ===
+          'COMPLETED' &&
+        run.completedAt ===
+          completedAt
+    ) || null
+  );
+}
+
+async function runWithHeartbeat<T>(
+  heartbeat: Heartbeat,
+  work: () => Promise<T>
+): Promise<T> {
+  if (!heartbeat) {
+    return work();
+  }
+
+  let heartbeatError:
+    | unknown
+    | undefined;
+  let heartbeatInFlight =
+    false;
+
+  await heartbeat(90_000);
+
+  const timer =
+    setInterval(() => {
+      if (heartbeatInFlight) {
+        return;
+      }
+      heartbeatInFlight = true;
+      void heartbeat(90_000)
+        .catch((error) => {
+          heartbeatError =
+            error;
+        })
+        .finally(() => {
+          heartbeatInFlight =
+            false;
+        });
+    }, 30_000);
+  timer.unref?.();
+
+  try {
+    const result =
+      await work();
+    if (heartbeatError) {
+      throw heartbeatError;
+    }
+    return result;
+  } finally {
+    clearInterval(timer);
+  }
+}
+
+async function markTerminalWorkerFailure(
+  input: {
+    accountId: string;
+    connectionId: string;
+    message: string;
+    category:
+      ReturnType<
+        typeof classifyIntegrationFailure
+      >['category'];
+  }
+): Promise<void> {
+  const connection =
+    await integrationPersistence
+      .requireConnection(
+        input.accountId,
+        input.connectionId
+      )
+      .catch(() => null);
+
+  if (
+    !connection ||
+    connection.status !==
+      'ACTIVE'
+  ) {
+    return;
+  }
+
+  await integrationPersistence
+    .updateConnection(
+      input.accountId,
+      input.connectionId,
+      {
+        attentionReason:
+          connection.attentionReason ||
+          'SYNC_FAILED',
+        lastFailureCategory:
+          input.category,
+        consecutiveFailureCount:
+          (connection.consecutiveFailureCount ||
+            0) + 1,
+        nextRetryAt: undefined,
+        lastError:
+          input.message,
+        lastSyncAt:
+          Date.now(),
+      }
+    )
+    .catch(() => undefined);
+}
+
 export async function handleIntegrationSyncJob(
-  job: WorkerJob
+  job: WorkerJob,
+  options?: {
+    heartbeat?: Heartbeat;
+  }
 ): Promise<void> {
   const payload =
     parsePayload(job);
@@ -411,24 +768,133 @@ export async function handleIntegrationSyncJob(
     );
   }
 
-  let run;
+  const alreadyCompleted =
+    await completedRunAfterBaseline({
+      accountId:
+        job.accountId,
+      connectionId:
+        payload.connectionId,
+      lastSuccessfulSyncAtBefore:
+        payload.lastSuccessfulSyncAtBefore,
+    });
+
+  if (alreadyCompleted) {
+    await attachSyncRun({
+      accountId:
+        job.accountId,
+      jobId:
+        job.id,
+      syncRunId:
+        alreadyCompleted.id,
+    });
+    return;
+  }
+
+  const current =
+    await integrationPersistence
+      .requireConnection(
+        job.accountId,
+        payload.connectionId
+      );
+
+  if (
+    current.cursor !==
+      payload.cursorBefore &&
+    current.lastSuccessfulSyncAt ===
+      payload.lastSuccessfulSyncAtBefore
+  ) {
+    throw new WorkerJobHandlerError(
+      'Queued Integration sync request is stale because the provider checkpoint changed before the worker started.',
+      false
+    );
+  }
+
+  let run: SyncRun;
   try {
     run =
-      await integrationRuntimeService
-        .sync({
-          accountId:
-            job.accountId,
-          connectionId:
-            payload.connectionId,
-        });
+      await runWithHeartbeat(
+        options?.heartbeat,
+        () =>
+          integrationRuntimeService
+            .sync({
+              accountId:
+                job.accountId,
+              connectionId:
+                payload.connectionId,
+            })
+      );
   } catch (error: any) {
+    if (
+      error instanceof
+        WorkerJobLeaseError
+    ) {
+      throw error;
+    }
+
+    const classification =
+      classifyIntegrationFailure(
+        error
+      );
+    const leaseConflict =
+      error?.code ===
+        'SYNC_ALREADY_RUNNING';
+    const retryable =
+      leaseConflict ||
+      classification.retryable;
+    const terminal =
+      !retryable ||
+      job.attemptCount >=
+        job.maxAttempts;
+
+    if (terminal) {
+      await markTerminalWorkerFailure({
+        accountId:
+          job.accountId,
+        connectionId:
+          payload.connectionId,
+        message:
+          error?.message ||
+          'Integration sync worker failed.',
+        category:
+          classification.category,
+      });
+    }
+
+    let retryDelayMs:
+      | number
+      | undefined;
+
+    if (leaseConflict) {
+      const latest =
+        await integrationPersistence
+          .requireConnection(
+            job.accountId,
+            payload.connectionId
+          )
+          .catch(() => null);
+      if (
+        latest
+          ?.syncLeaseExpiresAt
+      ) {
+        retryDelayMs =
+          Math.max(
+            5_000,
+            latest
+              .syncLeaseExpiresAt -
+              Date.now() +
+              1_000
+          );
+      }
+    }
+
     throw new WorkerJobHandlerError(
-      'Integration sync execution failed before a terminal SyncRun was returned: ' +
+      'Integration sync worker failed before a terminal SyncRun was returned: ' +
         (
           error?.message ||
           'unknown error'
         ),
-      true
+      retryable,
+      retryDelayMs
     );
   }
 
@@ -439,7 +905,10 @@ export async function handleIntegrationSyncJob(
     syncRunId: run.id,
   });
 
-  if (run.status === 'COMPLETED') {
+  if (
+    run.status ===
+      'COMPLETED'
+  ) {
     return;
   }
 
@@ -465,9 +934,15 @@ export function registerIntegrationSyncWorkerHandler(
 
   registry.register(
     INTEGRATION_SYNC_JOB_TYPE,
-    async ({ job }) => {
+    async ({
+      job,
+      heartbeat,
+    }) => {
       await handleIntegrationSyncJob(
-        job
+        job,
+        {
+          heartbeat,
+        }
       );
     }
   );
@@ -478,22 +953,13 @@ export async function integrationSyncJobRun(
     accountId: string;
     syncRunId?: string;
   }
-) {
+): Promise<SyncRun | null> {
   if (!input.syncRunId) {
     return null;
   }
   return integrationPersistence
-    .listSyncRuns({
-      accountId:
-        input.accountId,
-      limit: 500,
-    })
-    .then(
-      (runs) =>
-        runs.find(
-          (run) =>
-            run.id ===
-            input.syncRunId
-        ) || null
+    .getSyncRun(
+      input.accountId,
+      input.syncRunId
     );
 }
