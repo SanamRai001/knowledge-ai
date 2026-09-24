@@ -188,9 +188,10 @@ async function main() {
       .join(',') ===
       [
         'DISCOVERY_ANALYSIS',
+        'INTEGRATION_SYNC',
         'WATCH_EVALUATION',
       ].join(','),
-    'E1 historical role proof must accept the later E3 Discovery worker migration while keeping autonomous ownership explicit.'
+    'E1 historical role proof must accept the later E3 Discovery and E4 Integration worker migrations while keeping autonomous ownership explicit.'
   );
 
   const byId = new Map(
@@ -201,11 +202,17 @@ async function main() {
   assert(
     byId.get('INTEGRATION_SYNC')
       ?.executionModel ===
-      'REQUEST_DRIVEN' &&
+      'AUTONOMOUS_LOOP' &&
+      byId.get('INTEGRATION_SYNC')
+        ?.e1Owner === 'WORKER' &&
       byId.get(
         'AUTOMATION_EXECUTION'
       )?.executionModel ===
         'REQUEST_DRIVEN' &&
+      byId.get(
+        'AUTOMATION_EXECUTION'
+      )?.e1Owner ===
+        'REQUEST_PATH' &&
       byId.get(
         'DISCOVERY_ANALYSIS'
       )?.executionModel ===
@@ -214,7 +221,7 @@ async function main() {
         'DISCOVERY_ANALYSIS'
       )?.e1Owner ===
         'WORKER',
-    'E1 historical role proof must preserve Integration/Automation request ownership while accepting E3 worker-owned Discovery.'
+    'E1 historical role proof must accept E3 Discovery and E4 Integration worker ownership while preserving Automation request ownership.'
   );
 
   const server = read('server.ts');
