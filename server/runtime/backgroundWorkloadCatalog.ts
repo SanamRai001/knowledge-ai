@@ -59,13 +59,13 @@ export const BACKGROUND_WORKLOAD_CATALOG:
     {
       id: 'DISCOVERY_ANALYSIS',
       executionModel:
-        'POST_COMMIT_INLINE',
+        'AUTONOMOUS_LOOP',
       durableState:
-        'relational Discovery/Insights analysis metadata',
+        'PostgreSQL worker_jobs + action_execution_discovery_jobs + relational Discovery/Insights metadata',
       claimOrLease:
-        'no autonomous scheduler/worker lease in E1',
-      e1Owner: 'POST_COMMIT_PATH',
-      futureQueueCandidate: true,
+        'E2 worker_jobs SKIP LOCKED claim + fenced lease; deterministic Action/Dataset idempotency key',
+      e1Owner: 'WORKER',
+      futureQueueCandidate: false,
     },
   ] as const;
 
