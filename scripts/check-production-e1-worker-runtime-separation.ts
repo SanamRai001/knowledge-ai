@@ -182,10 +182,15 @@ async function main() {
   const autonomous =
     autonomousWorkerWorkloads();
   assert(
-    autonomous.length === 1 &&
-      autonomous[0].id ===
+    autonomous
+      .map((item) => item.id)
+      .sort()
+      .join(',') ===
+      [
+        'DISCOVERY_ANALYSIS',
         'WATCH_EVALUATION',
-    'E1 must identify Watch as the only currently autonomous startup workload.'
+      ].join(','),
+    'E1 historical role proof must accept the later E3 Discovery worker migration while keeping autonomous ownership explicit.'
   );
 
   const byId = new Map(
@@ -204,8 +209,12 @@ async function main() {
       byId.get(
         'DISCOVERY_ANALYSIS'
       )?.executionModel ===
-        'POST_COMMIT_INLINE',
-    'E1 must not misclassify request/post-commit work as autonomous workers.'
+        'AUTONOMOUS_LOOP' &&
+      byId.get(
+        'DISCOVERY_ANALYSIS'
+      )?.e1Owner ===
+        'WORKER',
+    'E1 historical role proof must preserve Integration/Automation request ownership while accepting E3 worker-owned Discovery.'
   );
 
   const server = read('server.ts');
@@ -243,12 +252,18 @@ async function main() {
         'SELECT 1 FROM watch_jobs'
       ) &&
       worker.includes(
+        'SELECT 1 FROM worker_jobs'
+      ) &&
+      worker.includes(
+        'SELECT 1 FROM action_execution_discovery_jobs'
+      ) &&
+      worker.includes(
         "process.once('SIGTERM'"
       ) &&
       worker.includes(
         "process.once('SIGINT'"
       ),
-    'Dedicated worker entrypoint must fail closed on role/persistence/schema and own graceful Watch startup/shutdown.'
+    'Dedicated worker entrypoint must fail closed on role/persistence/E1-E3 schemas and own graceful worker startup/shutdown.'
   );
 
   const scheduler = read(
