@@ -25,6 +25,7 @@ import {
 } from '@googleworkspace/drive-picker-react';
 import {
   ExternalImportRecord,
+  IntegrationSyncJob,
   IntegrationSyncRun,
   PublicIntegrationConnection,
 } from '../integrationTypes';
@@ -33,6 +34,7 @@ type ProviderKey = 'GOOGLE_DRIVE' | 'MICROSOFT_ONEDRIVE';
 
 type ConnectionDetail = {
   connection: PublicIntegrationConnection;
+  syncJobs: IntegrationSyncJob[];
   runs: IntegrationSyncRun[];
   imports: ExternalImportRecord[];
 };
@@ -154,44 +156,80 @@ export const IntegrationsWorkspace: React.FC = () => {
     }
   }, []);
 
-  const loadDetail = useCallback(async (connectionId: string) => {
-    setDetailLoading(true);
-    setError(null);
-    try {
-      const [connectionResponse, runsResponse, importsResponse] =
-        await Promise.all([
+  const loadDetail = useCallback(
+    async (
+      connectionId: string,
+      silent = false
+    ) => {
+      if (!silent) {
+        setDetailLoading(true);
+        setError(null);
+      }
+      try {
+        const [
+          connectionResponse,
+          jobsResponse,
+          runsResponse,
+          importsResponse,
+        ] = await Promise.all([
           fetch('/api/integrations/connections/' + connectionId),
+          fetch(
+            '/api/integrations/connections/' +
+              connectionId +
+              '/sync-jobs?limit=40'
+          ),
           fetch('/api/integrations/connections/' + connectionId + '/runs?limit=40'),
           fetch('/api/integrations/connections/' + connectionId + '/imports?limit=80'),
         ]);
 
-      const [connectionBody, runsBody, importsBody] = await Promise.all([
-        connectionResponse.json(),
-        runsResponse.json(),
-        importsResponse.json(),
-      ]);
+        const [
+          connectionBody,
+          jobsBody,
+          runsBody,
+          importsBody,
+        ] = await Promise.all([
+          connectionResponse.json(),
+          jobsResponse.json(),
+          runsResponse.json(),
+          importsResponse.json(),
+        ]);
 
-      if (!connectionResponse.ok) {
-        throw new Error(connectionBody.error || 'Could not load integration details.');
-      }
-      if (!runsResponse.ok) {
-        throw new Error(runsBody.error || 'Could not load sync history.');
-      }
-      if (!importsResponse.ok) {
-        throw new Error(importsBody.error || 'Could not load synchronized sources.');
-      }
+        if (!connectionResponse.ok) {
+          throw new Error(connectionBody.error || 'Could not load integration details.');
+        }
+        if (
+          !jobsResponse.ok &&
+          jobsBody.code !==
+            'INTEGRATION_WORKER_QUEUE_REQUIRES_POSTGRES'
+        ) {
+          throw new Error(jobsBody.error || 'Could not load Integration sync jobs.');
+        }
+        if (!runsResponse.ok) {
+          throw new Error(runsBody.error || 'Could not load sync history.');
+        }
+        if (!importsResponse.ok) {
+          throw new Error(importsBody.error || 'Could not load synchronized sources.');
+        }
 
-      setDetail({
-        connection: connectionBody.connection,
-        runs: runsBody.runs || [],
-        imports: importsBody.imports || [],
-      });
-    } catch (err: any) {
-      setError(err.message || 'Could not load integration details.');
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
+        setDetail({
+          connection: connectionBody.connection,
+          syncJobs:
+            jobsResponse.ok
+              ? jobsBody.jobs || []
+              : [],
+          runs: runsBody.runs || [],
+          imports: importsBody.imports || [],
+        });
+      } catch (err: any) {
+        setError(err.message || 'Could not load integration details.');
+      } finally {
+        if (!silent) {
+          setDetailLoading(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -230,6 +268,35 @@ export const IntegrationsWorkspace: React.FC = () => {
       setDetail(null);
     }
   }, [selectedId, loadDetail]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const activeJob =
+      detail?.syncJobs?.find(
+        (job) =>
+          job.status === 'PENDING' ||
+          job.status === 'RUNNING'
+      );
+
+    if (!activeJob) return;
+
+    const timer = window.setInterval(() => {
+      void loadConnections();
+      void loadDetail(
+        selectedId,
+        true
+      );
+    }, 2500);
+
+    return () =>
+      window.clearInterval(timer);
+  }, [
+    selectedId,
+    detail?.syncJobs,
+    loadConnections,
+    loadDetail,
+  ]);
 
   const providersConnected = useMemo(
     () =>
@@ -304,8 +371,15 @@ export const IntegrationsWorkspace: React.FC = () => {
     setNotice(null);
 
     try {
-      const response = await fetch(
-        '/api/integrations/connections/' + connection.id + '/' + action,
+      let response = await fetch(
+        action === 'sync'
+          ? '/api/integrations/connections/' +
+              connection.id +
+              '/sync-jobs'
+          : '/api/integrations/connections/' +
+              connection.id +
+              '/' +
+              action,
         {
           method: 'POST',
           headers: {
@@ -313,18 +387,46 @@ export const IntegrationsWorkspace: React.FC = () => {
           },
         }
       );
-      const body = await response.json();
+      let body = await response.json();
+
+      if (
+        action === 'sync' &&
+        !response.ok &&
+        body.code ===
+          'INTEGRATION_WORKER_QUEUE_REQUIRES_POSTGRES'
+      ) {
+        response = await fetch(
+          '/api/integrations/connections/' +
+            connection.id +
+            '/sync',
+          {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': csrfToken(),
+            },
+          }
+        );
+        body = await response.json();
+      }
 
       if (!response.ok) {
         throw new Error(body.error || 'Integration action failed.');
       }
 
       if (action === 'sync') {
-        setNotice(
-          body.run?.status === 'COMPLETED'
-            ? 'Synchronization completed successfully.'
-            : 'Synchronization finished with an error that needs attention.'
-        );
+        if (body.job) {
+          setNotice(
+            body.job.status === 'RUNNING'
+              ? 'Synchronization is already running in the worker.'
+              : 'Synchronization queued. This page will refresh as the worker progresses.'
+          );
+        } else {
+          setNotice(
+            body.run?.status === 'COMPLETED'
+              ? 'Synchronization completed successfully.'
+              : 'Synchronization finished with an error that needs attention.'
+          );
+        }
       } else if (action === 'reset-cursor') {
         setNotice(
           'Provider checkpoint cleared. The next sync will begin a fresh snapshot explicitly.'
@@ -708,9 +810,18 @@ const ConnectionPanel: React.FC<{
   onReauthorize: (connection: PublicIntegrationConnection) => void;
   onDisconnect: (connection: PublicIntegrationConnection) => Promise<void>;
 }> = ({ detail, busy, onAction, onReauthorize, onDisconnect }) => {
-  const { connection, runs, imports } = detail;
+  const {
+    connection,
+    syncJobs,
+    runs,
+    imports,
+  } = detail;
   const attention = attentionCopy(connection);
+  const latestJob = syncJobs[0];
   const latestRun = runs[0];
+  const workerBusy =
+    latestJob?.status === 'PENDING' ||
+    latestJob?.status === 'RUNNING';
 
   return (
     <div className="space-y-4">
@@ -724,9 +835,13 @@ const ConnectionPanel: React.FC<{
               <span className={'rounded-full border px-2 py-0.5 text-[9px] font-bold ' + statusTone(connection)}>
                 {connection.status}
               </span>
-              {connection.syncInProgress && (
+              {(connection.syncInProgress ||
+                workerBusy) && (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-blue-700">
-                  SYNCING
+                  {latestJob?.status ===
+                  'PENDING'
+                    ? 'QUEUED'
+                    : 'SYNCING'}
                 </span>
               )}
             </div>
@@ -746,7 +861,10 @@ const ConnectionPanel: React.FC<{
                   icon={RefreshCw}
                   busy={busy === connection.id + ':sync'}
                   onClick={() => onAction(connection, 'sync')}
-                  disabled={connection.syncInProgress}
+                  disabled={
+                    connection.syncInProgress ||
+                    workerBusy
+                  }
                 />
                 <ActionButton
                   label="Pause"
@@ -835,6 +953,36 @@ const ConnectionPanel: React.FC<{
           />
         </div>
 
+        {latestJob && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+              <RefreshCw
+                className={
+                  'w-3.5 h-3.5 ' +
+                  (workerBusy
+                    ? 'animate-spin text-indigo-600'
+                    : 'text-slate-400')
+                }
+              />
+              Latest sync job
+            </div>
+            <div className="mt-1.5 text-xs text-slate-700">
+              {latestJob.status} · attempt{' '}
+              {latestJob.attemptCount}/
+              {latestJob.maxAttempts}
+              {latestJob.syncRunId
+                ? ' · run ' +
+                  latestJob.syncRunId
+                : ''}
+            </div>
+            {latestJob.lastError && (
+              <div className="mt-1 text-[10px] leading-4 text-red-600">
+                {latestJob.lastError}
+              </div>
+            )}
+          </div>
+        )}
+
         {latestRun && (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-slate-400">
@@ -852,7 +1000,39 @@ const ConnectionPanel: React.FC<{
         )}
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <HistoryPanel
+          title="Sync jobs"
+          icon={RefreshCw}
+          empty="No queued synchronization jobs yet."
+          rows={syncJobs.slice(0, 12).map((job) => ({
+            id: job.id,
+            primary:
+              job.status +
+              ' · attempt ' +
+              job.attemptCount +
+              '/' +
+              job.maxAttempts,
+            secondary:
+              when(job.requestedAt) +
+              (job.syncRunId
+                ? ' · run ' +
+                  job.syncRunId
+                : '') +
+              (job.lastError
+                ? ' · ' +
+                  job.lastError
+                : ''),
+            tone:
+              job.status === 'FAILED' ||
+              job.status === 'DEAD_LETTER'
+                ? 'error'
+                : job.status === 'PENDING'
+                  ? 'muted'
+                  : 'normal',
+          }))}
+        />
+
         <HistoryPanel
           title="Sync runs"
           icon={History}
