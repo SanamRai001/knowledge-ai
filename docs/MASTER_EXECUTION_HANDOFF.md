@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening E2 — PostgreSQL Worker Job Contract + Queue Foundation.**
+> **Continue with Production Hardening E3 — Action Post-Commit Discovery Refresh Worker Migration.**
 
 Phases 0–8 are complete.
 
@@ -1090,7 +1090,8 @@ Track A relational milestones:
 - D2 Controlled Automation Transaction Boundary — COMPLETE, workflow `35903477902`
 - D3 Watch Scheduling Transaction Boundary — COMPLETE, workflow `35948962695`
 - E1 Worker/Queue Forensic Audit + Runtime Separation Foundation — COMPLETE, workflow `35950002619`
-- E2 PostgreSQL Worker Job Contract + Queue Foundation — NEXT
+- E2 PostgreSQL Worker Job Contract + Queue Foundation — COMPLETE, workflow `36015433343`
+- E3 Action Post-Commit Discovery Refresh Worker Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1154,6 +1155,8 @@ D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
 
 E1 evidence: `docs/PRODUCTION_E1_WORKER_RUNTIME_SEPARATION.md`.
 
+E2 evidence: `docs/PRODUCTION_E2_WORKER_JOB_FOUNDATION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1212,17 +1215,17 @@ D2 now composes the D1 Action commit inside a policy-authorized Automation execu
 
 D3 now links each scheduled evaluation to its claimed WatchJob, enforces one evaluation per job in PostgreSQL, prepares measurements without writes, and commits evaluation + alert episode mutation + WatchRule state/schedule + WatchJob completion in one transaction. Concurrent/replayed completion is idempotent, stale measured state is rejected, terminal worker failure settles job/rule atomically, and stale leases remain reclaimable without replaying a committed alert effect.
 
-Next, do **E2 only — PostgreSQL Worker Job Contract + Queue Foundation**:
+Next, do **E3 only — Action Post-Commit Discovery Refresh Worker Migration**:
 
-1. add an account-scoped durable worker-job schema with job type, payload/reference metadata, optional idempotency key, priority, lifecycle state, attempts, timestamps, and safe failure metadata
-2. define PENDING / RUNNING / SUCCEEDED / FAILED / DEAD-LETTER lifecycle semantics with database constraints
-3. implement atomic `FOR UPDATE SKIP LOCKED` claim and explicit lease owner/expiry
-4. add heartbeat/lease extension plus stale RUNNING recovery
-5. add deterministic retry/backoff and dead-letter transition after max attempts
-6. enforce enqueue idempotency in PostgreSQL for repeated requests with the same account/job-type/idempotency key
-7. define a provider-neutral worker handler registry so queue infrastructure does not depend on Integration/Automation/Discovery internals
-8. extend the dedicated worker runtime to poll this generic contract while preserving the existing Watch runtime
-9. prove multi-worker claim exclusion, restart recovery, retry/dead-letter behavior, and truthful terminal state using real PostgreSQL
-10. stop before broad product workload migration and before Redis/BullMQ/managed queue introduction
+1. define a versioned Action→Discovery worker-job payload carrying only account/action-execution/Dataset identity and reference time
+2. enqueue after the D1 confirmed Action transaction commits, never inside or before the business-state transaction
+3. use Action execution + Dataset as the durable idempotency identity so replay does not create duplicate logical refresh work
+4. record queued job IDs in Action downstream metadata while preserving Action execution success
+5. register one generic-worker handler that performs the existing Discovery Dataset analysis under account scope
+6. record successful analysis-run IDs back on the Action execution
+7. surface terminal Discovery-worker failure as downstream warning/failure metadata without replaying or downgrading the committed Action business mutation
+8. prove E2 retry/stale recovery can resume the derived Discovery work after worker restart
+9. preserve explicit manual Discovery analysis as synchronous, and preserve Integration/Automation request semantics
+10. stop before any second workload migration or Track F/G work
 
-E2 should prove the generic PostgreSQL queue contract first. Choose the first non-Watch workload in a later phase based on the completed contract and product/API semantics.
+Do not migrate Integration sync, Automation execution, or manual Discovery analysis in E3. Do not add Redis/BullMQ/managed queue infrastructure.
