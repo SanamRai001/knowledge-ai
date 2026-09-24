@@ -3,6 +3,9 @@ import {
   type WatchRuntimeScheduler,
 } from '../watch/watchRuntimeScheduler.js';
 import {
+  autonomousWorkerWorkloads,
+} from './backgroundWorkloadCatalog.js';
+import {
   roleRunsWorkers,
   type KnowledgeAiProcessRole,
 } from './processRole.js';
@@ -49,9 +52,9 @@ export class BackgroundRuntime {
 
     return {
       started: true,
-      workloads: [
-        'WATCH_EVALUATION',
-      ],
+      workloads:
+        autonomousWorkerWorkloads()
+          .map((item) => item.id),
     };
   }
 
