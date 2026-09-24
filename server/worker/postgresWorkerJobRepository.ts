@@ -664,8 +664,29 @@ export class PostgresWorkerJobRepository {
   }
 
   async recoverStale(
-    now: number = Date.now()
+    input?: {
+      now?: number;
+      jobTypes?: string[];
+    }
   ): Promise<WorkerJob[]> {
+    const now =
+      input?.now ?? Date.now();
+    const jobTypes =
+      (input?.jobTypes || [])
+        .map(validateJobType);
+
+    if (
+      input?.jobTypes &&
+      jobTypes.length === 0
+    ) {
+      return [];
+    }
+
+    const typeClause =
+      jobTypes.length > 0
+        ? 'AND job_type = ANY($2::text[])'
+        : '';
+
     const result =
       await postgresPool().query(
         `UPDATE worker_jobs
@@ -696,8 +717,14 @@ export class PostgresWorkerJobRepository {
            updated_at = $1
          WHERE status = 'RUNNING'
            AND lease_expires_at <= $1
+           ${typeClause}
          RETURNING *`,
-        [new Date(now)]
+        jobTypes.length > 0
+          ? [
+              new Date(now),
+              jobTypes,
+            ]
+          : [new Date(now)]
       );
 
     return result.rows.map(
