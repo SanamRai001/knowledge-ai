@@ -24,6 +24,13 @@ async function main() {
   const migration = read(
     'server/persistence/migrations/002_living_knowledge_actions.sql'
   );
+  const actionDiscoveryWorker = fs.existsSync(
+    'server/actions/actionDiscoveryWorker.ts'
+  )
+    ? read(
+        'server/actions/actionDiscoveryWorker.ts'
+      )
+    : '';
 
   assert(
     runtime.includes(
@@ -49,15 +56,33 @@ async function main() {
     runtime.indexOf(
       '.commitConfirmedAction('
     );
-  const discoveryIndex =
+  const inlineDiscoveryIndex =
     runtime.indexOf(
       'runDownstreamDiscovery',
       commitIndex
     );
+  const queuedDiscoveryIndex =
+    runtime.indexOf(
+      'enqueueActionDiscoveryRefresh',
+      commitIndex
+    );
+
+  const inlinePostCommit =
+    inlineDiscoveryIndex > commitIndex;
+  const queuedPostCommit =
+    queuedDiscoveryIndex > commitIndex &&
+    actionDiscoveryWorker.includes(
+      'discoveryRuntimeService'
+    ) &&
+    actionDiscoveryWorker.includes(
+      '.analyzeDataset({'
+    );
+
   assert(
     commitIndex >= 0 &&
-      discoveryIndex > commitIndex,
-    'Non-transactional downstream discovery must run only after the relational Action commit succeeds.'
+      (inlinePostCommit ||
+        queuedPostCommit),
+    'Derived Discovery work must remain strictly post-commit: either inline after D1 commit or, after E3, via a durable worker enqueue whose handler owns analyzeDataset.'
   );
 
   for (const required of [

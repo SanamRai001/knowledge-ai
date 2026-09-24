@@ -193,22 +193,31 @@ async function executionFromRow(
   client: Pick<PoolClient, 'query'>,
   row: any
 ): Promise<ActionExecution> {
-  const [claims, events] = await Promise.all([
-    client.query(
-      `SELECT claim_id
-       FROM action_execution_claims
-       WHERE account_id = $1 AND execution_id = $2
-       ORDER BY position ASC`,
-      [row.account_id, row.id]
-    ),
-    client.query(
-      `SELECT event_id
-       FROM action_execution_events
-       WHERE account_id = $1 AND execution_id = $2
-       ORDER BY position ASC`,
-      [row.account_id, row.id]
-    ),
-  ]);
+  const [claims, events, discoveryJobs] =
+    await Promise.all([
+      client.query(
+        `SELECT claim_id
+         FROM action_execution_claims
+         WHERE account_id = $1 AND execution_id = $2
+         ORDER BY position ASC`,
+        [row.account_id, row.id]
+      ),
+      client.query(
+        `SELECT event_id
+         FROM action_execution_events
+         WHERE account_id = $1 AND execution_id = $2
+         ORDER BY position ASC`,
+        [row.account_id, row.id]
+      ),
+      client.query(
+        `SELECT worker_job_id
+         FROM action_execution_discovery_jobs
+         WHERE account_id = $1
+           AND execution_id = $2
+         ORDER BY created_at ASC, worker_job_id ASC`,
+        [row.account_id, row.id]
+      ),
+    ]);
 
   return {
     id: row.id,
@@ -223,6 +232,10 @@ async function executionFromRow(
       row.automation_policy_version ?? undefined,
     claimIds: claims.rows.map((item) => item.claim_id),
     eventIds: events.rows.map((item) => item.event_id),
+    downstreamDiscoveryJobIds:
+      discoveryJobs.rows.map(
+        (item) => item.worker_job_id
+      ),
     downstreamAnalysisRunIds:
       row.downstream_analysis_run_ids || [],
     downstreamWarnings: row.downstream_warnings || [],
@@ -1044,6 +1057,85 @@ export class PostgresCompanyKnowledgeRepository
   }
 }
 
+export async function linkExecutionDiscoveryJobWithClient(
+  client: Pick<PoolClient, 'query'>,
+  params: {
+    accountId: string;
+    executionId: string;
+    workerJobId: string;
+    datasetId: string;
+    createdAt?: number;
+  }
+): Promise<ActionExecution> {
+  await client.query(
+    `INSERT INTO action_execution_discovery_jobs
+      (account_id, execution_id, worker_job_id, dataset_id, created_at)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (account_id, execution_id, dataset_id)
+     DO NOTHING`,
+    [
+      params.accountId,
+      params.executionId,
+      params.workerJobId,
+      params.datasetId,
+      new Date(
+        params.createdAt ??
+          Date.now()
+      ),
+    ]
+  );
+
+  const linked = await client.query(
+    `SELECT worker_job_id
+     FROM action_execution_discovery_jobs
+     WHERE account_id = $1
+       AND execution_id = $2
+       AND dataset_id = $3`,
+    [
+      params.accountId,
+      params.executionId,
+      params.datasetId,
+    ]
+  );
+
+  if (!linked.rowCount) {
+    throw new Error(
+      'Action discovery worker linkage could not be persisted.'
+    );
+  }
+
+  if (
+    linked.rows[0].worker_job_id !==
+    params.workerJobId
+  ) {
+    throw new Error(
+      'Action execution already links this Dataset to a different worker job.'
+    );
+  }
+
+  const execution = await client.query(
+    `SELECT *
+     FROM action_executions
+     WHERE account_id = $1
+       AND id = $2`,
+    [
+      params.accountId,
+      params.executionId,
+    ]
+  );
+
+  if (!execution.rowCount) {
+    throw new Error(
+      'Action execution not found in the current account scope.'
+    );
+  }
+
+  return executionFromRow(
+    client,
+    execution.rows[0]
+  );
+}
+
 export class PostgresActionRepository
   implements ActionRepository
 {
@@ -1250,6 +1342,126 @@ export class PostgresActionRepository
     await withTransaction(async (client) => {
       await insertExecution(client, execution);
     });
+  }
+
+  async getExecution(
+    accountId: string,
+    executionId: string
+  ): Promise<ActionExecution | null> {
+    const result = await postgresPool().query(
+      `SELECT *
+       FROM action_executions
+       WHERE account_id = $1 AND id = $2`,
+      [accountId, executionId]
+    );
+    return result.rowCount
+      ? executionFromRow(
+          postgresPool(),
+          result.rows[0]
+        )
+      : null;
+  }
+
+  async linkExecutionDiscoveryJob(params: {
+    accountId: string;
+    executionId: string;
+    workerJobId: string;
+    datasetId: string;
+    createdAt?: number;
+  }): Promise<ActionExecution> {
+    return withTransaction(
+      (client) =>
+        linkExecutionDiscoveryJobWithClient(
+          client,
+          params
+        )
+    );
+  }
+
+  async appendExecutionAnalysisRun(params: {
+    accountId: string;
+    executionId: string;
+    analysisRunId: string;
+  }): Promise<ActionExecution> {
+    const result = await postgresPool().query(
+      `UPDATE action_executions
+       SET downstream_analysis_run_ids =
+         CASE
+           WHEN downstream_analysis_run_ids ? $3
+             THEN downstream_analysis_run_ids
+           ELSE downstream_analysis_run_ids ||
+             jsonb_build_array($3::text)
+         END
+       WHERE account_id = $1
+         AND id = $2
+       RETURNING *`,
+      [
+        params.accountId,
+        params.executionId,
+        params.analysisRunId,
+      ]
+    );
+    if (!result.rowCount) {
+      throw new Error(
+        'Action execution not found in the current account scope.'
+      );
+    }
+    return executionFromRow(
+      postgresPool(),
+      result.rows[0]
+    );
+  }
+
+  async appendExecutionWarning(params: {
+    accountId: string;
+    executionId: string;
+    warning: string;
+  }): Promise<ActionExecution> {
+    const warning =
+      params.warning
+        .trim()
+        .slice(0, 2000);
+    if (!warning) {
+      const existing =
+        await this.getExecution(
+          params.accountId,
+          params.executionId
+        );
+      if (!existing) {
+        throw new Error(
+          'Action execution not found in the current account scope.'
+        );
+      }
+      return existing;
+    }
+
+    const result = await postgresPool().query(
+      `UPDATE action_executions
+       SET downstream_warnings =
+         CASE
+           WHEN downstream_warnings ? $3
+             THEN downstream_warnings
+           ELSE downstream_warnings ||
+             jsonb_build_array($3::text)
+         END
+       WHERE account_id = $1
+         AND id = $2
+       RETURNING *`,
+      [
+        params.accountId,
+        params.executionId,
+        warning,
+      ]
+    );
+    if (!result.rowCount) {
+      throw new Error(
+        'Action execution not found in the current account scope.'
+      );
+    }
+    return executionFromRow(
+      postgresPool(),
+      result.rows[0]
+    );
   }
 
   async updateExecutionAnalysis(params: {

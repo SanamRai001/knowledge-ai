@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import type { PoolClient } from 'pg';
 import {
   postgresPool,
   withTransaction,
@@ -143,114 +144,124 @@ function newLeaseToken(): string {
     .toString('hex');
 }
 
+export async function enqueueWorkerJobWithClient(
+  client: Pick<PoolClient, 'query'>,
+  input: EnqueueWorkerJobInput
+): Promise<WorkerJob> {
+  const accountId =
+    input.accountId.trim();
+  if (!accountId) {
+    throw new Error(
+      'Worker job accountId is required.'
+    );
+  }
+
+  const jobType =
+    validateJobType(input.jobType);
+  const idempotencyKey =
+    cleanOptional(
+      input.idempotencyKey
+    );
+  const concurrencyKey =
+    cleanOptional(
+      input.concurrencyKey
+    );
+  const payloadRef =
+    cleanOptional(input.payloadRef);
+  const priority =
+    boundedInteger(
+      input.priority,
+      0,
+      -1000,
+      1000
+    );
+  const maxAttempts =
+    boundedInteger(
+      input.maxAttempts,
+      3,
+      1,
+      100
+    );
+  const now = Date.now();
+  const runAt = Math.max(
+    0,
+    Math.trunc(
+      input.runAt ?? now
+    )
+  );
+  const params = [
+    newId(),
+    accountId,
+    jobType,
+    JSON.stringify(
+      input.payload || {}
+    ),
+    payloadRef ?? null,
+    idempotencyKey ?? null,
+    concurrencyKey ?? null,
+    priority,
+    maxAttempts,
+    new Date(runAt),
+    new Date(now),
+  ];
+
+  const sql = idempotencyKey
+    ? `INSERT INTO worker_jobs
+        (id, account_id, job_type,
+         payload, payload_ref,
+         idempotency_key,
+         concurrency_key, priority,
+         status, attempt_count,
+         max_attempts,
+         next_attempt_at,
+         created_at, updated_at)
+       VALUES (
+         $1,$2,$3,$4::jsonb,$5,$6,$7,$8,
+         'PENDING',0,$9,$10,$11,$11
+       )
+       ON CONFLICT (
+         account_id,
+         job_type,
+         idempotency_key
+       )
+       WHERE idempotency_key IS NOT NULL
+       DO UPDATE SET
+         updated_at =
+           worker_jobs.updated_at
+       RETURNING *`
+    : `INSERT INTO worker_jobs
+        (id, account_id, job_type,
+         payload, payload_ref,
+         idempotency_key,
+         concurrency_key, priority,
+         status, attempt_count,
+         max_attempts,
+         next_attempt_at,
+         created_at, updated_at)
+       VALUES (
+         $1,$2,$3,$4::jsonb,$5,$6,$7,$8,
+         'PENDING',0,$9,$10,$11,$11
+       )
+       RETURNING *`;
+
+  const result =
+    await client.query(
+      sql,
+      params
+    );
+
+  return rowToJob(
+    result.rows[0]
+  );
+}
+
 export class PostgresWorkerJobRepository {
   async enqueue(
     input: EnqueueWorkerJobInput
   ): Promise<WorkerJob> {
-    const accountId =
-      input.accountId.trim();
-    if (!accountId) {
-      throw new Error(
-        'Worker job accountId is required.'
-      );
-    }
-
-    const jobType =
-      validateJobType(input.jobType);
-    const idempotencyKey =
-      cleanOptional(
-        input.idempotencyKey
-      );
-    const concurrencyKey =
-      cleanOptional(
-        input.concurrencyKey
-      );
-    const payloadRef =
-      cleanOptional(input.payloadRef);
-    const priority =
-      boundedInteger(
-        input.priority,
-        0,
-        -1000,
-        1000
-      );
-    const maxAttempts =
-      boundedInteger(
-        input.maxAttempts,
-        3,
-        1,
-        100
-      );
-    const now = Date.now();
-    const runAt = Math.max(
-      0,
-      Math.trunc(
-        input.runAt ?? now
-      )
-    );
-    const params = [
-      newId(),
-      accountId,
-      jobType,
-      JSON.stringify(
-        input.payload || {}
-      ),
-      payloadRef ?? null,
-      idempotencyKey ?? null,
-      concurrencyKey ?? null,
-      priority,
-      maxAttempts,
-      new Date(runAt),
-      new Date(now),
-    ];
-
-    const sql = idempotencyKey
-      ? `INSERT INTO worker_jobs
-          (id, account_id, job_type,
-           payload, payload_ref,
-           idempotency_key,
-           concurrency_key, priority,
-           status, attempt_count,
-           max_attempts,
-           next_attempt_at,
-           created_at, updated_at)
-         VALUES (
-           $1,$2,$3,$4::jsonb,$5,$6,$7,$8,
-           'PENDING',0,$9,$10,$11,$11
-         )
-         ON CONFLICT (
-           account_id,
-           job_type,
-           idempotency_key
-         )
-         WHERE idempotency_key IS NOT NULL
-         DO UPDATE SET
-           updated_at =
-             worker_jobs.updated_at
-         RETURNING *`
-      : `INSERT INTO worker_jobs
-          (id, account_id, job_type,
-           payload, payload_ref,
-           idempotency_key,
-           concurrency_key, priority,
-           status, attempt_count,
-           max_attempts,
-           next_attempt_at,
-           created_at, updated_at)
-         VALUES (
-           $1,$2,$3,$4::jsonb,$5,$6,$7,$8,
-           'PENDING',0,$9,$10,$11,$11
-         )
-         RETURNING *`;
-
-    const result =
-      await postgresPool().query(
-        sql,
-        params
-      );
-
-    return rowToJob(
-      result.rows[0]
+    return enqueueWorkerJobWithClient(
+      postgresPool(),
+      input
     );
   }
 

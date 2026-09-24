@@ -9,7 +9,9 @@ import type {
   KnowledgeClaimValue,
   KnowledgeSourceRef,
 } from '../companyKnowledge/types.js';
-import { discoveryRuntimeService } from '../discovery/discoveryRuntimeService.js';
+import {
+  enqueueActionDiscoveryRefresh,
+} from './actionDiscoveryWorker.js';
 import {
   PostgresActionTransactionError,
   postgresActionRepository,
@@ -405,13 +407,23 @@ export class ActionRuntimeExecutionService {
         params.proposalId
       );
     if (existingExecution) {
+      const proposal =
+        await actionPersistence.requireProposal(
+          params.accountId,
+          params.proposalId
+        );
+
       return {
-        proposal:
-          await actionPersistence.requireProposal(
-            params.accountId,
-            params.proposalId
-          ),
-        execution: existingExecution,
+        proposal,
+        execution:
+          await this.finalizeCommittedPostgresAction({
+            accountId:
+              params.accountId,
+            proposal,
+            execution:
+              existingExecution,
+            idempotentReplay: true,
+          }),
       };
     }
 
@@ -484,41 +496,78 @@ export class ActionRuntimeExecutionService {
     execution: ActionExecution;
     idempotentReplay?: boolean;
   }): Promise<ActionExecution> {
-    if (params.idempotentReplay) {
-      return params.execution;
-    }
-
-    const downstream =
-      await this.runDownstreamDiscovery({
-        accountId: params.accountId,
-        proposal: params.proposal,
-      });
-
+    let datasetIds: string[] = [];
     try {
-      return await postgresActionRepository
-        .updateExecutionAnalysis({
+      datasetIds =
+        await this.collectDownstreamDatasetIds({
+          accountId:
+            params.accountId,
+          proposal:
+            params.proposal,
+        });
+    } catch (error: any) {
+      await postgresActionRepository
+        .appendExecutionWarning({
           accountId:
             params.accountId,
           executionId:
             params.execution.id,
-          downstreamAnalysisRunIds:
-            downstream.runIds,
-          downstreamWarnings:
-            downstream.warnings,
-        });
-    } catch (error: any) {
-      return {
-        ...params.execution,
-        downstreamAnalysisRunIds:
-          downstream.runIds,
-        downstreamWarnings: [
-          ...downstream.warnings,
-          'Could not persist downstream analysis metadata: ' +
+          warning:
+            'Discovery refresh planning failed after Action commit: ' +
             (error?.message ||
               'unknown error'),
-        ],
-      };
+        })
+        .catch(() => undefined);
+
+      return (
+        (await postgresActionRepository
+          .getExecution(
+            params.accountId,
+            params.execution.id
+          )) ||
+        params.execution
+      );
     }
+
+    for (const datasetId of datasetIds) {
+      try {
+        await enqueueActionDiscoveryRefresh({
+          accountId:
+            params.accountId,
+          executionId:
+            params.execution.id,
+          proposalId:
+            params.proposal.id,
+          datasetId,
+          referenceTime:
+            params.execution.executedAt,
+        });
+      } catch (error: any) {
+        await postgresActionRepository
+          .appendExecutionWarning({
+            accountId:
+              params.accountId,
+            executionId:
+              params.execution.id,
+            warning:
+              'Discovery refresh enqueue failed for dataset ' +
+              datasetId +
+              ': ' +
+              (error?.message ||
+                'unknown error'),
+          })
+          .catch(() => undefined);
+      }
+    }
+
+    return (
+      (await postgresActionRepository
+        .getExecution(
+          params.accountId,
+          params.execution.id
+        )) ||
+      params.execution
+    );
   }
 
   public async cancel(params: {
@@ -555,67 +604,68 @@ export class ActionRuntimeExecutionService {
     });
   }
 
-  private async runDownstreamDiscovery(params: {
+  private async collectDownstreamDatasetIds(params: {
     accountId: string;
     proposal: ActionProposal;
-  }): Promise<{
-    runIds: string[];
-    warnings: string[];
-  }> {
-    const datasetIds = new Set<string>();
+  }): Promise<string[]> {
+    const datasetIds =
+      new Set<string>();
 
-    for (const entityId of params.proposal
-      .targetEntityIds) {
+    for (
+      const entityId of
+      params.proposal.targetEntityIds
+    ) {
       const entity =
-        await companyKnowledgePersistence.getEntity(
-          params.accountId,
-          entityId
-        );
-      for (const source of entity?.sourceRefs || []) {
-        if (source.sourceType === 'DATASET') {
-          datasetIds.add(source.sourceId);
+        await companyKnowledgePersistence
+          .getEntity(
+            params.accountId,
+            entityId
+          );
+      for (
+        const source of
+        entity?.sourceRefs || []
+      ) {
+        if (
+          source.sourceType ===
+          'DATASET'
+        ) {
+          datasetIds.add(
+            source.sourceId
+          );
         }
       }
     }
 
-    for (const precondition of params.proposal
-      .preconditions) {
-      if (!precondition.effectiveClaimId) continue;
-      const claim =
-        await companyKnowledgePersistence.getClaim(
-          params.accountId,
-          precondition.effectiveClaimId
-        );
+    for (
+      const precondition of
+      params.proposal.preconditions
+    ) {
       if (
-        claim?.sourceRef.sourceType === 'DATASET'
+        !precondition.effectiveClaimId
       ) {
-        datasetIds.add(claim.sourceRef.sourceId);
+        continue;
       }
-    }
 
-    const runIds: string[] = [];
-    const warnings: string[] = [];
+      const claim =
+        await companyKnowledgePersistence
+          .getClaim(
+            params.accountId,
+            precondition.effectiveClaimId
+          );
 
-    for (const datasetId of datasetIds) {
-      try {
-        const result =
-          await discoveryRuntimeService.analyzeDataset({
-            accountId: params.accountId,
-            datasetId,
-            referenceTime: Date.now(),
-          });
-        runIds.push(result.run.id);
-      } catch (error: any) {
-        warnings.push(
-          'Discovery refresh failed for dataset ' +
-            datasetId +
-            ': ' +
-            (error?.message || 'unknown error')
+      if (
+        claim?.sourceRef.sourceType ===
+        'DATASET'
+      ) {
+        datasetIds.add(
+          claim.sourceRef.sourceId
         );
       }
     }
 
-    return { runIds, warnings };
+    return Array.from(
+      datasetIds
+    ).sort();
   }
 }
 

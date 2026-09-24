@@ -97,8 +97,11 @@ async function main() {
   assert(
     worker.includes(
       'SELECT 1 FROM worker_jobs LIMIT 1'
-    ),
-    'Dedicated worker startup must fail closed when migration 015 is unavailable.'
+    ) &&
+      worker.includes(
+        'SELECT 1 FROM action_execution_discovery_jobs LIMIT 1'
+      ),
+    'Dedicated worker startup must fail closed when the E2 queue or later E3 workload schema is unavailable.'
   );
 
   const background = read(
@@ -213,9 +216,15 @@ async function main() {
         "e1Owner: 'REQUEST_PATH'"
       ) &&
       catalog.includes(
-        "e1Owner: 'POST_COMMIT_PATH'"
+        "id: 'DISCOVERY_ANALYSIS'"
+      ) &&
+      catalog.includes(
+        "e1Owner: 'WORKER'"
+      ) &&
+      catalog.includes(
+        "futureQueueCandidate: false"
       ),
-    'E2 foundation must not silently migrate product workloads before a later explicit phase.'
+    'E2 historical foundation proof must accept E3 Discovery migration while Integration and Automation remain request-driven.'
   );
 
   const pkg = read('package.json')

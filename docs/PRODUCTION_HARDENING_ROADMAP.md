@@ -183,7 +183,8 @@ The implementation sequence is deliberately split into small slices:
 28. **D3 — Watch Scheduling Transaction Boundary** — COMPLETE, workflow `35948962695`
 29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — COMPLETE, workflow `35950002619`
 30. **E2 — PostgreSQL Worker Job Contract + Queue Foundation** — COMPLETE, workflow `36015433343`
-31. **E3 — Action Post-Commit Discovery Refresh Worker Migration** — NEXT
+31. **E3 — Action Post-Commit Discovery Refresh Worker Migration** — COMPLETE, workflow `36022612284`
+32. **E4 — Integration Sync Worker Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -244,6 +245,8 @@ D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
 E1 evidence: `docs/PRODUCTION_E1_WORKER_RUNTIME_SEPARATION.md`.
 
 E2 evidence: `docs/PRODUCTION_E2_WORKER_JOB_FOUNDATION.md`.
+
+E3 evidence: `docs/PRODUCTION_E3_ACTION_DISCOVERY_WORKER.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -723,22 +726,24 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening E3 — Action Post-Commit Discovery Refresh Worker Migration**
+**Production Hardening E4 — Integration Sync Worker Migration**
 
-Keep E3 limited to the existing downstream Discovery refresh that runs after a confirmed PostgreSQL Action commit.
+Keep E4 limited to Integration synchronization execution. Preserve OAuth connection lifecycle, Integration administration, and the C6 source/checkpoint transaction semantics.
 
-1. define one versioned worker-job type/payload for Action-triggered Dataset Discovery refresh
-2. enqueue only after the D1 Action business transaction has committed successfully
-3. derive a database-backed idempotency key from the committed Action execution + Dataset identity so replay cannot create duplicate logical refresh jobs
-4. persist queued worker-job IDs in Action execution downstream metadata without changing the committed company-state mutation
-5. register one E3 handler that resolves account/Dataset scope and calls the existing `discoveryRuntimeService.analyzeDataset(...)`
-6. make worker completion append downstream analysis-run IDs to the Action execution; terminal job failure must surface as downstream warning/failure metadata rather than rewriting Action success
-7. preserve retry/backoff/restart recovery through the E2 worker-job contract and never replay the D1 Action mutation
-8. keep explicit/manual `POST /api/insights/analyze` synchronous and unchanged
-9. preserve Integration sync and Automation execution API semantics; do not migrate them in E3
-10. add focused PostgreSQL proofs for enqueue idempotency, restart/retry, Action-success independence, and truthful downstream metadata
+The current `POST /api/integrations/connections/:id/sync` contract is synchronous and returns a completed/failed SyncRun. Do not silently change that response contract before auditing and migrating its callers.
 
-Do not migrate Integration sync, Automation execution, or the explicit manual Discovery API in E3. Do not introduce Redis/BullMQ/managed queue infrastructure.
+1. inventory every current caller of the synchronous Integration sync endpoint and document the compatibility contract before changing request behavior
+2. define one versioned `INTEGRATION_SYNC_V1` worker-job payload carrying only account-scoped connection identity plus the minimal request/actor/reference metadata needed for auditability
+3. use an account + connection concurrency key so at most one worker sync owns a connection at a time; preserve the existing PostgreSQL sync lease as a second correctness boundary
+4. define deterministic/idempotent enqueue semantics so request replay does not create duplicate logical sync work
+5. register one worker-only handler that invokes the existing PostgreSQL `integrationRuntimeService.sync(...)` path rather than duplicating connector/import/checkpoint business logic
+6. preserve C6 immutable provider source snapshots, external-import recovery, exact DatasetVersion/source linkage, projection prerequisites, and atomic cursor advancement unchanged inside the worker execution
+7. introduce a truthful asynchronous job/run surface for queued/running/succeeded/failed/dead-letter sync work and migrate product callers deliberately; retain the existing synchronous sync path as compatibility until its callers are explicitly cut over
+8. prove worker restart/stale-lease recovery cannot duplicate Dataset imports or advance a provider cursor twice
+9. surface terminal worker failure through inspectable job + Integration sync health metadata without corrupting the last committed checkpoint
+10. preserve OAuth connect/callback/disconnect, pause/resume/reset-cursor, Automation execution, and manual Discovery semantics; do not migrate them in E4
+
+Do not introduce Redis/BullMQ/managed queue infrastructure in E4. Do not remove the synchronous Integration sync contract until all current callers are verified and migrated.
 ---
 
 # Track A closure note
