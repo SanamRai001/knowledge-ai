@@ -153,27 +153,41 @@ async function main() {
   const catalog = read(
     'server/runtime/backgroundWorkloadCatalog.ts'
   );
-  assert(
-    catalog.includes(
-      "id: 'DISCOVERY_ANALYSIS'"
-    ) &&
-      catalog.includes(
-        "executionModel:\n        'AUTONOMOUS_LOOP'"
-      ) &&
-      catalog.includes(
-        "e1Owner: 'WORKER'"
-      ) &&
-      catalog.includes(
-        "id: 'INTEGRATION_SYNC'"
-      ) &&
-      catalog.includes(
-        "id: 'AUTOMATION_EXECUTION'"
-      ) &&
-      catalog.includes(
-        "e1Owner: 'REQUEST_PATH'"
-      ),
-    'E3 must move only Discovery refresh to worker ownership while Integration/Automation stay request-driven.'
-  );
+  for (const workload of [
+    'DISCOVERY_ANALYSIS',
+    'INTEGRATION_SYNC',
+    'AUTOMATION_EXECUTION',
+  ]) {
+    const start =
+      catalog.indexOf(
+        "id: '" + workload + "'"
+      );
+    const nextEntry =
+      catalog.indexOf(
+        "id: '",
+        start + 5
+      );
+    const entry =
+      catalog.slice(
+        start,
+        nextEntry > start
+          ? nextEntry
+          : undefined
+      );
+
+    assert(
+      start >= 0 &&
+        entry.includes(
+          "executionModel:\n        'AUTONOMOUS_LOOP'"
+        ) &&
+        entry.includes(
+          "e1Owner: 'WORKER'"
+        ),
+      'E3 historical proof must accept later worker ownership for ' +
+        workload +
+        '.'
+    );
+  }
 
   const manualRouter = read(
     'server/discovery/discoveryRouter.ts'
