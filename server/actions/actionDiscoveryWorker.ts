@@ -3,10 +3,14 @@ import {
   discoveryRuntimeService,
 } from '../discovery/discoveryRuntimeService.js';
 import {
+  linkExecutionDiscoveryJobWithClient,
   postgresActionRepository,
 } from '../persistence/a3PostgresRepositories.js';
 import {
-  postgresWorkerJobRepository,
+  withTransaction,
+} from '../persistence/postgres.js';
+import {
+  enqueueWorkerJobWithClient,
 } from '../worker/postgresWorkerJobRepository.js';
 import {
   workerJobHandlerRegistry,
@@ -147,38 +151,50 @@ export async function enqueueActionDiscoveryRefresh(input: {
       input
     );
 
-  const job =
-    await postgresWorkerJobRepository.enqueue({
-      accountId: input.accountId,
-      jobType:
-        ACTION_DISCOVERY_REFRESH_JOB_TYPE,
-      payload:
-        spec.payload as unknown as Record<
-          string,
-          unknown
-        >,
-      idempotencyKey:
-        spec.idempotencyKey,
-      concurrencyKey:
-        spec.concurrencyKey,
-      maxAttempts: 4,
-    });
+  return withTransaction(
+    async (client) => {
+      const job =
+        await enqueueWorkerJobWithClient(
+          client,
+          {
+            accountId:
+              input.accountId,
+            jobType:
+              ACTION_DISCOVERY_REFRESH_JOB_TYPE,
+            payload:
+              spec.payload as unknown as Record<
+                string,
+                unknown
+              >,
+            idempotencyKey:
+              spec.idempotencyKey,
+            concurrencyKey:
+              spec.concurrencyKey,
+            maxAttempts: 4,
+          }
+        );
 
-  const execution =
-    await postgresActionRepository
-      .linkExecutionDiscoveryJob({
-        accountId: input.accountId,
-        executionId:
-          input.executionId,
-        workerJobId: job.id,
-        datasetId:
-          input.datasetId,
-      });
+      const execution =
+        await linkExecutionDiscoveryJobWithClient(
+          client,
+          {
+            accountId:
+              input.accountId,
+            executionId:
+              input.executionId,
+            workerJobId:
+              job.id,
+            datasetId:
+              input.datasetId,
+          }
+        );
 
-  return {
-    job,
-    execution,
-  };
+      return {
+        job,
+        execution,
+      };
+    }
+  );
 }
 
 export async function handleActionDiscoveryRefreshJob(
