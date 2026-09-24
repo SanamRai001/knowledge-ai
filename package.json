@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "worker:dev": "tsx worker.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/worker.cjs",
     "start": "node dist/server.cjs",
+    "start:worker": "node dist/worker.cjs",
     "lint": "tsc --noEmit",
     "check:benchmark-leakage": "node scripts/check-benchmark-leakage.mjs",
     "check:provider-boundary": "node scripts/check-provider-boundary.mjs",
@@ -106,7 +108,8 @@
     "check:production:d2-automation-transaction-contract": "tsx scripts/check-production-d2-automation-transaction-contract.ts",
     "check:production:d2-automation-transaction-postgres": "tsx scripts/check-production-d2-automation-transaction-postgres.ts",
     "check:production:d3-watch-transaction-contract": "tsx scripts/check-production-d3-watch-transaction-contract.ts",
-    "check:production:d3-watch-transaction-postgres": "tsx scripts/check-production-d3-watch-transaction-postgres.ts"
+    "check:production:d3-watch-transaction-postgres": "tsx scripts/check-production-d3-watch-transaction-postgres.ts",
+    "check:production:e1-worker-runtime-separation": "tsx scripts/check-production-e1-worker-runtime-separation.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

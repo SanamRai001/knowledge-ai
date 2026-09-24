@@ -181,7 +181,8 @@ The implementation sequence is deliberately split into small slices:
 26. **D1 — Confirmed Action Transaction Boundary** — COMPLETE, workflow `35897430490`
 27. **D2 — Controlled Automation Transaction Boundary** — COMPLETE, workflow `35903477902`
 28. **D3 — Watch Scheduling Transaction Boundary** — COMPLETE, workflow `35948962695`
-29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — NEXT
+29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — COMPLETE, workflow `35950002619`
+30. **E2 — PostgreSQL Worker Job Contract + Queue Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -238,6 +239,8 @@ D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
 D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
 
 D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
+
+E1 evidence: `docs/PRODUCTION_E1_WORKER_RUNTIME_SEPARATION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -717,22 +720,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation**
+**Production Hardening E2 — PostgreSQL Worker Job Contract + Queue Foundation**
 
-Keep this first Track E slice focused on process/runtime boundaries before choosing or deploying generalized queue infrastructure.
+Keep E2 limited to the reusable durable PostgreSQL worker-job primitive before migrating broad product workloads.
 
-1. inventory every current background execution surface, timer, scheduler, recovery loop, and durable job table across Watch, Integrations, Automation, Discovery/re-analysis, detectors, and reminders
-2. identify which workloads are already durable/lease-safe in PostgreSQL and which still depend on one application process staying alive
-3. define explicit WEB vs WORKER runtime responsibilities and startup/shutdown ownership so multiple web replicas do not all start the same background loops
-4. inventory existing job identity, lease, retry, backoff, dead-letter/failure, concurrency, and observability semantics by workload
-5. decide whether the first generalized worker foundation should remain PostgreSQL-backed; do not introduce Redis/managed queue without measured need
-6. define one provider-neutral durable job/worker contract only where common semantics are real rather than forcing unrelated workloads into a premature abstraction
-7. add fail-closed runtime configuration for process role selection and prove WEB-only processes do not execute worker loops
-8. preserve all existing product APIs and D1/D2/D3 transactional guarantees
-9. add executable inventory/runtime-separation proofs
-10. stop before broad workload migration, managed secrets, deployment orchestration, or observability rollout
+1. add one account-scoped durable worker-job schema with explicit job type, payload/reference metadata, idempotency key, priority, lifecycle state, attempt counters, timestamps, and last-error metadata
+2. define PENDING / RUNNING / SUCCEEDED / FAILED / DEAD-LETTER semantics with database validation
+3. implement atomic `FOR UPDATE SKIP LOCKED` claim with lease ownership and lease expiry
+4. add heartbeat/lease extension and stale RUNNING recovery without allowing duplicate concurrent ownership
+5. add deterministic retry/backoff and terminal dead-letter behavior
+6. enforce database-backed idempotency so repeated enqueue requests converge on one logical job where an idempotency key is supplied
+7. define a provider-neutral worker handler registry/job contract without embedding product-specific business logic into the queue repository
+8. extend the dedicated worker runtime to poll the generic PostgreSQL job contract while preserving the existing Watch loop and D1/D2/D3 guarantees
+9. add focused concurrency/restart/failure proofs against real PostgreSQL
+10. stop before migrating every Integration/Automation/Discovery workload or introducing Redis/BullMQ/managed queue infrastructure
 
-Do not migrate every background workload or introduce Redis/BullMQ/managed queue infrastructure in E1 unless the forensic evidence proves it is necessary.
+E2 should prove the generic PostgreSQL job primitive first. Select the first non-Watch workload for migration only after this contract is green.
 ---
 
 # Track A closure note

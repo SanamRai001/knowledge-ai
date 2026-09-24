@@ -226,6 +226,9 @@ jobs:
       - name: Production D3 Watch transaction contract proof
         run: npm run check:production:d3-watch-transaction-contract
 
+      - name: Production E1 worker runtime separation proof
+        run: npm run check:production:e1-worker-runtime-separation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
