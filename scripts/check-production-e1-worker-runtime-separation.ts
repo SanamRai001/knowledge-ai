@@ -16,7 +16,7 @@ import {
 function assert(
   condition: unknown,
   message: string
-): asserts condition {
+): void {
   if (!condition) throw new Error(message);
 }
 
