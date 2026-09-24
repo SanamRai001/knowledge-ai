@@ -182,7 +182,8 @@ The implementation sequence is deliberately split into small slices:
 27. **D2 — Controlled Automation Transaction Boundary** — COMPLETE, workflow `35903477902`
 28. **D3 — Watch Scheduling Transaction Boundary** — COMPLETE, workflow `35948962695`
 29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — COMPLETE, workflow `35950002619`
-30. **E2 — PostgreSQL Worker Job Contract + Queue Foundation** — NEXT
+30. **E2 — PostgreSQL Worker Job Contract + Queue Foundation** — COMPLETE, workflow `36015433343`
+31. **E3 — Action Post-Commit Discovery Refresh Worker Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -241,6 +242,8 @@ D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
 D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
 
 E1 evidence: `docs/PRODUCTION_E1_WORKER_RUNTIME_SEPARATION.md`.
+
+E2 evidence: `docs/PRODUCTION_E2_WORKER_JOB_FOUNDATION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -720,22 +723,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening E2 — PostgreSQL Worker Job Contract + Queue Foundation**
+**Production Hardening E3 — Action Post-Commit Discovery Refresh Worker Migration**
 
-Keep E2 limited to the reusable durable PostgreSQL worker-job primitive before migrating broad product workloads.
+Keep E3 limited to the existing downstream Discovery refresh that runs after a confirmed PostgreSQL Action commit.
 
-1. add one account-scoped durable worker-job schema with explicit job type, payload/reference metadata, idempotency key, priority, lifecycle state, attempt counters, timestamps, and last-error metadata
-2. define PENDING / RUNNING / SUCCEEDED / FAILED / DEAD-LETTER semantics with database validation
-3. implement atomic `FOR UPDATE SKIP LOCKED` claim with lease ownership and lease expiry
-4. add heartbeat/lease extension and stale RUNNING recovery without allowing duplicate concurrent ownership
-5. add deterministic retry/backoff and terminal dead-letter behavior
-6. enforce database-backed idempotency so repeated enqueue requests converge on one logical job where an idempotency key is supplied
-7. define a provider-neutral worker handler registry/job contract without embedding product-specific business logic into the queue repository
-8. extend the dedicated worker runtime to poll the generic PostgreSQL job contract while preserving the existing Watch loop and D1/D2/D3 guarantees
-9. add focused concurrency/restart/failure proofs against real PostgreSQL
-10. stop before migrating every Integration/Automation/Discovery workload or introducing Redis/BullMQ/managed queue infrastructure
+1. define one versioned worker-job type/payload for Action-triggered Dataset Discovery refresh
+2. enqueue only after the D1 Action business transaction has committed successfully
+3. derive a database-backed idempotency key from the committed Action execution + Dataset identity so replay cannot create duplicate logical refresh jobs
+4. persist queued worker-job IDs in Action execution downstream metadata without changing the committed company-state mutation
+5. register one E3 handler that resolves account/Dataset scope and calls the existing `discoveryRuntimeService.analyzeDataset(...)`
+6. make worker completion append downstream analysis-run IDs to the Action execution; terminal job failure must surface as downstream warning/failure metadata rather than rewriting Action success
+7. preserve retry/backoff/restart recovery through the E2 worker-job contract and never replay the D1 Action mutation
+8. keep explicit/manual `POST /api/insights/analyze` synchronous and unchanged
+9. preserve Integration sync and Automation execution API semantics; do not migrate them in E3
+10. add focused PostgreSQL proofs for enqueue idempotency, restart/retry, Action-success independence, and truthful downstream metadata
 
-E2 should prove the generic PostgreSQL job primitive first. Select the first non-Watch workload for migration only after this contract is green.
+Do not migrate Integration sync, Automation execution, or the explicit manual Discovery API in E3. Do not introduce Redis/BullMQ/managed queue infrastructure.
 ---
 
 # Track A closure note
