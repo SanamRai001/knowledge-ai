@@ -229,6 +229,9 @@ jobs:
       - name: Production E1 worker runtime separation proof
         run: npm run check:production:e1-worker-runtime-separation
 
+      - name: Production E2 worker job foundation contract proof
+        run: npm run check:production:e2-worker-job-foundation-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -377,3 +380,6 @@ jobs:
 
       - name: Production D3 Watch transaction PostgreSQL proof
         run: npm run check:production:d3-watch-transaction-postgres
+
+      - name: Production E2 worker job foundation PostgreSQL proof
+        run: npm run check:production:e2-worker-job-foundation-postgres

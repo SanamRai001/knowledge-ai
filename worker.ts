@@ -30,10 +30,13 @@ async function startWorker() {
     );
   }
 
-  // Fail before starting loops if PostgreSQL or the Watch job schema
-  // is unavailable. Migrations remain a deployment responsibility.
+  // Fail before starting loops if PostgreSQL or required worker schemas
+  // are unavailable. Migrations remain a deployment responsibility.
   await postgresPool().query(
     'SELECT 1 FROM watch_jobs LIMIT 1'
+  );
+  await postgresPool().query(
+    'SELECT 1 FROM worker_jobs LIMIT 1'
   );
 
   const started =

@@ -9,9 +9,18 @@ import {
   roleRunsWorkers,
   type KnowledgeAiProcessRole,
 } from './processRole.js';
+import {
+  workerJobRuntime,
+  type WorkerJobRuntime,
+} from '../worker/workerJobRuntime.js';
 
 type WorkerLoop = Pick<
   WatchRuntimeScheduler,
+  'start' | 'stop'
+>;
+
+type GenericJobLoop = Pick<
+  WorkerJobRuntime,
   'start' | 'stop'
 >;
 
@@ -26,7 +35,9 @@ export class BackgroundRuntime {
   constructor(
     private readonly watchLoop:
       WorkerLoop =
-        watchRuntimeScheduler
+        watchRuntimeScheduler,
+    private readonly genericJobLoop?:
+      GenericJobLoop
   ) {}
 
   public startForRole(
@@ -47,6 +58,10 @@ export class BackgroundRuntime {
         keepProcessAlive:
           options?.keepProcessAlive,
       });
+      this.genericJobLoop?.start({
+        keepProcessAlive:
+          options?.keepProcessAlive,
+      });
       this.started = true;
     }
 
@@ -61,6 +76,7 @@ export class BackgroundRuntime {
   public stop(): void {
     if (!this.started) return;
     this.watchLoop.stop();
+    this.genericJobLoop?.stop();
     this.started = false;
   }
 
@@ -70,4 +86,7 @@ export class BackgroundRuntime {
 }
 
 export const backgroundRuntime =
-  new BackgroundRuntime();
+  new BackgroundRuntime(
+    watchRuntimeScheduler,
+    workerJobRuntime
+  );
