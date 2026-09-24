@@ -202,30 +202,47 @@ async function main() {
   const catalog = read(
     'server/runtime/backgroundWorkloadCatalog.ts'
   );
-  assert(
-    catalog.includes(
-      "id: 'INTEGRATION_SYNC'"
-    ) &&
-      catalog.includes(
-        "id: 'AUTOMATION_EXECUTION'"
-      ) &&
-      catalog.includes(
-        "id: 'DISCOVERY_ANALYSIS'"
-      ) &&
-      catalog.includes(
-        "e1Owner: 'REQUEST_PATH'"
-      ) &&
-      catalog.includes(
-        "id: 'DISCOVERY_ANALYSIS'"
-      ) &&
-      catalog.includes(
-        "e1Owner: 'WORKER'"
-      ) &&
-      catalog.includes(
-        "futureQueueCandidate: false"
-      ),
-    'E2 historical foundation proof must accept E3 Discovery migration while Integration and Automation remain request-driven.'
-  );
+  for (const workload of [
+    'INTEGRATION_SYNC',
+    'AUTOMATION_EXECUTION',
+    'DISCOVERY_ANALYSIS',
+  ]) {
+    const start =
+      catalog.indexOf(
+        "id: '" + workload + "'"
+      );
+    const end =
+      catalog.indexOf(
+        workload ===
+          'DISCOVERY_ANALYSIS'
+          ? '] as const'
+          : "id: '",
+        start + 5
+      );
+    const entry =
+      catalog.slice(
+        start,
+        end > start
+          ? end
+          : undefined
+      );
+
+    assert(
+      start >= 0 &&
+        entry.includes(
+          "executionModel:\n        'AUTONOMOUS_LOOP'"
+        ) &&
+        entry.includes(
+          "e1Owner: 'WORKER'"
+        ) &&
+        entry.includes(
+          'futureQueueCandidate: false'
+        ),
+      'E2 historical foundation proof must accept later durable worker migration for ' +
+        workload +
+        '.'
+    );
+  }
 
   const pkg = read('package.json')
     .toLowerCase();
