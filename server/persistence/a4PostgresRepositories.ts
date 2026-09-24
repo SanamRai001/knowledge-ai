@@ -986,6 +986,645 @@ export class PostgresWatchRepository implements WatchRepository {
     return result.rows.map(watchJobFromRow);
   }
 
+  public async commitClaimedJobEvaluation(
+    input: WatchJobEvaluationCommitInput
+  ): Promise<WatchJobEvaluationCommitResult> {
+    return withTransaction(async (client) => {
+      const jobResult = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE account_id = $1
+           AND id = $2
+         FOR UPDATE`,
+        [
+          input.accountId,
+          input.jobId,
+        ]
+      );
+
+      if (!jobResult.rowCount) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_NOT_FOUND',
+          404,
+          'Watch job not found in the current account scope.'
+        );
+      }
+
+      const job =
+        watchJobFromRow(
+          jobResult.rows[0]
+        );
+
+      if (
+        job.status === 'COMPLETED' &&
+        job.evaluationId
+      ) {
+        const [
+          evaluationResult,
+          ruleResult,
+          alertResult,
+        ] = await Promise.all([
+          client.query(
+            `SELECT *
+             FROM watch_evaluations
+             WHERE account_id = $1
+               AND id = $2`,
+            [
+              input.accountId,
+              job.evaluationId,
+            ]
+          ),
+          client.query(
+            `SELECT *
+             FROM watch_rules
+             WHERE account_id = $1
+               AND id = $2`,
+            [
+              input.accountId,
+              job.watchRuleId,
+            ]
+          ),
+          client.query(
+            `SELECT *
+             FROM watch_alerts
+             WHERE account_id = $1
+               AND watch_rule_id = $2
+               AND last_evaluation_id = $3
+             ORDER BY updated_at DESC
+             LIMIT 1`,
+            [
+              input.accountId,
+              job.watchRuleId,
+              job.evaluationId,
+            ]
+          ),
+        ]);
+
+        if (
+          !evaluationResult.rowCount ||
+          !ruleResult.rowCount
+        ) {
+          throw new Error(
+            'Completed Watch job is missing its relational evaluation/rule state.'
+          );
+        }
+
+        return {
+          job,
+          rule:
+            watchRuleFromRow(
+              ruleResult.rows[0]
+            ),
+          evaluation:
+            watchEvaluationFromRow(
+              evaluationResult.rows[0]
+            ),
+          alert:
+            alertResult.rowCount
+              ? watchAlertFromRow(
+                  alertResult.rows[0]
+                )
+              : undefined,
+          idempotentReplay: true,
+        };
+      }
+
+      if (job.status !== 'RUNNING') {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_NOT_CLAIMED',
+          409,
+          'Watch job must be RUNNING before its evaluation can commit.'
+        );
+      }
+
+      if (
+        job.ruleVersion !==
+        input.expectedRuleVersion
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STALE',
+          409,
+          'Watch job rule version changed before evaluation commit.'
+        );
+      }
+
+      const ruleResult =
+        await client.query(
+          `SELECT *
+           FROM watch_rules
+           WHERE account_id = $1
+             AND id = $2
+           FOR UPDATE`,
+          [
+            input.accountId,
+            job.watchRuleId,
+          ]
+        );
+
+      if (!ruleResult.rowCount) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STALE',
+          409,
+          'Watch rule no longer exists.'
+        );
+      }
+
+      const rule =
+        watchRuleFromRow(
+          ruleResult.rows[0]
+        );
+
+      if (
+        rule.version !==
+          input.expectedRuleVersion ||
+        rule.status !== 'ACTIVE' ||
+        rule.evaluationMode !==
+          'INTERVAL'
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STALE',
+          409,
+          'Watch rule changed, paused, archived, or is no longer interval-driven before evaluation commit.'
+        );
+      }
+
+      const evaluation =
+        input.evaluation;
+
+      if (
+        evaluation.accountId !==
+          input.accountId ||
+        evaluation.jobId !==
+          job.id ||
+        evaluation.watchRuleId !==
+          rule.id ||
+        evaluation.ruleVersion !==
+          rule.version
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_EVALUATION_INVALID',
+          422,
+          'Watch evaluation identity does not match the claimed job/rule.'
+        );
+      }
+
+      if (
+        evaluation.previousConditionState !==
+        rule.currentState
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STATE_CHANGED',
+          409,
+          'Watch rule state changed after measurement; retry with a fresh evaluation.'
+        );
+      }
+
+      const existingEvaluation =
+        await client.query(
+          `SELECT *
+           FROM watch_evaluations
+           WHERE account_id = $1
+             AND job_id = $2
+           FOR UPDATE`,
+          [
+            input.accountId,
+            job.id,
+          ]
+        );
+
+      let committedEvaluation =
+        evaluation;
+
+      if (existingEvaluation.rowCount) {
+        committedEvaluation =
+          watchEvaluationFromRow(
+            existingEvaluation.rows[0]
+          );
+      } else {
+        await saveEvaluationWith(
+          client,
+          evaluation
+        );
+      }
+
+      let alert:
+        | WatchAlert
+        | undefined;
+
+      const activeAlertResult =
+        await client.query(
+          `SELECT *
+           FROM watch_alerts
+           WHERE account_id = $1
+             AND watch_rule_id = $2
+             AND status <> 'RESOLVED'
+           ORDER BY last_triggered_at DESC
+           FOR UPDATE
+           LIMIT 1`,
+          [
+            input.accountId,
+            rule.id,
+          ]
+        );
+
+      const activeAlert =
+        activeAlertResult.rowCount
+          ? watchAlertFromRow(
+              activeAlertResult.rows[0]
+            )
+          : null;
+
+      if (
+        committedEvaluation.status ===
+        'COMPLETED'
+      ) {
+        const matched =
+          committedEvaluation
+            .conditionMatched === true;
+
+        if (matched) {
+          if (activeAlert) {
+            const alreadyLinked =
+              activeAlert.evaluationIds
+                .includes(
+                  committedEvaluation.id
+                );
+            const snoozeExpired =
+              activeAlert.status ===
+                'SNOOZED' &&
+              typeof activeAlert
+                .snoozedUntil ===
+                'number' &&
+              activeAlert.snoozedUntil <=
+                committedEvaluation
+                  .evaluatedAt;
+
+            alert = {
+              ...activeAlert,
+              status: snoozeExpired
+                ? 'OPEN'
+                : activeAlert.status,
+              snoozedUntil:
+                snoozeExpired
+                  ? undefined
+                  : activeAlert
+                      .snoozedUntil,
+              lastTriggeredAt:
+                Math.max(
+                  activeAlert
+                    .lastTriggeredAt,
+                  committedEvaluation
+                    .evaluatedAt
+                ),
+              occurrenceCount:
+                activeAlert
+                  .occurrenceCount +
+                (alreadyLinked
+                  ? 0
+                  : 1),
+              evaluationIds:
+                alreadyLinked
+                  ? activeAlert
+                      .evaluationIds
+                  : [
+                      ...activeAlert
+                        .evaluationIds,
+                      committedEvaluation
+                        .id,
+                    ],
+              lastEvaluationId:
+                committedEvaluation.id,
+              evidence:
+                committedEvaluation
+                  .evidence ||
+                activeAlert.evidence,
+              updatedAt:
+                input.completedAt,
+            };
+            await saveAlertWith(
+              client,
+              alert
+            );
+          } else if (
+            rule.currentState !== 'TRUE'
+          ) {
+            if (
+              !input.newAlert ||
+              !committedEvaluation
+                .evidence
+            ) {
+              throw new PostgresWatchTransactionError(
+                'WATCH_JOB_EVALUATION_INVALID',
+                422,
+                'Matched Watch evaluation requires alert copy/evidence for a new episode.'
+              );
+            }
+
+            alert = {
+              id: input.newAlert.id,
+              episodeKey:
+                input.newAlert
+                  .episodeKey,
+              accountId:
+                input.accountId,
+              watchRuleId:
+                rule.id,
+              ruleVersion:
+                rule.version,
+              status: 'OPEN',
+              title:
+                input.newAlert.title,
+              summary:
+                input.newAlert.summary,
+              firstTriggeredAt:
+                committedEvaluation
+                  .evaluatedAt,
+              lastTriggeredAt:
+                committedEvaluation
+                  .evaluatedAt,
+              occurrenceCount: 1,
+              evaluationIds: [
+                committedEvaluation.id,
+              ],
+              lastEvaluationId:
+                committedEvaluation.id,
+              evidence:
+                committedEvaluation
+                  .evidence,
+              createdAt:
+                input.completedAt,
+              updatedAt:
+                input.completedAt,
+            };
+
+            await saveAlertWith(
+              client,
+              alert
+            );
+          }
+        } else if (
+          rule.currentState ===
+            'TRUE' &&
+          activeAlert
+        ) {
+          alert = {
+            ...activeAlert,
+            status: 'RESOLVED',
+            resolvedAt:
+              activeAlert.resolvedAt ||
+              committedEvaluation
+                .evaluatedAt,
+            resolutionReason:
+              'CONDITION_CLEARED',
+            snoozedUntil: undefined,
+            updatedAt:
+              input.completedAt,
+          };
+          await saveAlertWith(
+            client,
+            alert
+          );
+        }
+      }
+
+      const intervalMs =
+        rule.intervalMinutes &&
+        rule.intervalMinutes > 0
+          ? rule.intervalMinutes *
+            60 *
+            1000
+          : undefined;
+
+      const oneShotCompleted =
+        committedEvaluation.status ===
+          'COMPLETED' &&
+        committedEvaluation
+          .conditionMatched === true &&
+        rule.condition.kind ===
+          'TIME_REACHED';
+
+      const updatedRule: WatchRule =
+        committedEvaluation.status ===
+        'FAILED'
+          ? {
+              ...rule,
+              currentState:
+                'ERROR',
+              lastEvaluationAt:
+                committedEvaluation
+                  .evaluatedAt,
+              nextEvaluationAt:
+                intervalMs
+                  ? committedEvaluation
+                      .evaluatedAt +
+                    intervalMs
+                  : undefined,
+              updatedAt:
+                input.completedAt,
+            }
+          : {
+              ...rule,
+              status:
+                oneShotCompleted
+                  ? 'PAUSED'
+                  : rule.status,
+              currentState:
+                committedEvaluation
+                  .conditionMatched
+                  ? 'TRUE'
+                  : 'FALSE',
+              lastEvaluationAt:
+                committedEvaluation
+                  .evaluatedAt,
+              lastTriggeredAt:
+                committedEvaluation
+                  .conditionMatched
+                  ? committedEvaluation
+                      .evaluatedAt
+                  : rule.lastTriggeredAt,
+              nextEvaluationAt:
+                oneShotCompleted
+                  ? undefined
+                  : intervalMs
+                    ? committedEvaluation
+                        .evaluatedAt +
+                      intervalMs
+                    : undefined,
+              updatedAt:
+                input.completedAt,
+            };
+
+      await saveRuleWith(
+        client,
+        updatedRule
+      );
+
+      const completedJob: WatchJob = {
+        ...job,
+        status: 'COMPLETED',
+        completedAt:
+          input.completedAt,
+        evaluationId:
+          committedEvaluation.id,
+        lastError:
+          committedEvaluation.status ===
+          'FAILED'
+            ? committedEvaluation.error
+            : undefined,
+        updatedAt:
+          input.completedAt,
+      };
+
+      await saveJobWith(
+        client,
+        completedJob
+      );
+
+      return {
+        job: completedJob,
+        rule: updatedRule,
+        evaluation:
+          committedEvaluation,
+        alert,
+        idempotentReplay: false,
+      };
+    });
+  }
+
+  public async commitClaimedJobTerminalFailure(
+    input: WatchJobTerminalFailureCommitInput
+  ): Promise<WatchJobTerminalFailureCommitResult> {
+    return withTransaction(async (client) => {
+      const jobResult = await client.query(
+        `SELECT *
+         FROM watch_jobs
+         WHERE account_id = $1
+           AND id = $2
+         FOR UPDATE`,
+        [
+          input.accountId,
+          input.jobId,
+        ]
+      );
+
+      if (!jobResult.rowCount) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_NOT_FOUND',
+          404,
+          'Watch job not found in the current account scope.'
+        );
+      }
+
+      const job =
+        watchJobFromRow(
+          jobResult.rows[0]
+        );
+
+      const ruleResult =
+        await client.query(
+          `SELECT *
+           FROM watch_rules
+           WHERE account_id = $1
+             AND id = $2
+           FOR UPDATE`,
+          [
+            input.accountId,
+            job.watchRuleId,
+          ]
+        );
+
+      if (!ruleResult.rowCount) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STALE',
+          409,
+          'Watch rule no longer exists.'
+        );
+      }
+
+      const rule =
+        watchRuleFromRow(
+          ruleResult.rows[0]
+        );
+
+      if (job.status === 'FAILED') {
+        return {
+          job,
+          rule,
+          idempotentReplay: true,
+        };
+      }
+
+      if (
+        job.status !== 'RUNNING'
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_NOT_CLAIMED',
+          409,
+          'Watch job must be RUNNING before terminal failure can commit.'
+        );
+      }
+
+      if (
+        job.ruleVersion !==
+          input.expectedRuleVersion ||
+        rule.version !==
+          input.expectedRuleVersion
+      ) {
+        throw new PostgresWatchTransactionError(
+          'WATCH_JOB_RULE_STALE',
+          409,
+          'Watch rule version changed before terminal failure commit.'
+        );
+      }
+
+      const intervalMinutes =
+        rule.intervalMinutes &&
+        rule.intervalMinutes > 0
+          ? rule.intervalMinutes
+          : 60;
+
+      const failedJob: WatchJob = {
+        ...job,
+        status: 'FAILED',
+        completedAt:
+          input.failedAt,
+        lastError:
+          input.error,
+        updatedAt:
+          input.failedAt,
+      };
+
+      const failedRule: WatchRule = {
+        ...rule,
+        currentState: 'ERROR',
+        lastEvaluationAt:
+          input.failedAt,
+        nextEvaluationAt:
+          input.failedAt +
+          intervalMinutes *
+            60 *
+            1000,
+        updatedAt:
+          input.failedAt,
+      };
+
+      await saveJobWith(
+        client,
+        failedJob
+      );
+      await saveRuleWith(
+        client,
+        failedRule
+      );
+
+      return {
+        job: failedJob,
+        rule: failedRule,
+        idempotentReplay: false,
+      };
+    });
+  }
+
 }
 
 export class PostgresIntegrationRepository
