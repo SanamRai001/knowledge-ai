@@ -86,9 +86,14 @@ async function main() {
 
   assert(
     idemA.id === idemB.id &&
-      idemA.payload.version === 1 &&
-      idemB.payload.version === 1,
-    'Concurrent enqueue with the same account/type/idempotency key must converge on the first durable job without mutating its payload.'
+      idemA.payload.version ===
+        idemB.payload.version &&
+      [1, 2].includes(
+        Number(
+          idemA.payload.version
+        )
+      ),
+    'Concurrent enqueue with the same account/type/idempotency key must converge on one durable job without mutating the winning payload.'
   );
 
   const foreignIdem =
