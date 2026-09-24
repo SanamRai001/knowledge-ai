@@ -48,13 +48,13 @@ export const BACKGROUND_WORKLOAD_CATALOG:
     {
       id: 'AUTOMATION_EXECUTION',
       executionModel:
-        'REQUEST_DRIVEN',
+        'AUTONOMOUS_LOOP',
       durableState:
-        'PostgreSQL automation_runs + Action transaction state',
+        'PostgreSQL worker_jobs + automation_execution_worker_jobs + automation_runs + D1 Action transaction state',
       claimOrLease:
-        'database-enforced Automation execution claim/transaction',
-      e1Owner: 'REQUEST_PATH',
-      futureQueueCandidate: true,
+        'E2 worker_jobs fenced lease + proposal concurrency lane + D2 database-enforced Automation execution claim/transaction',
+      e1Owner: 'WORKER',
+      futureQueueCandidate: false,
     },
     {
       id: 'DISCOVERY_ANALYSIS',
