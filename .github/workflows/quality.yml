@@ -223,6 +223,9 @@ jobs:
       - name: Production D2 Automation transaction contract proof
         run: npm run check:production:d2-automation-transaction-contract
 
+      - name: Production D3 Watch transaction contract proof
+        run: npm run check:production:d3-watch-transaction-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -368,3 +371,6 @@ jobs:
 
       - name: Production D2 Automation transaction PostgreSQL proof
         run: npm run check:production:d2-automation-transaction-postgres
+
+      - name: Production D3 Watch transaction PostgreSQL proof
+        run: npm run check:production:d3-watch-transaction-postgres

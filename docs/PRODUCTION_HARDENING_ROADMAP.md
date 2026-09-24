@@ -180,7 +180,8 @@ The implementation sequence is deliberately split into small slices:
 25. **C7 — Workspace Structured State Relational Migration** — COMPLETE, workflow `35895848629`
 26. **D1 — Confirmed Action Transaction Boundary** — COMPLETE, workflow `35897430490`
 27. **D2 — Controlled Automation Transaction Boundary** — COMPLETE, workflow `35903477902`
-28. **D3 — Watch Scheduling Transaction Boundary** — NEXT
+28. **D3 — Watch Scheduling Transaction Boundary** — COMPLETE, workflow `35948962695`
+29. **E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -235,6 +236,8 @@ C7 evidence: `docs/PRODUCTION_C7_WORKSPACE_STRUCTURED_STATE.md`.
 D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
 
 D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
+
+D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -714,22 +717,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening D3 — Watch Scheduling Transaction Boundary**
+**Production Hardening E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation**
 
-Keep this slice limited to Watch job scheduling/evaluation consistency.
+Keep this first Track E slice focused on process/runtime boundaries before choosing or deploying generalized queue infrastructure.
 
-1. inventory the Watch scheduler path from due-rule discovery through job claim, evaluation, alert lifecycle, rule state, and job completion/retry
-2. identify which job lease/claim, WatchRule state, WatchEvaluation, WatchAlert episode, and WatchJob writes are currently separate
-3. preserve existing PostgreSQL job claim/lease semantics and reuse them rather than introducing a separate queue system
-4. make relationally compatible evaluation/alert/rule/job-completion writes explicit and transactional where technically possible
-5. enforce database-backed idempotency so duplicate workers/retries cannot create duplicate evaluations or alert episodes for one claimed job
-6. define crash outcomes after job claim, after evaluation creation, after alert mutation, and before job completion persistence
-7. make stale lease/retry recovery converge on durable Watch state without repeating a committed alert episode
-8. preserve current Watch rule language, scheduler cadence, snooze/acknowledge/resolve lifecycle, and file-mode development compatibility
-9. add focused duplicate/crash/restart/cross-account PostgreSQL proofs
-10. stop before Track E worker/queue migration or managed-secret/deployment/observability work
+1. inventory every current background execution surface, timer, scheduler, recovery loop, and durable job table across Watch, Integrations, Automation, Discovery/re-analysis, detectors, and reminders
+2. identify which workloads are already durable/lease-safe in PostgreSQL and which still depend on one application process staying alive
+3. define explicit WEB vs WORKER runtime responsibilities and startup/shutdown ownership so multiple web replicas do not all start the same background loops
+4. inventory existing job identity, lease, retry, backoff, dead-letter/failure, concurrency, and observability semantics by workload
+5. decide whether the first generalized worker foundation should remain PostgreSQL-backed; do not introduce Redis/managed queue without measured need
+6. define one provider-neutral durable job/worker contract only where common semantics are real rather than forcing unrelated workloads into a premature abstraction
+7. add fail-closed runtime configuration for process role selection and prove WEB-only processes do not execute worker loops
+8. preserve all existing product APIs and D1/D2/D3 transactional guarantees
+9. add executable inventory/runtime-separation proofs
+10. stop before broad workload migration, managed secrets, deployment orchestration, or observability rollout
 
-Do not start worker/queue extraction, managed-secret, deployment, observability, or unrelated transaction work in D3.
+Do not migrate every background workload or introduce Redis/BullMQ/managed queue infrastructure in E1 unless the forensic evidence proves it is necessary.
 ---
 
 # Track A closure note

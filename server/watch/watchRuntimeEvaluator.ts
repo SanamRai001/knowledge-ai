@@ -7,6 +7,7 @@ import {
   WatchDatasetEvidence,
   WatchDateEvidence,
   WatchEntityEvidence,
+  WatchEvaluation,
   WatchEvaluationResult,
   WatchEvidence,
   WatchRule,
@@ -217,7 +218,113 @@ type Measurement = {
   matched: boolean;
 };
 
+export interface PreparedScheduledWatchEvaluation {
+  rule: WatchRule;
+  evaluation: Omit<
+    WatchEvaluation,
+    'id' | 'jobId'
+  >;
+  newAlertCopy?: {
+    title: string;
+    summary: string;
+  };
+}
+
 export class WatchRuntimeEvaluator {
+  public async prepareScheduledEvaluation(params: {
+    accountId: string;
+    watchRuleId: string;
+    evaluatedAt?: number;
+  }): Promise<PreparedScheduledWatchEvaluation> {
+    const rule = await watchPersistence.requireRule(
+      params.accountId,
+      params.watchRuleId
+    );
+
+    if (rule.status !== 'ACTIVE') {
+      throw new WatchEvaluationError(
+        'WATCH_NOT_ACTIVE',
+        409,
+        'Only ACTIVE watch rules can be evaluated.'
+      );
+    }
+
+    const evaluatedAt =
+      params.evaluatedAt ?? Date.now();
+    const previousState =
+      rule.currentState;
+    const fallbackShape =
+      evaluationShape(rule);
+
+    try {
+      const measured = this.measure({
+        accountId: params.accountId,
+        rule,
+        evaluatedAt,
+      });
+
+      return {
+        rule,
+        evaluation: {
+          accountId:
+            params.accountId,
+          watchRuleId: rule.id,
+          ruleVersion: rule.version,
+          status: 'COMPLETED',
+          conditionMatched:
+            measured.matched,
+          observedValue:
+            measured.observedValue,
+          comparisonOperator:
+            measured.operator,
+          threshold:
+            measured.threshold,
+          previousConditionState:
+            previousState,
+          nextConditionState:
+            measured.matched
+              ? 'TRUE'
+              : 'FALSE',
+          evidence:
+            measured.evidence,
+          evaluatedAt,
+        },
+        newAlertCopy:
+          measured.matched &&
+          previousState !== 'TRUE'
+            ? alertCopy({
+                rule,
+                observedValue:
+                  measured.observedValue,
+              })
+            : undefined,
+      };
+    } catch (error: any) {
+      return {
+        rule,
+        evaluation: {
+          accountId:
+            params.accountId,
+          watchRuleId: rule.id,
+          ruleVersion: rule.version,
+          status: 'FAILED',
+          comparisonOperator:
+            fallbackShape.operator,
+          threshold:
+            fallbackShape.threshold,
+          previousConditionState:
+            previousState,
+          nextConditionState:
+            'ERROR',
+          evaluatedAt,
+          error:
+            error?.message ||
+            'Watch evaluation failed.',
+        },
+      };
+    }
+  }
+
   public async evaluate(params: {
     accountId: string;
     watchRuleId: string;

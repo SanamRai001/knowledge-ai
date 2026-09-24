@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening D3 — Watch Scheduling Transaction Boundary.**
+> **Continue with Production Hardening E1 — Worker/Queue Forensic Audit + Runtime Separation Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1088,7 +1088,8 @@ Track A relational milestones:
 - C7 Workspace Structured State Relational Migration — COMPLETE, workflow `35895848629`
 - D1 Confirmed Action Transaction Boundary — COMPLETE, workflow `35897430490`
 - D2 Controlled Automation Transaction Boundary — COMPLETE, workflow `35903477902`
-- D3 Watch Scheduling Transaction Boundary — NEXT
+- D3 Watch Scheduling Transaction Boundary — COMPLETE, workflow `35948962695`
+- E1 Worker/Queue Forensic Audit + Runtime Separation Foundation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1148,6 +1149,8 @@ D1 evidence: `docs/PRODUCTION_D1_CONFIRMED_ACTION_TRANSACTION.md`.
 
 D2 evidence: `docs/PRODUCTION_D2_AUTOMATION_TRANSACTION.md`.
 
+D3 evidence: `docs/PRODUCTION_D3_WATCH_TRANSACTION.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1204,17 +1207,19 @@ D1 now proves the confirmed/manual Action boundary is one PostgreSQL transaction
 
 D2 now composes the D1 Action commit inside a policy-authorized Automation execution transaction. A durable RUNNING claim exists before business mutation, the locked policy/control snapshot is revalidated at commit, D1 Action state and AutomationRun SUCCEEDED commit together, duplicate policy execution converges on one run/execution, and restart recovery settles historical partial-success states without reapplying company mutations.
 
-Next, do **D3 only — Watch Scheduling Transaction Boundary**:
+D3 now links each scheduled evaluation to its claimed WatchJob, enforces one evaluation per job in PostgreSQL, prepares measurements without writes, and commits evaluation + alert episode mutation + WatchRule state/schedule + WatchJob completion in one transaction. Concurrent/replayed completion is idempotent, stale measured state is rejected, terminal worker failure settles job/rule atomically, and stale leases remain reclaimable without replaying a committed alert effect.
 
-1. inventory due-rule scheduling, job claim/lease, evaluation, alert episode, rule state, and job completion/retry writes
-2. preserve the existing PostgreSQL Watch job claim/lease boundary rather than introducing workers/queues yet
-3. identify the relational writes that must commit together after one claimed Watch job is evaluated
-4. make evaluation + alert/rule/job completion transactional where technically possible
-5. enforce database-backed idempotency so concurrent workers/retries cannot duplicate one evaluation or alert episode
-6. prove crash outcomes after claim, after evaluation persistence, after alert mutation, and before completion
-7. reconcile stale leases/retries from durable Watch state without replaying a committed alert episode
-8. preserve Watch language, scheduling cadence, alert acknowledge/snooze/resolve semantics, and file mode
-9. add duplicate/crash/restart/cross-account PostgreSQL proofs
-10. stop before Track E worker/queue extraction
+Next, do **E1 only — Worker/Queue Forensic Audit + Runtime Separation Foundation**:
 
-Do not start worker/queue extraction, managed-secret, deployment, observability, or unrelated transaction work in D3.
+1. inventory all in-process background loops/timers and their startup sites
+2. inventory durable job/lease/retry semantics already present for Watch, Integrations, Automation, re-analysis/detectors, and reminders
+3. separate WEB process responsibilities from WORKER responsibilities without changing product APIs
+4. prove a WEB-only process cannot start worker loops and a WORKER role can own the intended loops
+5. identify workloads that are already safe on PostgreSQL leases versus those needing a new durable job abstraction
+6. decide PostgreSQL-backed queue first versus Redis/managed queue from evidence, not preference
+7. define common job semantics only where the workloads genuinely share them
+8. preserve D1/D2/D3 transaction boundaries and all existing restart/idempotency guarantees
+9. add focused runtime-role/inventory proofs
+10. stop before mass workload migration or Track F/G deployment/secret/observability work
+
+Do not introduce Redis/BullMQ/managed queue infrastructure or migrate all workloads in E1 unless the audit demonstrates a concrete need.

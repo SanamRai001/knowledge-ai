@@ -1,3 +1,7 @@
+import crypto from 'crypto';
+import {
+  PostgresWatchTransactionError,
+} from '../persistence/a4PostgresRepositories.js';
 import { watchScheduler } from './watchScheduler.js';
 import { watchPersistence } from './watchPersistence.js';
 import { watchRuntimeEvaluator } from './watchRuntimeEvaluator.js';
@@ -23,6 +27,21 @@ function retryDelayMs(attemptCount: number): number {
   return Math.min(
     MAX_RETRY_MS,
     BASE_RETRY_MS * Math.pow(2, Math.max(0, attemptCount - 1))
+  );
+}
+
+function stableId(
+  prefix: string,
+  parts: unknown[]
+): string {
+  return (
+    prefix +
+    '_' +
+    crypto
+      .createHash('sha256')
+      .update(JSON.stringify(parts))
+      .digest('hex')
+      .slice(0, 20)
   );
 }
 
@@ -122,57 +141,113 @@ export class WatchRuntimeScheduler {
       }
 
       try {
-        const evaluated = await watchRuntimeEvaluator.evaluate({
-          accountId: running.accountId,
-          watchRuleId: running.watchRuleId,
-          evaluatedAt: now,
-        });
+        const prepared =
+          await watchRuntimeEvaluator
+            .prepareScheduledEvaluation({
+              accountId:
+                running.accountId,
+              watchRuleId:
+                running.watchRuleId,
+              evaluatedAt: now,
+            });
 
-        await watchPersistence.updateJob(
-          running.accountId,
-          running.id,
-          {
-            status: 'COMPLETED',
-            completedAt: now,
-            evaluationId: evaluated.evaluation.id,
-            lastError:
-              evaluated.evaluation.status === 'FAILED'
-                ? evaluated.evaluation.error
-                : undefined,
-          }
-        );
-        result.completedJobIds.push(running.id);
-      } catch (error: any) {
-        const message =
-          error?.message || 'Watch worker execution failed.';
-
-        if (running.attemptCount >= running.maxAttempts) {
-          await watchPersistence.updateJob(
+        const evaluationId =
+          stableId('wev', [
             running.accountId,
             running.id,
-            {
-              status: 'FAILED',
-              completedAt: now,
-              lastError: message,
-            }
-          );
+          ]);
 
-          const intervalMinutes =
-            rule.intervalMinutes && rule.intervalMinutes > 0
-              ? rule.intervalMinutes
-              : 60;
-          await watchPersistence.updateRule(
-            rule.accountId,
-            rule.id,
-            {
-              currentState: 'ERROR',
-              lastEvaluationAt: now,
-              nextEvaluationAt:
-                now + intervalMinutes * 60 * 1000,
-            }
-          );
+        await watchPersistence
+          .commitClaimedJobEvaluation({
+            accountId:
+              running.accountId,
+            jobId: running.id,
+            expectedRuleVersion:
+              running.ruleVersion,
+            completedAt: now,
+            evaluation: {
+              ...prepared.evaluation,
+              id: evaluationId,
+              jobId: running.id,
+            },
+            newAlert:
+              prepared.newAlertCopy
+                ? {
+                    id: stableId(
+                      'wal',
+                      [
+                        running.accountId,
+                        running.id,
+                      ]
+                    ),
+                    episodeKey: [
+                      running.accountId,
+                      running.watchRuleId,
+                      running.ruleVersion,
+                      running.scheduledFor,
+                    ].join(':'),
+                    title:
+                      prepared
+                        .newAlertCopy
+                        .title,
+                    summary:
+                      prepared
+                        .newAlertCopy
+                        .summary,
+                  }
+                : undefined,
+          });
 
-          result.failedJobIds.push(running.id);
+        result.completedJobIds.push(
+          running.id
+        );
+      } catch (error: any) {
+        const message =
+          error?.message ||
+          'Watch worker execution failed.';
+
+        if (
+          error instanceof
+            PostgresWatchTransactionError &&
+          error.code ===
+            'WATCH_JOB_RULE_STALE'
+        ) {
+          await watchPersistence
+            .updateJob(
+              running.accountId,
+              running.id,
+              {
+                status: 'SKIPPED',
+                completedAt: now,
+                skipReason: message,
+              }
+            );
+          result.skippedJobIds.push(
+            running.id
+          );
+          continue;
+        }
+
+        if (
+          running.attemptCount >=
+          running.maxAttempts
+        ) {
+          await watchPersistence
+            .commitClaimedJobTerminalFailure(
+              {
+                accountId:
+                  running.accountId,
+                jobId: running.id,
+                expectedRuleVersion:
+                  running.ruleVersion,
+                failedAt: now,
+                error: message,
+              }
+            );
+
+          result.failedJobIds.push(
+            running.id
+          );
         } else {
           await watchPersistence.updateJob(
             running.accountId,
@@ -181,11 +256,16 @@ export class WatchRuntimeScheduler {
               status: 'PENDING',
               startedAt: undefined,
               nextAttemptAt:
-                now + retryDelayMs(running.attemptCount),
+                now +
+                retryDelayMs(
+                  running.attemptCount
+                ),
               lastError: message,
             }
           );
-          result.retryingJobIds.push(running.id);
+          result.retryingJobIds.push(
+            running.id
+          );
         }
       }
     }

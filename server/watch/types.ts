@@ -165,6 +165,7 @@ export type WatchEvidence =
 export interface WatchEvaluation {
   id: string;
   accountId: string;
+  jobId?: string;
   watchRuleId: string;
   ruleVersion: number;
   status: 'COMPLETED' | 'FAILED';
