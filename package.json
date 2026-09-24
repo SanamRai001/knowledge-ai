@@ -111,7 +111,9 @@
     "check:production:d3-watch-transaction-postgres": "tsx scripts/check-production-d3-watch-transaction-postgres.ts",
     "check:production:e1-worker-runtime-separation": "tsx scripts/check-production-e1-worker-runtime-separation.ts",
     "check:production:e2-worker-job-foundation-contract": "tsx scripts/check-production-e2-worker-job-foundation-contract.ts",
-    "check:production:e2-worker-job-foundation-postgres": "tsx scripts/check-production-e2-worker-job-foundation-postgres.ts"
+    "check:production:e2-worker-job-foundation-postgres": "tsx scripts/check-production-e2-worker-job-foundation-postgres.ts",
+    "check:production:e3-action-discovery-worker-contract": "tsx scripts/check-production-e3-action-discovery-worker-contract.ts",
+    "check:production:e3-action-discovery-worker-postgres": "tsx scripts/check-production-e3-action-discovery-worker-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
