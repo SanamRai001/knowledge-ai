@@ -42,11 +42,18 @@ import { legacyDeveloperRouteClosureRouter } from './server/platform/legacyDevel
 import { legacyPrototypeRouteQuarantineMiddleware } from './server/legacyRouteQuarantine.js';
 import { authRouter } from './server/identity/authRouter.js';
 import crypto from 'crypto';
+import {
+  operationalHttpMiddleware,
+} from './server/operations/httpObservabilityMiddleware.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+app.use(
+  operationalHttpMiddleware
+);
 
 // Body parsers
 app.use(express.json({ limit: '50mb' }));
