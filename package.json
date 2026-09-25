@@ -59,7 +59,7 @@
     "check:phase8d-domain-packs": "tsx scripts/check-phase8d-domain-packs.ts",
     "check:phase8e-platform-ui": "tsx scripts/check-phase8e-platform-ui.ts",
     "db:migrate": "node dist/private/db-migrate.cjs",
-    "db:import-legacy": "tsx scripts/db-import-legacy.ts",
+    "db:import-legacy": "node dist/private/db-import-legacy.cjs",
     "recovery:validate": "node dist/private/recovery-validate.cjs",
     "check:production-a2-postgres": "tsx scripts/check-production-a2-postgres.ts",
     "check:production-a3-postgres": "tsx scripts/check-production-a3-postgres.ts",
@@ -130,10 +130,11 @@
     "check:production:h1-deployment-supply-chain-audit": "tsx scripts/check-production-h1-deployment-supply-chain-audit.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
-    "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/server.cjs",
-    "build:worker": "esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/worker.cjs",
-    "build:ops": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/db-migrate.cjs && esbuild scripts/recovery-validate.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/recovery-validate.cjs",
+    "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
+    "build:worker": "esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/worker.cjs",
+    "build:ops": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-migrate.cjs && esbuild scripts/db-import-legacy.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-import-legacy.cjs && esbuild scripts/recovery-validate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/recovery-validate.cjs",
     "db:migrate:dev": "tsx scripts/db-migrate.ts",
+    "db:import-legacy:dev": "tsx scripts/db-import-legacy.ts",
     "recovery:validate:dev": "tsx scripts/recovery-validate.ts"
   },
   "dependencies": {
