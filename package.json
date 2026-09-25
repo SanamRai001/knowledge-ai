@@ -124,7 +124,9 @@
     "check:production:f2-integration-oauth-secret-store-postgres": "tsx scripts/check-production-f2-integration-oauth-secret-store-postgres.ts",
     "check:production:g1-operational-recovery-audit": "tsx scripts/check-production-g1-operational-recovery-audit.ts",
     "check:production:g2-observability-readiness-contract": "tsx scripts/check-production-g2-observability-readiness-contract.ts",
-    "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts"
+    "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts",
+    "check:production:g3-recovery-contract": "tsx scripts/check-production-g3-recovery-contract.ts",
+    "check:production:g3-recovery-postgres": "tsx scripts/check-production-g3-recovery-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
