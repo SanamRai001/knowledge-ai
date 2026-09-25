@@ -192,7 +192,8 @@ The implementation sequence is deliberately split into small slices:
 37. **G2 — Production Observability + Real Readiness Foundation** — COMPLETE, workflow `36155946479`
 38. **G3 — Backup/Restore + Recovery Drill Foundation** — COMPLETE, workflow `36158941696`
 39. **H1 — Deployment & Supply-Chain Forensic Audit** — COMPLETE, workflow `36163177196`
-40. **H2 — Reproducible Build + Production Image Foundation** — NEXT
+40. **H2 — Reproducible Build + Production Image Foundation** — COMPLETE, workflow `36167552759`
+41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -271,6 +272,8 @@ G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
 G3 evidence: `docs/PRODUCTION_G3_BACKUP_RESTORE_RECOVERY.md`.
 
 H1 evidence: `docs/PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT.md`.
+
+H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -750,22 +753,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening H2 — Reproducible Build + Production Image Foundation**
+**Production Hardening H3 — Runtime Edge + Graceful Shutdown Hardening**
 
-Keep H2 limited to reproducible packaging and the immutable production image.
+Keep H3 limited to runtime-edge behavior of the immutable H2 artifact.
 
-1. choose one package manager for release builds and commit/enforce its canonical lockfile
-2. replace mutable dependency resolution with frozen installation in CI/release paths
-3. declare the Node.js and package-manager version contract
-4. split public client output from private server/worker/operations artifacts so backend bundles/source maps cannot be served statically
-5. compile or otherwise package migration and recovery commands so production operations do not require mutable TypeScript source plus dev-only `tsx`
-6. add a multi-stage production container/image build with a non-root steady-state runtime
-7. expose separate web and worker commands from the same immutable build artifact; do not use combined mode as the normal production topology
-8. minimize runtime files/dependencies while retaining migration SQL and required operational assets
-9. add focused package/image layout and startup smoke proofs to the Quality Gate
-10. preserve every G2/G3 readiness/recovery contract and stop before staging rollout
+1. add bounded graceful shutdown for the web process: stop accepting new connections, drain active HTTP requests, stop any compatibility background runtime, and close PostgreSQL
+2. add bounded worker drain: stop new claims, await the active cycle/job up to a configured timeout, then close PostgreSQL; lease recovery remains the fallback after forced timeout
+3. make `PORT` configurable with a production-safe validated default/contract
+4. define an explicit trusted-proxy configuration contract; never blindly enable unrestricted proxy trust
+5. add production security-header ownership including CSP/frame protection, content-type sniffing protection, referrer policy, and permissions policy; keep TLS/HSTS ownership explicit at the trusted TLS boundary
+6. tighten general JSON/urlencoded body limits while preserving route-specific multipart Dataset/PDF limits
+7. document and enforce reverse-proxy/request-size assumptions so proxy and application bounds cannot silently disagree
+8. expose a supervisor-consumable worker readiness mechanism using the existing G2 worker readiness checks
+9. add focused shutdown/edge/header/readiness executable proofs to the Quality Gate and preserve the H2 immutable-image contract
+10. stop before staging rollout/promotion, SBOM/container scan policy, final release orchestration, and broad load/abuse testing
 
-Do not implement staging promotion, broad load/abuse testing, product UX cleanup, final reverse-proxy/CSP policy, or full graceful-shutdown hardening in H2. Those remain H3/H4/Track I.
+Do not start H4 staging promotion/rollback release gates or Track I load/abuse/security testing in H3.
 ---
 
 # Track A closure note

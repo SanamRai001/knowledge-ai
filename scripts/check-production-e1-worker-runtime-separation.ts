@@ -301,13 +301,21 @@ async function main() {
   );
   assert(
     String(pkg.scripts?.build)
-      .includes('worker.ts') &&
+      .includes('build:worker') &&
+      String(
+        pkg.scripts?.['build:worker']
+      ).includes('worker.ts') &&
+      String(
+        pkg.scripts?.['build:worker']
+      ).includes(
+        'dist/private/worker.cjs'
+      ) &&
       pkg.scripts?.['worker:dev'] ===
         'tsx worker.ts' &&
       pkg.scripts?.[
         'start:worker'
       ] ===
-        'node dist/worker.cjs',
+        'node dist/private/worker.cjs',
     'Build/runtime scripts must publish a dedicated worker artifact and entrypoint.'
   );
 

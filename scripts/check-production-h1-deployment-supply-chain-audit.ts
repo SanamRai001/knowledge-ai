@@ -94,43 +94,58 @@ async function main() {
   }
 
   assert(
-    pkg.scripts.build.includes(
-      '--outfile=dist/server.cjs'
+    pkg.scripts['build:web'].includes(
+      'dist/private/server.cjs'
     ) &&
-      pkg.scripts.build.includes(
-        '--outfile=dist/worker.cjs'
+      pkg.scripts['build:worker'].includes(
+        'dist/private/worker.cjs'
       ) &&
       server.includes(
-        "const distPath = path.join(process.cwd(), 'dist')"
+        "'dist',\n      'public'"
       ) &&
       server.includes(
         'app.use(express.static(distPath))'
+      ) &&
+      fs.readFileSync(
+        'vite.config.ts',
+        'utf8'
+      ).includes(
+        "outDir: 'dist/public'"
       ),
-    'H1 must keep the current public/private dist collision explicit until H2 separates client assets from backend artifacts.'
+    'H1 historical guard must recognize H2 public/private artifact separation.'
   );
 
   assert(
-    !fs.existsSync('Dockerfile') &&
-      !fs.existsSync('docker-compose.yml') &&
-      !fs.existsSync(
-        'docker-compose.yaml'
+    fs.existsSync('Dockerfile') &&
+      fs.readFileSync(
+        'Dockerfile',
+        'utf8'
+      ).includes('USER node') &&
+      fs.readFileSync(
+        'Dockerfile',
+        'utf8'
+      ).includes(
+        'npm prune --omit=dev'
       ),
-    'H1 is audit-only and must stop before final Docker/deployment implementation.'
+    'H1 historical guard must recognize the H2 non-root multi-stage production image.'
   );
 
   assert(
-    tracked('bun.lock') &&
-      !tracked(
+    !tracked('bun.lock') &&
+      tracked(
         'package-lock.json'
       ) &&
       workflow.includes(
-        'run: npm install'
-      ) &&
-      !workflow.includes(
         'run: npm ci'
       ) &&
-      !pkg.packageManager,
-    'H1 must keep the current non-reproducible package-manager/lockfile mismatch explicit until H2.'
+      !workflow.includes(
+        'run: npm install'
+      ) &&
+      pkg.packageManager ===
+        'npm@10.9.2' &&
+      pkg.engines?.node ===
+        '22.14.x',
+    'H1 historical guard must recognize the H2 canonical npm lock and frozen install contract.'
   );
 
   assert(
@@ -191,15 +206,17 @@ async function main() {
       worker.includes(
         'Migrations remain a deployment responsibility.'
       ) &&
-      pkg.scripts['db:migrate'].includes(
-        'tsx scripts/db-migrate.ts'
-      ) &&
+      pkg.scripts['db:migrate'] ===
+        'node dist/private/db-migrate.cjs' &&
+      pkg.scripts[
+        'db:import-legacy'
+      ] ===
+        'node dist/private/db-import-legacy.cjs' &&
       pkg.scripts[
         'recovery:validate'
-      ].includes(
-        'tsx scripts/recovery-validate.ts'
-      ),
-    'H1 startup ordering must keep migrations deployment-owned and keep the current ops CLI dev-tooling constraint explicit.'
+      ] ===
+        'node dist/private/recovery-validate.cjs',
+    'H1 historical guard must recognize H2 compiled deployment-owned migration/recovery entrypoints.'
   );
 
   assert(
@@ -373,7 +390,7 @@ async function main() {
     'PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'Entrypoints, environment classes, current build/lockfile/security/shutdown gaps, forward-only migration rules, and the target image/release/staging/rollback contract are explicitly guarded.'
+    'H1 deployment contracts remain guarded after H2: reproducible packaging/image blockers are closed while security-header, graceful-shutdown, supply-chain scan/pinning, staging, and rollback-promotion gaps remain explicit for H3/H4.'
   );
 }
 

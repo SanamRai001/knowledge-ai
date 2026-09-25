@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import multer from 'multer';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { kbStore } from './server/kbStore.js';
 import { parsePdfBuffer, createKnowledgeDocument } from './server/documentService.js';
 import { generateSampleDocs } from './server/sampleDocs.js';
@@ -1475,13 +1474,19 @@ async function startServer() {
   await datasetRuntimePersistence.bootstrap();
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } =
+      await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(
+      process.cwd(),
+      'dist',
+      'public'
+    );
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
