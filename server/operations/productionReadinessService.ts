@@ -55,20 +55,20 @@ export interface ProductionReadinessReport {
   checks: ProductionReadinessCheck[];
 }
 
-type ProbeResult = {
+export type ReadinessProbeResult = {
   ok: boolean;
   detail?: string;
 };
 
-type ReadinessDependencies = {
+export type ReadinessDependencies = {
   now: () => number;
   resolveRole: () => KnowledgeAiProcessRole;
-  postgresReachable: () => Promise<ProbeResult>;
-  schemaCurrent: () => Promise<ProbeResult>;
-  objectStorageConfigured: () => ProbeResult;
-  secretKmsConfigured: () => ProbeResult;
-  workerHandlersReady: () => ProbeResult;
-  workerLoopHealthy: () => ProbeResult;
+  postgresReachable: () => Promise<ReadinessProbeResult>;
+  schemaCurrent: () => Promise<ReadinessProbeResult>;
+  objectStorageConfigured: () => ReadinessProbeResult;
+  secretKmsConfigured: () => ReadinessProbeResult;
+  workerHandlersReady: () => ReadinessProbeResult;
+  workerLoopHealthy: () => ReadinessProbeResult;
 };
 
 const REQUIRED_WORKER_JOB_TYPES = [
@@ -316,17 +316,25 @@ function defaultDependencies():
 }
 
 export class ProductionReadinessService {
+  private readonly deps:
+    ReadinessDependencies;
+
   constructor(
-    private readonly deps:
-      ReadinessDependencies =
-        defaultDependencies()
-  ) {}
+    overrides: Partial<
+      ReadinessDependencies
+    > = {}
+  ) {
+    this.deps = {
+      ...defaultDependencies(),
+      ...overrides,
+    };
+  }
 
   private async runCheck(
     id: string,
     probe:
-      | (() => ProbeResult)
-      | (() => Promise<ProbeResult>)
+      | (() => ReadinessProbeResult)
+      | (() => Promise<ReadinessProbeResult>)
   ): Promise<ProductionReadinessCheck> {
     const started =
       this.deps.now();
