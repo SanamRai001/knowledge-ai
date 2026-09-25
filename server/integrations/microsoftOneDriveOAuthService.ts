@@ -321,13 +321,13 @@ export class MicrosoftOneDriveOAuthService {
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          await this.credentialStore
-            .delete({
+          await Promise.resolve(
+            this.credentialStore.delete({
               accountId: attempt.accountId,
               provider: 'MICROSOFT_ONEDRIVE',
               credentialRef: oldCredentialRef,
             })
-            .catch(() => false);
+          ).catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -357,13 +357,13 @@ export class MicrosoftOneDriveOAuthService {
       };
     } catch (error) {
       if (!attached) {
-        await this.credentialStore
-          .delete({
+        await Promise.resolve(
+          this.credentialStore.delete({
             accountId: attempt.accountId,
             provider: 'MICROSOFT_ONEDRIVE',
             credentialRef,
           })
-          .catch(() => false);
+        ).catch(() => false);
       }
       throw error;
     }
