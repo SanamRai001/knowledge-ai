@@ -100,6 +100,12 @@ function staging(
         'kms-staging',
       publicOrigin:
         'https://staging.example.com',
+      webRuntime:
+        'staging-web',
+      workerRuntime:
+        'staging-worker',
+      migrationRuntime:
+        'staging-migration',
     },
     migrations: {
       verified: true,
@@ -146,6 +152,12 @@ function production(
         'kms-production',
       publicOrigin:
         'https://app.example.com',
+      webRuntime:
+        'production-web',
+      workerRuntime:
+        'production-worker',
+      migrationRuntime:
+        'production-migration',
     },
   };
 }
@@ -204,6 +216,9 @@ async function main() {
     'objectBucket',
     'secretBoundary',
     'publicOrigin',
+    'webRuntime',
+    'workerRuntime',
+    'migrationRuntime',
   ] as const) {
     expectCode(
       'RELEASE_ENVIRONMENT_NOT_SEPARATED',
