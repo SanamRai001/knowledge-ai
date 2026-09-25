@@ -39,6 +39,9 @@ export interface ReleaseEnvironmentIdentity {
   objectBucket: string;
   secretBoundary: string;
   publicOrigin: string;
+  webRuntime: string;
+  workerRuntime: string;
+  migrationRuntime: string;
 }
 
 export interface StagingReleaseEvidence {
@@ -253,6 +256,18 @@ function assertEnvironmentIdentity(
     identity.secretBoundary,
     label + '.secretBoundary'
   );
+  requireString(
+    identity.webRuntime,
+    label + '.webRuntime'
+  );
+  requireString(
+    identity.workerRuntime,
+    label + '.workerRuntime'
+  );
+  requireString(
+    identity.migrationRuntime,
+    label + '.migrationRuntime'
+  );
   const origin =
     requireString(
       identity.publicOrigin,
@@ -390,6 +405,9 @@ function assertSeparated(
     'objectBucket',
     'secretBoundary',
     'publicOrigin',
+    'webRuntime',
+    'workerRuntime',
+    'migrationRuntime',
   ] as const) {
     if (
       staging[key].trim() ===
