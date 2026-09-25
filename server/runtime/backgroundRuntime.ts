@@ -122,21 +122,27 @@ export class BackgroundRuntime {
 
     this.started = false;
 
-    const watchDrained =
+    const [
+      watchDrained,
+      genericDrained,
+    ] = await Promise.all([
       this.watchLoop.drain
-        ? await this.watchLoop.drain(
+        ? this.watchLoop.drain(
             timeoutMs
           )
-        : (this.watchLoop.stop(),
-          true);
-
-    const genericDrained =
+        : Promise.resolve(
+            (this.watchLoop.stop(),
+            true)
+          ),
       this.genericJobLoop?.drain
-        ? await this.genericJobLoop.drain(
+        ? this.genericJobLoop.drain(
             timeoutMs
           )
-        : (this.genericJobLoop?.stop(),
-          true);
+        : Promise.resolve(
+            (this.genericJobLoop?.stop(),
+            true)
+          ),
+    ]);
 
     return {
       drained:
