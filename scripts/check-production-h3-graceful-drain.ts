@@ -187,7 +187,10 @@ async function main() {
       "process.once(\n    'SIGTERM'"
     ) &&
       server.includes(
-        'httpDrainController.beginDrain'
+        'httpDrainController'
+      ) &&
+      server.includes(
+        '.beginDrain()'
       ) &&
       server.includes(
         'backgroundRuntime.drain('
