@@ -191,7 +191,8 @@ The implementation sequence is deliberately split into small slices:
 36. **G1 — Observability, Backup, and Operational Recovery Forensic Audit** — COMPLETE, workflow `36150854623`
 37. **G2 — Production Observability + Real Readiness Foundation** — COMPLETE, workflow `36155946479`
 38. **G3 — Backup/Restore + Recovery Drill Foundation** — COMPLETE, workflow `36158941696`
-39. **H1 — Deployment & Supply-Chain Forensic Audit** — NEXT
+39. **H1 — Deployment & Supply-Chain Forensic Audit** — COMPLETE, workflow `36163177196`
+40. **H2 — Reproducible Build + Production Image Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -268,6 +269,8 @@ G1 evidence: `docs/PRODUCTION_G1_OPERATIONAL_RECOVERY_AUDIT.md`.
 G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
 
 G3 evidence: `docs/PRODUCTION_G3_BACKUP_RESTORE_RECOVERY.md`.
+
+H1 evidence: `docs/PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -747,22 +750,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening H1 — Deployment & Supply-Chain Forensic Audit**
+**Production Hardening H2 — Reproducible Build + Production Image Foundation**
 
-Keep H1 audit-first. Do not start by writing Docker/staging files before the real deployment contracts are inventoried.
+Keep H2 limited to reproducible packaging and the immutable production image.
 
-1. inventory the current web, worker, migration, and recovery entrypoints plus their build/start scripts and process-role assumptions
-2. inventory every required production environment variable and classify deployment secret vs managed account secret vs non-secret configuration
-3. audit startup ordering: migrations, readiness, web acceptance, worker startup, and recovery validation dependencies
-4. audit graceful shutdown for HTTP, PostgreSQL pools, worker leases/heartbeats, and in-flight jobs
-5. audit reverse-proxy/HTTPS assumptions, trust-proxy behavior, cookies, origin checks, security headers/CSP, and request/upload limits
-6. define the production image contract: immutable build output, non-root runtime, minimal runtime files, separate web/worker commands, and migration job
-7. audit dependency/lockfile/security scanning requirements and fail-closed release gates
-8. define staging topology and readiness/recovery gates using the real G2/G3 contracts
-9. define application + migration rollback rules, including which migrations are forward-only and when rollback must use restore instead of down-migration
-10. add a focused H1 drift proof and stop before implementing the final Docker/staging deployment
+1. choose one package manager for release builds and commit/enforce its canonical lockfile
+2. replace mutable dependency resolution with frozen installation in CI/release paths
+3. declare the Node.js and package-manager version contract
+4. split public client output from private server/worker/operations artifacts so backend bundles/source maps cannot be served statically
+5. compile or otherwise package migration and recovery commands so production operations do not require mutable TypeScript source plus dev-only `tsx`
+6. add a multi-stage production container/image build with a non-root steady-state runtime
+7. expose separate web and worker commands from the same immutable build artifact; do not use combined mode as the normal production topology
+8. minimize runtime files/dependencies while retaining migration SQL and required operational assets
+9. add focused package/image layout and startup smoke proofs to the Quality Gate
+10. preserve every G2/G3 readiness/recovery contract and stop before staging rollout
 
-Do not start broad load/abuse testing, product UX cleanup, or choose a hosting vendor in H1.
+Do not implement staging promotion, broad load/abuse testing, product UX cleanup, final reverse-proxy/CSP policy, or full graceful-shutdown hardening in H2. Those remain H3/H4/Track I.
 ---
 
 # Track A closure note
