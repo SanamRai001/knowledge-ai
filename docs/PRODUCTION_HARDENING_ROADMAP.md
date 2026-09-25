@@ -193,7 +193,8 @@ The implementation sequence is deliberately split into small slices:
 38. **G3 — Backup/Restore + Recovery Drill Foundation** — COMPLETE, workflow `36158941696`
 39. **H1 — Deployment & Supply-Chain Forensic Audit** — COMPLETE, workflow `36163177196`
 40. **H2 — Reproducible Build + Production Image Foundation** — COMPLETE, workflow `36167552759`
-41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — NEXT
+41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — COMPLETE, workflow `36171328745`
+42. **H4 — Staging Promotion + Rollback Release Gate** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -274,6 +275,8 @@ G3 evidence: `docs/PRODUCTION_G3_BACKUP_RESTORE_RECOVERY.md`.
 H1 evidence: `docs/PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT.md`.
 
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
+
+H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -753,22 +756,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening H3 — Runtime Edge + Graceful Shutdown Hardening**
+**Production Hardening H4 — Staging Promotion + Rollback Release Gate**
 
-Keep H3 limited to runtime-edge behavior of the immutable H2 artifact.
+Keep H4 limited to executable release/promotion controls around the already-validated H2/H3 artifact.
 
-1. add bounded graceful shutdown for the web process: stop accepting new connections, drain active HTTP requests, stop any compatibility background runtime, and close PostgreSQL
-2. add bounded worker drain: stop new claims, await the active cycle/job up to a configured timeout, then close PostgreSQL; lease recovery remains the fallback after forced timeout
-3. make `PORT` configurable with a production-safe validated default/contract
-4. define an explicit trusted-proxy configuration contract; never blindly enable unrestricted proxy trust
-5. add production security-header ownership including CSP/frame protection, content-type sniffing protection, referrer policy, and permissions policy; keep TLS/HSTS ownership explicit at the trusted TLS boundary
-6. tighten general JSON/urlencoded body limits while preserving route-specific multipart Dataset/PDF limits
-7. document and enforce reverse-proxy/request-size assumptions so proxy and application bounds cannot silently disagree
-8. expose a supervisor-consumable worker readiness mechanism using the existing G2 worker readiness checks
-9. add focused shutdown/edge/header/readiness executable proofs to the Quality Gate and preserve the H2 immutable-image contract
-10. stop before staging rollout/promotion, SBOM/container scan policy, final release orchestration, and broad load/abuse testing
+1. define a provider-neutral staging release manifest carrying source commit, immutable image reference/digest, build ID, migration inventory/checksums, and release timestamp
+2. enforce build-once promotion: the staging-tested immutable image digest must be the exact artifact eligible for production; rebuilding after staging validation must fail closed
+3. add a deployment-owned single-writer migration-job gate using the compiled H2 migration command, then verify schema checksums/current migration inventory before web/worker rollout
+4. enforce staging/production separation for PostgreSQL, object storage, SecretStore/KMS material, OAuth/browser origins, web, worker, and migration-job topology
+5. require real G2 web readiness plus H3 supervisor-consumable worker readiness before promotion
+6. require current G3 backup/restore evidence before production promotion
+7. add dependency vulnerability policy, container-image vulnerability policy, and SBOM generation/verification to the release gate
+8. pin third-party GitHub Actions to immutable commit SHAs instead of floating major tags
+9. encode forward-only rollback rules: compatible app rollback only with explicit schema-compatibility evidence; otherwise require a forward fix or G3 isolated restore validation
+10. add focused release-manifest/promotion/migration/readiness/recovery/supply-chain proofs and stop before Track I
 
-Do not start H4 staging promotion/rollback release gates or Track I load/abuse/security testing in H3.
+Do not begin broad load/abuse/security testing, product UX cleanup, or vendor-specific production rollout automation in H4.
 ---
 
 # Track A closure note
