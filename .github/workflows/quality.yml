@@ -241,6 +241,9 @@ jobs:
       - name: Production E5 Automation execution worker contract proof
         run: npm run check:production:e5-automation-execution-worker-contract
 
+      - name: Production F1 secret KMS forensic audit proof
+        run: npm run check:production:f1-secret-kms-audit
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
