@@ -12,6 +12,8 @@ import type {
   WorkerJobHeartbeatInput,
   WorkerJobLeaseMutationInput,
   WorkerJobListInput,
+  WorkerJobStatus,
+  WorkerQueueOperationalSummary,
 } from './workerJobTypes.js';
 import {
   WorkerJobLeaseError,
