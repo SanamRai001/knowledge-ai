@@ -250,21 +250,16 @@ async function main() {
     'server/worker/workerJobTypes.ts'
   );
   assert(
-    hasAll(
-      [
-        'PENDING',
-        'RUNNING',
-        'SUCCEEDED',
-        'FAILED',
-        'DEAD_LETTER',
-      ],
-      [
-        'PENDING',
-        'RUNNING',
-        'SUCCEEDED',
-        'FAILED',
-        'DEAD_LETTER',
-      ]
+    [
+      'PENDING',
+      'RUNNING',
+      'SUCCEEDED',
+      'FAILED',
+      'DEAD_LETTER',
+    ].every((status) =>
+      workerTypes.includes(
+        "'" + status + "'"
+      )
     ) &&
       workerTypes.includes(
         'attemptCount'
