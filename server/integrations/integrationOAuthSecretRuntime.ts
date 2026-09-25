@@ -68,6 +68,13 @@ export class IntegrationOAuthSecretRuntime
       );
     }
 
+    await this.secretStore
+      .cleanupUnreferencedIntegrationOAuthSecrets({
+        accountId: params.accountId,
+        provider: params.provider,
+      })
+      .catch(() => undefined);
+
     const created =
       await this.secretStore.create({
         accountId: params.accountId,
