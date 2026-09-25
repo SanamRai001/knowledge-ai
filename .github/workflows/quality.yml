@@ -250,6 +250,9 @@ jobs:
       - name: Production G1 operational recovery forensic audit proof
         run: npm run check:production:g1-operational-recovery-audit
 
+      - name: Production G2 observability readiness contract proof
+        run: npm run check:production:g2-observability-readiness-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -413,3 +416,6 @@ jobs:
 
       - name: Production F2 Integration OAuth SecretStore PostgreSQL proof
         run: npm run check:production:f2-integration-oauth-secret-store-postgres
+
+      - name: Production G2 observability readiness PostgreSQL proof
+        run: npm run check:production:g2-observability-readiness-postgres

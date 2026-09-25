@@ -12,6 +12,8 @@ import type {
   WorkerJobHeartbeatInput,
   WorkerJobLeaseMutationInput,
   WorkerJobListInput,
+  WorkerJobStatus,
+  WorkerQueueOperationalSummary,
 } from './workerJobTypes.js';
 import {
   WorkerJobLeaseError,
@@ -339,6 +341,59 @@ export class PostgresWorkerJobRepository {
     return result.rows.map(
       rowToJob
     );
+  }
+
+  async operationalSummary(
+    now: number = Date.now()
+  ): Promise<WorkerQueueOperationalSummary[]> {
+    const result =
+      await postgresPool().query<{
+        job_type: string;
+        status: WorkerJobStatus;
+        job_count: number | string;
+        oldest_created_at:
+          | Date
+          | string
+          | null;
+      }>(
+        `SELECT
+           job_type,
+           status,
+           count(*)::int AS job_count,
+           min(created_at) AS oldest_created_at
+         FROM worker_jobs
+         WHERE status IN (
+           'PENDING',
+           'RUNNING',
+           'FAILED',
+           'DEAD_LETTER'
+         )
+         GROUP BY job_type, status
+         ORDER BY job_type, status`
+      );
+
+    return result.rows.map((row) => {
+      const oldest =
+        row.oldest_created_at
+          ? epoch(
+              row.oldest_created_at
+            )
+          : undefined;
+      return {
+        jobType: row.job_type,
+        status: row.status,
+        count: Number(
+          row.job_count
+        ),
+        oldestCreatedAt:
+          oldest === undefined
+            ? undefined
+            : Math.min(
+                now,
+                oldest
+              ),
+      };
+    });
   }
 
   async claim(

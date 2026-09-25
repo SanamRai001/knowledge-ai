@@ -79,6 +79,25 @@ export interface WorkerJobListInput {
   limit?: number;
 }
 
+export interface WorkerQueueOperationalSummary {
+  jobType: string;
+  status: WorkerJobStatus;
+  count: number;
+  oldestCreatedAt?: number;
+}
+
+export interface WorkerRuntimeHealthSnapshot {
+  workerId: string;
+  started: boolean;
+  healthy: boolean;
+  lastActivityAt?: number;
+  lastCycleStartedAt?: number;
+  lastCycleCompletedAt?: number;
+  lastCycleOutcome?: 'success' | 'failure';
+  lastCycleErrorCode?: string;
+  maxStalenessMs: number;
+}
+
 export interface WorkerJobHandlerContext {
   job: WorkerJob;
   workerId: string;

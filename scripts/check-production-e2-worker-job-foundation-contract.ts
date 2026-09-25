@@ -76,21 +76,24 @@ async function main() {
       'registry.listJobTypes()'
     ) &&
       runtime.includes(
-        'repository.recoverStale'
+        '.recoverStale('
       ) &&
       runtime.includes(
-        'repository.claim'
+        '.claim('
       ) &&
       runtime.includes(
-        'repository.heartbeat'
+        '.heartbeat('
       ) &&
       runtime.includes(
-        'repository.complete'
+        '.complete('
       ) &&
       runtime.includes(
-        'repository.fail'
+        '.fail('
+      ) &&
+      runtime.includes(
+        'runCycleCore'
       ),
-    'E2 runtime must poll only registered job types and settle them through the fenced repository contract.'
+    'E2 runtime must poll only registered job types and settle them through the fenced repository contract, including when later observability wrappers surround the cycle.'
   );
 
   const worker = read('worker.ts');

@@ -11,6 +11,12 @@ import {
   assertWorkerEntrypointRole,
   resolveProcessRole,
 } from './server/runtime/processRole.js';
+import {
+  productionReadinessService,
+} from './server/operations/productionReadinessService.js';
+import {
+  operationalTelemetry,
+} from './server/operations/operationalTelemetry.js';
 
 dotenv.config();
 
@@ -64,6 +70,62 @@ async function startWorker() {
       started.workloads.join(', ')
   );
 
+  const readinessTick = async () => {
+    const report =
+      await productionReadinessService
+        .checkWorkerReadiness();
+
+    operationalTelemetry.emitEvent({
+      level:
+        report.ready
+          ? 'info'
+          : 'warn',
+      eventName:
+        'worker.readiness.signal',
+      component: 'worker',
+      processRole: role,
+      outcome:
+        report.ready
+          ? 'ready'
+          : 'not_ready',
+      metadata: {
+        failedCheckIds:
+          report.checks
+            .filter(
+              (check) =>
+                check.status ===
+                  'FAIL'
+            )
+            .map(
+              (check) =>
+                check.id
+            ),
+      },
+    });
+  };
+
+  const readinessTimer =
+    setInterval(
+      () => {
+        void readinessTick();
+      },
+      Math.max(
+        5_000,
+        Number(
+          process.env
+            .KNOWLEDGE_AI_WORKER_READINESS_INTERVAL_MS ||
+            '15000'
+        ) || 15_000
+      )
+    );
+  readinessTimer.unref?.();
+  setTimeout(
+    () => {
+      void readinessTick();
+    },
+    1_000
+  ).unref?.();
+
   let closing = false;
   const shutdown = async (
     signal: string
@@ -73,6 +135,9 @@ async function startWorker() {
     console.log(
       'Knowledge AI worker shutting down after ' +
         signal
+    );
+    clearInterval(
+      readinessTimer
     );
     backgroundRuntime.stop();
     await closePostgresPool();

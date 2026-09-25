@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening G2 — Production Observability + Real Readiness Foundation.**
+> **Continue with Production Hardening G3 — Backup/Restore + Recovery Drill Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1097,8 +1097,8 @@ Track A relational milestones:
 - F1 Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan — COMPLETE, workflow `36085952941`
 - F2 Integration OAuth SecretStore Foundation + Migration — COMPLETE, workflow `36147480475`
 - G1 Observability, Backup, and Operational Recovery Forensic Audit — COMPLETE, workflow `36150854623`
-- G2 Production Observability + Real Readiness Foundation — NEXT
-- G3 Backup/Restore + Recovery Drill Foundation — PLANNED
+- G2 Production Observability + Real Readiness Foundation — COMPLETE, workflow `36155946479`
+- G3 Backup/Restore + Recovery Drill Foundation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1176,6 +1176,8 @@ F2 evidence: `docs/PRODUCTION_F2_INTEGRATION_OAUTH_SECRET_STORE.md`.
 
 G1 evidence: `docs/PRODUCTION_G1_OPERATIONAL_RECOVERY_AUDIT.md`.
 
+G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1246,17 +1248,19 @@ F2 now moves Google Drive and OneDrive OAuth bundles behind a shared PostgreSQL 
 
 G1 now separates authoritative durable operational state from ephemeral runtime signals and synthetic mediator telemetry, defines a provider-neutral production metric/log/readiness contract, sets initial RPO/RTO/degraded-mode targets, and documents the current PostgreSQL/object-storage/SecretStore recovery gaps. Synthetic Phase 7/8 readiness/provider profiles are explicitly non-authoritative for production SLO claims.
 
-Next, do **G2 only — Production Observability + Real Readiness Foundation**:
+G2 now wires that contract into real runtime behavior: global privacy-safe correlation, HTTP/provider/query/PostgreSQL/worker telemetry, durable queue signals, separate liveness/readiness, real schema/storage/KMS checks, registered-handler and recent worker-loop readiness, and provider-outage degraded mode without reviving synthetic mediator telemetry.
 
-1. add a vendor-neutral operational metric/event sink with a deterministic test adapter
-2. add global request correlation and structured secret/content-safe operational events
-3. instrument HTTP request count/latency/status-class metrics using route templates
-4. instrument real provider + query/retrieval latency/failure signals
-5. instrument PostgreSQL pool/query/slow-query signals without raw SQL/value leakage
-6. expose worker queue/job/retry/dead-letter metrics and a steady-state worker heartbeat/readiness signal
-7. implement real web readiness separate from liveness
-8. implement real worker readiness based on schema/handlers/dependencies/recent loop health
-9. keep external provider outages as degraded feature state, not global readiness failure
-10. add focused G2 proofs and stop before backup/restore implementation
+Next, do **G3 only — Backup/Restore + Recovery Drill Foundation**:
 
-Do not configure PITR/backups, object-store versioning/retention, restore drills, Docker/staging, monitoring vendors, product dashboards, or load testing in G2.
+1. codify deployment-target PostgreSQL continuous-backup/PITR requirements for the current 5-minute relational RPO / 60-minute RTO
+2. add provider-neutral relational backup freshness/recovery-point evidence without exposing credentials
+3. verify durable object-storage versioning/retention and the 30-day minimum recoverable-delete window
+4. implement an isolated non-production restore workflow with schema/build compatibility and object-version checks
+5. validate restored SecretStore ciphertext against the required historical KMS key IDs; missing key history must fail closed
+6. add a recovery smoke proof that reconstructs a workspace/document corpus plus current/historical Dataset analytical state from restored DB + object bytes
+7. prove restored worker jobs remain durable/restart-safe without executing them against production providers during the drill
+8. surface backup freshness and restore-validation evidence through the G2 operational event/metric contract
+9. fail closed against production restore targets by default
+10. add focused G3 proofs and stop before deployment/load-testing work
+
+Do not choose a managed backup/monitoring vendor, run destructive recovery against production, build the final Docker/staging deployment, or start broad load/abuse testing in G3.

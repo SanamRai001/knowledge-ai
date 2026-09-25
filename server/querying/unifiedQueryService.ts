@@ -8,6 +8,9 @@ import {
   UnifiedQueryRoute,
   UnifiedQuestionResult,
 } from './types.js';
+import {
+  operationalTelemetry,
+} from '../operations/operationalTelemetry.js';
 
 export class UnifiedQueryError extends Error {
   public readonly statusCode: number;
@@ -33,6 +36,135 @@ const ANALYTICAL_SIGNALS =
 
 const DOCUMENT_SIGNALS =
   /\b(policy|policies|contract|contracts|handbook|manual|clause|document|documents|pdf|according to|what does .* say|procedure|procedures|guideline|guidelines|terms|warranty|requirement|requirements|rule|rules)\b/i;
+
+function retrievalFailureCategory(
+  error: unknown
+): string {
+  const typed = error as {
+    code?: unknown;
+    name?: unknown;
+  };
+  return String(
+    typed?.code ||
+      typed?.name ||
+      'UNKNOWN'
+  )
+    .replace(
+      /[^A-Za-z0-9_.:-]/g,
+      '_'
+    )
+    .slice(0, 80);
+}
+
+function observeRetrievalStage<T>(
+  stage: string,
+  work: () => T
+): T {
+  const started =
+    process.hrtime.bigint();
+  try {
+    const result = work();
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_stage_duration_ms',
+      kind: 'HISTOGRAM',
+      value:
+        Number(
+          process.hrtime.bigint() -
+            started
+        ) / 1_000_000,
+      labels: {
+        stage,
+        outcome: 'success',
+      },
+    });
+    return result;
+  } catch (error) {
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_stage_duration_ms',
+      kind: 'HISTOGRAM',
+      value:
+        Number(
+          process.hrtime.bigint() -
+            started
+        ) / 1_000_000,
+      labels: {
+        stage,
+        outcome: 'failure',
+      },
+    });
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_failures_total',
+      kind: 'COUNTER',
+      value: 1,
+      labels: {
+        stage,
+        failure_category:
+          retrievalFailureCategory(
+            error
+          ),
+      },
+    });
+    throw error;
+  }
+}
+
+async function observeRetrievalStageAsync<T>(
+  stage: string,
+  work: () => Promise<T>
+): Promise<T> {
+  const started =
+    process.hrtime.bigint();
+  try {
+    const result = await work();
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_stage_duration_ms',
+      kind: 'HISTOGRAM',
+      value:
+        Number(
+          process.hrtime.bigint() -
+            started
+        ) / 1_000_000,
+      labels: {
+        stage,
+        outcome: 'success',
+      },
+    });
+    return result;
+  } catch (error) {
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_stage_duration_ms',
+      kind: 'HISTOGRAM',
+      value:
+        Number(
+          process.hrtime.bigint() -
+            started
+        ) / 1_000_000,
+      labels: {
+        stage,
+        outcome: 'failure',
+      },
+    });
+    operationalTelemetry.recordMetric({
+      name:
+        'retrieval_failures_total',
+      kind: 'COUNTER',
+      value: 1,
+      labels: {
+        stage,
+        failure_category:
+          retrievalFailureCategory(
+            error
+          ),
+      },
+    });
+    throw error;
+  }
+}
 
 export class UnifiedQueryService {
   public chooseRoute(params: {
@@ -119,13 +251,21 @@ export class UnifiedQueryService {
 
     const requestId =
       params.requestId || `query_req_${crypto.randomUUID().slice(0, 8)}`;
-    const route = this.chooseRoute({
-      accountId: params.accountId,
-      question,
-      datasetId: params.datasetId,
-      knowledgeBaseId: params.knowledgeBaseId,
-      now: params.now,
-    });
+    const route =
+      observeRetrievalStage(
+        'route_selection',
+        () =>
+          this.chooseRoute({
+            accountId:
+              params.accountId,
+            question,
+            datasetId:
+              params.datasetId,
+            knowledgeBaseId:
+              params.knowledgeBaseId,
+            now: params.now,
+          })
+      );
 
     if (route === 'DATASET_ANALYTICS') {
       if (!params.datasetId) {
@@ -135,16 +275,25 @@ export class UnifiedQueryService {
           'datasetId is required for structured analytics.'
         );
       }
-      return analyticalQuestionService.answer({
-        accountId: params.accountId,
-        datasetId: params.datasetId,
-        versionId: params.datasetVersionId,
-        question,
-        allowLlmPlanning: params.allowLlmPlanning,
-        allowLlmExplanation: params.allowLlmExplanation,
-        now: params.now,
-        requestId,
-      });
+      return observeRetrievalStageAsync(
+        'dataset_analytics',
+        () =>
+          analyticalQuestionService.answer({
+            accountId:
+              params.accountId,
+            datasetId:
+              params.datasetId!,
+            versionId:
+              params.datasetVersionId,
+            question,
+            allowLlmPlanning:
+              params.allowLlmPlanning,
+            allowLlmExplanation:
+              params.allowLlmExplanation,
+            now: params.now,
+            requestId,
+          })
+      );
     }
 
     if (!params.knowledgeBaseId) {
@@ -156,18 +305,31 @@ export class UnifiedQueryService {
     }
 
     const kb =
-      await workspaceRuntimeService.requireKB(
-        params.accountId,
-        params.knowledgeBaseId
+      await observeRetrievalStageAsync(
+        'workspace_materialization',
+        () =>
+          workspaceRuntimeService
+            .requireKB(
+              params.accountId,
+              params.knowledgeBaseId!
+            )
       );
-    const result = await specializedAIService.answer({
-      aiId: kb.specializedAi.id,
-      message: question,
-      accountId: params.accountId,
-      chatHistory: kb.chatHistory,
-      source: 'WEB',
-      requestId,
-    });
+    const result =
+      await observeRetrievalStageAsync(
+        'document_answer',
+        () =>
+          specializedAIService.answer({
+            aiId:
+              kb.specializedAi.id,
+            message: question,
+            accountId:
+              params.accountId,
+            chatHistory:
+              kb.chatHistory,
+            source: 'WEB',
+            requestId,
+          })
+      );
 
     return {
       route: 'DOCUMENT_KNOWLEDGE',

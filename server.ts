@@ -42,11 +42,21 @@ import { legacyDeveloperRouteClosureRouter } from './server/platform/legacyDevel
 import { legacyPrototypeRouteQuarantineMiddleware } from './server/legacyRouteQuarantine.js';
 import { authRouter } from './server/identity/authRouter.js';
 import crypto from 'crypto';
+import {
+  operationalHttpMiddleware,
+} from './server/operations/httpObservabilityMiddleware.js';
+import {
+  productionReadinessService,
+} from './server/operations/productionReadinessService.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+app.use(
+  operationalHttpMiddleware
+);
 
 // Body parsers
 app.use(express.json({ limit: '50mb' }));
@@ -101,6 +111,21 @@ app.use(legacyPrototypeRouteQuarantineMiddleware);
 // 1. Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+app.get('/api/ready', async (_req, res) => {
+  const report =
+    await productionReadinessService
+      .checkWebReadiness();
+  res
+    .status(report.ready ? 200 : 503)
+    .json({
+      status:
+        report.ready
+          ? 'ready'
+          : 'not_ready',
+      ...report,
+    });
 });
 
 // 2. Get active Knowledge Base

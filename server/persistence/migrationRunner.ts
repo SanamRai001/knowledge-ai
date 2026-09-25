@@ -63,6 +63,23 @@ export interface MigrationResult {
   alreadyApplied: string[];
 }
 
+export interface ExpectedPostgresMigration {
+  version: string;
+  filename: string;
+  checksum: string;
+}
+
+export function expectedPostgresMigrations():
+  ExpectedPostgresMigration[] {
+  return migrationFiles().map(
+    (migration) => ({
+      version: migration.version,
+      filename: migration.filename,
+      checksum: migration.checksum,
+    })
+  );
+}
+
 export async function runPostgresMigrations(): Promise<MigrationResult> {
   const applied: string[] = [];
   const alreadyApplied: string[] = [];

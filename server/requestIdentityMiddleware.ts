@@ -4,6 +4,9 @@ import {
   resolveAuthenticatedRequestIdentity,
 } from './requestIdentity.js';
 import {
+  setOperationalTenantAccount,
+} from './operations/operationalTelemetry.js';
+import {
   AuthHttpSecurityError,
   requireDoubleSubmitCsrf,
   requireSameOrigin,
@@ -33,6 +36,9 @@ export async function applicationIdentityMiddleware(
     }
 
     res.locals.requestIdentity = identity;
+    setOperationalTenantAccount(
+      identity.accountId
+    );
     next();
   } catch (error: any) {
     if (error instanceof RequestIdentityError) {
