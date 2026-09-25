@@ -14,6 +14,9 @@ import {
   AnalyticalPlanningError,
 } from './analyticalQuestionService.js';
 import {
+  currentOperationalContext,
+} from '../operations/operationalTelemetry.js';
+import {
   UnifiedQueryError,
   unifiedQueryService,
 } from './unifiedQueryService.js';
@@ -80,6 +83,9 @@ queryRouter.post('/ask', async (req, res) => {
           : undefined,
       allowLlmPlanning: req.body?.allowLlmPlanning !== false,
       allowLlmExplanation: req.body?.allowLlmExplanation !== false,
+      requestId:
+        currentOperationalContext()
+          ?.requestId,
     });
     res.json(result);
   } catch (error) {
