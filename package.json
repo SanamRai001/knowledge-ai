@@ -120,7 +120,8 @@
     "check:production:e5-automation-execution-worker-postgres": "tsx scripts/check-production-e5-automation-execution-worker-postgres.ts",
     "check:production:f1-secret-kms-audit": "tsx scripts/check-production-f1-secret-kms-audit.ts",
     "check:production:f2-integration-oauth-secret-store-contract": "tsx scripts/check-production-f2-integration-oauth-secret-store-contract.ts",
-    "check:production:f2-integration-oauth-secret-store-postgres": "tsx scripts/check-production-f2-integration-oauth-secret-store-postgres.ts"
+    "check:production:f2-integration-oauth-secret-store-postgres": "tsx scripts/check-production-f2-integration-oauth-secret-store-postgres.ts",
+    "check:production:g1-operational-recovery-audit": "tsx scripts/check-production-g1-operational-recovery-audit.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
