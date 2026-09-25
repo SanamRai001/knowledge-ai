@@ -45,6 +45,9 @@ import crypto from 'crypto';
 import {
   operationalHttpMiddleware,
 } from './server/operations/httpObservabilityMiddleware.js';
+import {
+  productionReadinessService,
+} from './server/operations/productionReadinessService.js';
 
 dotenv.config();
 
@@ -108,6 +111,21 @@ app.use(legacyPrototypeRouteQuarantineMiddleware);
 // 1. Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+app.get('/api/ready', async (_req, res) => {
+  const report =
+    await productionReadinessService
+      .checkWebReadiness();
+  res
+    .status(report.ready ? 200 : 503)
+    .json({
+      status:
+        report.ready
+          ? 'ready'
+          : 'not_ready',
+      ...report,
+    });
 });
 
 // 2. Get active Knowledge Base
