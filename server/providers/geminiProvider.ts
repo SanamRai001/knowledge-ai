@@ -1,5 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import {
+  operationalTelemetry,
+} from '../operations/operationalTelemetry.js';
+import {
   LLMGenerateRequest,
   LLMGenerateResult,
   LLMProvider,
@@ -57,6 +60,85 @@ export class GeminiProvider implements LLMProvider {
   public readonly id = 'gemini' as const;
   private client: GoogleGenAI | null = null;
 
+  private observe(
+    result: LLMGenerateResult
+  ): LLMGenerateResult {
+    const outcome =
+      result.ok
+        ? 'success'
+        : 'failure';
+    const failureCategory =
+      result.failure?.category ||
+      'NONE';
+    const labels = {
+      provider: result.providerId,
+      operation: 'generate',
+      outcome,
+      failure_category:
+        failureCategory,
+    };
+
+    operationalTelemetry.recordMetric({
+      name:
+        'provider_requests_total',
+      kind: 'COUNTER',
+      value: 1,
+      labels,
+    });
+    operationalTelemetry.recordMetric({
+      name:
+        'provider_request_duration_ms',
+      kind: 'HISTOGRAM',
+      value: result.latencyMs,
+      labels: {
+        provider:
+          result.providerId,
+        operation: 'generate',
+        outcome,
+      },
+    });
+
+    operationalTelemetry.emitEvent({
+      level:
+        result.ok
+          ? 'info'
+          : result.failure?.retryable
+            ? 'warn'
+            : 'error',
+      eventName:
+        'provider.request.completed',
+      component: 'llm_provider',
+      outcome,
+      metadata: {
+        provider:
+          result.providerId,
+        modelId:
+          result.modelId,
+        latencyMs:
+          result.latencyMs,
+        failureCategory,
+        retryable:
+          result.failure
+            ?.retryable ??
+          false,
+        statusCode:
+          result.failure
+            ?.statusCode,
+        inputTokens:
+          result.usage
+            .inputTokens,
+        outputTokens:
+          result.usage
+            .outputTokens,
+        totalTokens:
+          result.usage
+            .totalTokens,
+      },
+    });
+
+    return result;
+  }
+
   public isConfigured(): boolean {
     const key = process.env.GEMINI_API_KEY;
     return Boolean(key && key.trim() && key !== 'MY_GEMINI_API_KEY');
@@ -104,7 +186,7 @@ export class GeminiProvider implements LLMProvider {
     const client = this.getClient();
 
     if (!client) {
-      return {
+      return this.observe({
         ok: false,
         providerId: this.id,
         modelId,
@@ -116,7 +198,7 @@ export class GeminiProvider implements LLMProvider {
           message: 'GEMINI_API_KEY is not configured.',
           retryable: false,
         },
-      };
+      });
     }
 
     try {
@@ -139,7 +221,7 @@ export class GeminiProvider implements LLMProvider {
         typeof usageMetadata?.totalTokenCount === 'number' ? usageMetadata.totalTokenCount : null;
       const hasMeasuredUsage = inputTokens !== null || outputTokens !== null || totalTokens !== null;
 
-      return {
+      return this.observe({
         ok: true,
         providerId: this.id,
         modelId,
@@ -151,9 +233,9 @@ export class GeminiProvider implements LLMProvider {
           totalTokens,
           source: hasMeasuredUsage ? 'MEASURED' : 'UNAVAILABLE',
         },
-      };
+      });
     } catch (error: any) {
-      return {
+      return this.observe({
         ok: false,
         providerId: this.id,
         modelId,
@@ -161,7 +243,7 @@ export class GeminiProvider implements LLMProvider {
         latencyMs: Date.now() - started,
         usage: emptyUsage(),
         failure: classifyFailure(error),
-      };
+      });
     }
   }
 }
