@@ -2,7 +2,7 @@
 
 Date: **2026-09-25**
 
-Status: **IMPLEMENTED — awaiting integrated Quality Gate validation.**
+Status: **COMPLETE** — authoritative implementation Quality Gate `36163177196`.
 
 ## Verdict
 
@@ -962,3 +962,44 @@ H1 is complete when:
 - integrated CI is green
 
 H1 must stop before adding the final Docker/staging deployment.
+
+
+---
+
+# 19. Validation
+
+Authoritative implementation Quality Gate:
+
+`36163177196`
+
+Verified green:
+
+- TypeScript
+- production build
+- full Phase 0–8 regression suite
+- all production-hardening contract proofs through G3
+- H1 deployment/supply-chain drift proof
+- full PostgreSQL production suite through G3
+- arithmetic grounding
+- deterministic synthesis
+- unseen-corpus effectiveness benchmark
+- live Gemini benchmark
+
+## Next phase
+
+**H2 — Reproducible Build + Production Image Foundation**
+
+H2 should implement the smallest deployment artifact slice from the H1 audit:
+
+1. choose one package manager and commit/enforce its lockfile
+2. use frozen dependency installation in CI/release builds
+3. declare the Node/package-manager version contract
+4. split public client assets from private web/worker artifacts
+5. compile/package migration and recovery CLIs for immutable execution
+6. add a multi-stage non-root production image
+7. provide separate web/worker commands from the same immutable artifact
+8. minimize runtime files/dependencies and keep private source maps out of the public root
+9. add image/package-layout smoke proofs
+10. stop before staging rollout, proxy/security-header hardening, and graceful-shutdown work
+
+H3 remains responsible for runtime edge + graceful shutdown. H4 remains responsible for staging promotion + rollback release gates.
