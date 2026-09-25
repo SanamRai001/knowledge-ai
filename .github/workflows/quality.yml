@@ -247,6 +247,9 @@ jobs:
       - name: Production F2 Integration OAuth SecretStore contract proof
         run: npm run check:production:f2-integration-oauth-secret-store-contract
 
+      - name: Production G1 operational recovery forensic audit proof
+        run: npm run check:production:g1-operational-recovery-audit
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
