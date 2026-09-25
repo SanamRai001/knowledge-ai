@@ -187,7 +187,8 @@ The implementation sequence is deliberately split into small slices:
 32. **E4 — Integration Sync Worker Migration** — COMPLETE, workflow `36029571982`
 33. **E5 — Automation Execution/Recovery Worker Migration** — COMPLETE, workflow `36035111875`
 34. **F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan** — COMPLETE, workflow `36085952941`
-35. **F2 — Integration OAuth SecretStore Foundation + Migration** — NEXT
+35. **F2 — Integration OAuth SecretStore Foundation + Migration** — COMPLETE, workflow `36147480475`
+36. **G1 — Observability, Backup, and Operational Recovery Forensic Audit** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -256,6 +257,8 @@ E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
 E5 evidence: `docs/PRODUCTION_E5_AUTOMATION_EXECUTION_WORKER.md`.
 
 F1 evidence: `docs/PRODUCTION_F1_SECRET_KMS_AUDIT.md`.
+
+F2 evidence: `docs/PRODUCTION_F2_INTEGRATION_OAUTH_SECRET_STORE.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -735,22 +738,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening F2 — Integration OAuth SecretStore Foundation + Migration**
+**Production Hardening G1 — Observability, Backup, and Operational Recovery Forensic Audit**
 
-Keep F2 limited to Google Drive and Microsoft OneDrive OAuth credential bundles.
+Keep G1 audit/foundation focused.
 
-1. turn the F1 `SecretStore` / `KmsService` contracts into the runtime credential boundary without exposing vendor identifiers through IntegrationConnection
-2. migrate IntegrationCredentialStore callers to async SecretStore operations while preserving account + provider scope
-3. keep Deployment secrets (DB URL, Gemini, S3, OAuth app client secrets, bootstrap token) outside account SecretStore
-4. keep passwords, sessions, and API keys one-way hashed; do not make them reversible secrets
-5. preserve authorize, token refresh/rotation, reauthorize, health/sync, disconnect/revoke semantics for Google Drive and OneDrive
-6. provide safe one-time read-through/migration for existing `data/integration_credentials.json` records without losing current credentials
-7. define shared web/worker resolution so E4 Integration workers can retrieve the same credential across replicas
-8. make secret create/rotate/reference update/old-secret cleanup crash-safe and truthful
-9. add durable secret-operation audit metadata without storing token plaintext/ciphertext in ordinary Integration metadata
-10. prove access/refresh tokens never appear in browser responses, generic worker payloads, logs, PostgreSQL IntegrationConnection metadata, or source-controlled files
+1. inventory every current HTTP, provider, database, queue/worker, Integration, Watch, Action/Automation, retrieval, and tenant-correlated observability signal
+2. identify which signals are structured, durable, ephemeral, sampled, or absent
+3. inventory health/readiness endpoints and define what web vs worker readiness must actually prove
+4. inventory PostgreSQL backup/restore assumptions, migration compatibility, and current point-in-time recovery capability
+5. inventory durable object-storage retention/versioning/deletion assumptions for original source bytes and derived payloads
+6. inventory SecretStore/KMS backup/key-lifecycle requirements introduced by F2
+7. define minimum production metrics/log/event contracts without choosing an observability vendor
+8. define incident-correlation requirements that preserve tenant privacy and never log secret/content payloads
+9. define RPO/RTO targets, degraded-mode expectations, provider-outage behavior, and restore validation requirements
+10. add an executable repository drift proof and evidence document; do not implement Track H deployment yet
 
-Do not migrate deployment secrets in F2. Do not change OAuth scopes, Integration authorization policy, C6 checkpoint semantics, or E4 worker semantics.
+Do not choose a monitoring vendor in G1. Do not redesign product dashboards. Do not implement Docker/deployment/staging or broad load testing in this phase.
 ---
 
 # Track A closure note
