@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening H3 — Runtime Edge + Graceful Shutdown Hardening.**
+> **Continue with Production Hardening H4 — Staging Promotion + Rollback Release Gate.**
 
 Phases 0–8 are complete.
 
@@ -1101,7 +1101,8 @@ Track A relational milestones:
 - G3 Backup/Restore + Recovery Drill Foundation — COMPLETE, workflow `36158941696`
 - H1 Deployment & Supply-Chain Forensic Audit — COMPLETE, workflow `36163177196`
 - H2 Reproducible Build + Production Image Foundation — COMPLETE, workflow `36167552759`
-- H3 Runtime Edge + Graceful Shutdown Hardening — NEXT
+- H3 Runtime Edge + Graceful Shutdown Hardening — COMPLETE, workflow `36171328745`
+- H4 Staging Promotion + Rollback Release Gate — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1263,19 +1264,23 @@ H1 now inventories every production entrypoint/environment class and turns deplo
 
 H2 now provides one canonical npm lockfile, exact Node/npm versioning, frozen CI installs, separate public/private build artifacts, compiled production operations CLIs, and a minimal non-root multi-stage image shared by web and worker roles. Real Docker smoke proves the runtime image contains production dependencies/artifacts plus migration SQL without TypeScript source or dev tooling.
 
+H3 now validates/configures the web edge, enforces explicit trusted-proxy/HSTS ownership and production security headers, reduces general API body limits, drains accepted web requests on shutdown, prevents overlapping Watch/generic worker cycles, drains workers before PostgreSQL close, and exposes a private `/health` + real G2 `/ready` worker supervisor surface.
+
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
-Next, do **H3 only — Runtime Edge + Graceful Shutdown Hardening**:
+H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 
-1. add bounded graceful web shutdown and HTTP drain
-2. add bounded worker drain before PostgreSQL close
-3. validate/configure the web port
-4. define explicit trusted-proxy behavior
-5. add CSP/security-header ownership while preserving explicit TLS/HSTS boundary assumptions
-6. tighten global request-body limits without breaking route-specific multipart limits
-7. align/document proxy/application request-size contracts
-8. expose supervisor-consumable worker readiness using real G2 checks
-9. add focused runtime-edge/shutdown/header/readiness proofs
-10. preserve H2 image/build invariants and stop before staging promotion
+Next, do **H4 only — Staging Promotion + Rollback Release Gate**:
 
-Do not start H4 staging/promotion/rollback gates, container/SBOM release scanning policy, or Track I load/abuse/security testing in H3.
+1. define one provider-neutral release manifest with source commit, immutable image digest/reference, build ID, migration inventory/checksums, and release timestamp
+2. prove the staging-tested image digest is exactly the artifact eligible for production promotion; never rebuild between staging and production
+3. add a single-writer compiled migration-job gate plus post-migration checksum/schema verification before web/worker promotion
+4. enforce staging/production separation for PostgreSQL, object storage, SecretStore/KMS material, OAuth/browser origins, web, worker, and migration-job topology
+5. require real G2 web readiness and H3 worker readiness before release promotion
+6. require current G3 backup/restore evidence before production promotion
+7. add dependency/container vulnerability policy and SBOM generation/verification
+8. pin third-party GitHub Actions to immutable commit SHAs
+9. encode forward-only rollback rules with explicit schema-compatibility evidence or G3 isolated restore validation
+10. add focused release/promotion/migration/readiness/recovery/supply-chain proofs and stop before Track I
+
+Do not start broad Track I load/abuse/security testing or vendor-specific production rollout automation in H4.
