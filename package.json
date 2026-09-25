@@ -115,7 +115,9 @@
     "check:production:e3-action-discovery-worker-contract": "tsx scripts/check-production-e3-action-discovery-worker-contract.ts",
     "check:production:e3-action-discovery-worker-postgres": "tsx scripts/check-production-e3-action-discovery-worker-postgres.ts",
     "check:production:e4-integration-sync-worker-contract": "tsx scripts/check-production-e4-integration-sync-worker-contract.ts",
-    "check:production:e4-integration-sync-worker-postgres": "tsx scripts/check-production-e4-integration-sync-worker-postgres.ts"
+    "check:production:e4-integration-sync-worker-postgres": "tsx scripts/check-production-e4-integration-sync-worker-postgres.ts",
+    "check:production:e5-automation-execution-worker-contract": "tsx scripts/check-production-e5-automation-execution-worker-contract.ts",
+    "check:production:e5-automation-execution-worker-postgres": "tsx scripts/check-production-e5-automation-execution-worker-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

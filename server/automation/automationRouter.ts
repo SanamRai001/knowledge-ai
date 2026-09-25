@@ -27,6 +27,14 @@ import {
   automationActorLabel,
   resolveAutomationActorRole,
 } from './automationActor.js';
+import {
+  enqueueAutomationExecutionJob,
+  getAutomationExecutionJob,
+  listAutomationExecutionJobs,
+} from './automationExecutionWorker.js';
+import {
+  AutomationWorkerIdentityError,
+} from './automationWorkerIdentity.js';
 
 export const automationRouter = express.Router();
 
@@ -238,7 +246,8 @@ function handleError(
     error instanceof AutomationExecutionError ||
     error instanceof AutomationControlError ||
     error instanceof AutomationRunAccessError ||
-    error instanceof AutomationQualityError
+    error instanceof AutomationQualityError ||
+    error instanceof AutomationWorkerIdentityError
   ) {
     res.status(error.statusCode).json({
       error: error.message,
@@ -672,6 +681,127 @@ automationRouter.post(
             : undefined,
       });
       res.json({ approval });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.post(
+  '/execute-jobs/:proposalId',
+  async (req, res) => {
+    try {
+      if (
+        !automationRuntimeService
+          .usesPostgres()
+      ) {
+        res.status(503).json({
+          error:
+            'Queued Automation execution requires PostgreSQL worker infrastructure.',
+          code:
+            'AUTOMATION_WORKER_QUEUE_REQUIRES_POSTGRES',
+        });
+        return;
+      }
+
+      const requestIdentity =
+        identity(res);
+      const job =
+        await enqueueAutomationExecutionJob({
+          accountId:
+            requestIdentity.accountId,
+          proposalId:
+            req.params.proposalId,
+          identity:
+            requestIdentity,
+        });
+
+      res.status(202).json({
+        job,
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.get(
+  '/execute-jobs/:proposalId',
+  async (req, res) => {
+    try {
+      if (
+        !automationRuntimeService
+          .usesPostgres()
+      ) {
+        res.status(503).json({
+          error:
+            'Queued Automation execution requires PostgreSQL worker infrastructure.',
+          code:
+            'AUTOMATION_WORKER_QUEUE_REQUIRES_POSTGRES',
+        });
+        return;
+      }
+
+      const { accountId } =
+        identity(res);
+      res.json({
+        jobs:
+          await listAutomationExecutionJobs({
+            accountId,
+            proposalId:
+              req.params.proposalId,
+            limit:
+              limitFrom(
+                req.query.limit,
+                40
+              ),
+          }),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+);
+
+automationRouter.get(
+  '/execute-jobs/:proposalId/:jobId',
+  async (req, res) => {
+    try {
+      if (
+        !automationRuntimeService
+          .usesPostgres()
+      ) {
+        res.status(503).json({
+          error:
+            'Queued Automation execution requires PostgreSQL worker infrastructure.',
+          code:
+            'AUTOMATION_WORKER_QUEUE_REQUIRES_POSTGRES',
+        });
+        return;
+      }
+
+      const { accountId } =
+        identity(res);
+      const job =
+        await getAutomationExecutionJob({
+          accountId,
+          proposalId:
+            req.params.proposalId,
+          jobId:
+            req.params.jobId,
+        });
+
+      if (!job) {
+        res.status(404).json({
+          error:
+            'Automation execution job was not found in the current account/proposal scope.',
+          code:
+            'AUTOMATION_EXECUTION_JOB_NOT_FOUND',
+        });
+        return;
+      }
+
+      res.json({ job });
     } catch (error) {
       handleError(res, error);
     }
