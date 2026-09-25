@@ -49,6 +49,18 @@ async function main() {
   const workerRuntime = read(
     'server/worker/workerJobRuntime.ts'
   );
+  const watchRuntime = read(
+    'server/watch/watchRuntimeScheduler.ts'
+  );
+  const runtimeEdge = read(
+    'server/runtime/runtimeEdgeConfig.ts'
+  );
+  const securityHeaders = read(
+    'server/runtime/securityHeadersMiddleware.ts'
+  );
+  const workerHealth = read(
+    'server/runtime/workerHealthServer.ts'
+  );
   const readiness = read(
     'server/operations/productionReadinessService.ts'
   );
@@ -220,28 +232,49 @@ async function main() {
   );
 
   assert(
-    !server.includes(
-      "process.once('SIGTERM'"
+    server.includes(
+      "process.once(\n    'SIGTERM'"
     ) &&
-      !server.includes(
-        '.close(() =>'
+      server.includes(
+        'httpDrainController'
+      ) &&
+      server.includes(
+        '.beginDrain()'
+      ) &&
+      server.includes(
+        'server.close('
+      ) &&
+      server.includes(
+        '.closeAllConnections?.()'
+      ) &&
+      server.includes(
+        'backgroundRuntime.drain('
+      ) &&
+      server.includes(
+        'await closePostgresPool()'
       ) &&
       worker.includes(
         "process.once('SIGTERM'"
       ) &&
       worker.includes(
-        'backgroundRuntime.stop()'
+        'backgroundRuntime.drain('
+      ) &&
+      worker.includes(
+        'workerHealthServer'
       ) &&
       worker.includes(
         'await closePostgresPool()'
       ) &&
       workerRuntime.includes(
-        'public stop(): void'
+        'public async drain('
+      ) &&
+      watchRuntime.includes(
+        'public async drain('
       ) &&
       backgroundRuntime.includes(
-        'public stop(): void'
+        'public async drain('
       ),
-    'H1 must keep web graceful-shutdown absence and worker timer-only stop semantics explicit until H3.'
+    'H1 historical guard must recognize H3 bounded web/worker graceful drain.'
   );
 
   assert(
@@ -264,27 +297,54 @@ async function main() {
   );
 
   assert(
-    !server.includes(
-      "app.set('trust proxy'"
+    server.includes(
+      "app.set(\n  'trust proxy'"
     ) &&
-      !server.includes(
+      server.includes(
+        'securityHeadersMiddleware'
+      ) &&
+      runtimeEdge.includes(
+        'KNOWLEDGE_AI_TRUST_PROXY_HOPS'
+      ) &&
+      runtimeEdge.includes(
+        'KNOWLEDGE_AI_HSTS_OWNER'
+      ) &&
+      securityHeaders.includes(
         'Content-Security-Policy'
       ) &&
-      !server.includes(
+      securityHeaders.includes(
         'Strict-Transport-Security'
       ) &&
-      !server.includes(
-        "from 'helmet'"
+      securityHeaders.includes(
+        'X-Content-Type-Options'
+      ) &&
+      securityHeaders.includes(
+        'Referrer-Policy'
+      ) &&
+      securityHeaders.includes(
+        'Permissions-Policy'
       ),
-    'H1 must keep current reverse-proxy/security-header ownership gap explicit until H3.'
+    'H1 historical guard must recognize H3 explicit trusted-proxy and security-header ownership.'
   );
 
   assert(
     server.includes(
-      "express.json({ limit: '50mb' })"
+      'edgeConfig.jsonBodyLimitBytes'
     ) &&
       server.includes(
-        "express.urlencoded({ extended: true, limit: '50mb' })"
+        'edgeConfig.urlencodedBodyLimitBytes'
+      ) &&
+      server.includes(
+        'edgeConfig.maxRequestBodyBytes'
+      ) &&
+      runtimeEdge.includes(
+        "'KNOWLEDGE_AI_JSON_BODY_LIMIT_KB'"
+      ) &&
+      runtimeEdge.includes(
+        "'KNOWLEDGE_AI_URLENCODED_BODY_LIMIT_KB'"
+      ) &&
+      runtimeEdge.includes(
+        "'KNOWLEDGE_AI_MAX_REQUEST_BODY_MB'"
       ) &&
       server.includes(
         'fileSize: 25 * 1024 * 1024'
@@ -301,7 +361,7 @@ async function main() {
       xlsxParser.includes(
         'maxFileBytes: 15 * 1024 * 1024'
       ),
-    'H1 request/upload limit inventory drifted.'
+    'H1 historical request/upload inventory must recognize H3 small general-body limits while preserving multipart bounds.'
   );
 
   assert(
@@ -390,7 +450,7 @@ async function main() {
     'PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'H1 deployment contracts remain guarded after H2: reproducible packaging/image blockers are closed while security-header, graceful-shutdown, supply-chain scan/pinning, staging, and rollback-promotion gaps remain explicit for H3/H4.'
+    'H1 deployment contracts remain guarded after H3: reproducible packaging, runtime-edge security, graceful drain, request limits, and worker readiness are closed while supply-chain scan/pinning, staging, and rollback-promotion gaps remain explicit for H4.'
   );
 }
 

@@ -45,6 +45,9 @@ export class WorkerJobRuntime {
   private timer:
     | ReturnType<typeof setInterval>
     | null = null;
+  private inFlightCycle:
+    | Promise<WorkerJobRuntimeCycleResult>
+    | null = null;
   private lastActivityAt?: number;
   private lastCycleStartedAt?: number;
   private lastCycleCompletedAt?: number;
@@ -626,16 +629,31 @@ export class WorkerJobRuntime {
     );
 
     const run = () => {
-      void this.runCycle({
+      if (this.inFlightCycle) {
+        return;
+      }
+
+      const cycle = this.runCycle({
         leaseMs: params?.leaseMs,
         maxJobs:
           params?.maxJobs,
-      }).catch((error) => {
-        console.error(
-          'Worker job runtime cycle failed:',
-          error
-        );
       });
+      this.inFlightCycle = cycle;
+
+      void cycle
+        .catch((error) => {
+          console.error(
+            'Worker job runtime cycle failed:',
+            error
+          );
+        })
+        .finally(() => {
+          if (
+            this.inFlightCycle === cycle
+          ) {
+            this.inFlightCycle = null;
+          }
+        });
     };
 
     run();
@@ -656,6 +674,52 @@ export class WorkerJobRuntime {
     if (!this.timer) return;
     clearInterval(this.timer);
     this.timer = null;
+  }
+
+  public async drain(
+    timeoutMs: number
+  ): Promise<boolean> {
+    this.stop();
+
+    const cycle =
+      this.inFlightCycle;
+    if (!cycle) {
+      return true;
+    }
+
+    let timer:
+      | ReturnType<typeof setTimeout>
+      | undefined;
+
+    try {
+      return await Promise.race([
+        cycle
+          .then(() => true)
+          .catch(() => true),
+        new Promise<boolean>(
+          (resolve) => {
+            timer = setTimeout(
+              () => resolve(false),
+              Math.max(
+                1,
+                timeoutMs
+              )
+            );
+            timer.unref?.();
+          }
+        ),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  public isCycleInFlight(): boolean {
+    return Boolean(
+      this.inFlightCycle
+    );
   }
 
   public isStarted(): boolean {

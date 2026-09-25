@@ -276,8 +276,14 @@ async function main() {
       ) &&
       worker.includes(
         "process.once('SIGINT'"
+      ) &&
+      worker.includes(
+        'backgroundRuntime.drain('
+      ) &&
+      worker.includes(
+        'workerHealthServer'
       ),
-    'Dedicated worker entrypoint must fail closed on role/persistence/E1-E5 schemas and own graceful worker startup/shutdown.'
+    'Dedicated worker entrypoint must fail closed on role/persistence/E1-E5 schemas, expose supervisor readiness, and own bounded graceful worker drain.'
   );
 
   const scheduler = read(

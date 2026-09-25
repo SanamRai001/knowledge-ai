@@ -46,7 +46,12 @@ function stableId(
 }
 
 export class WatchRuntimeScheduler {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer:
+    | ReturnType<typeof setInterval>
+    | null = null;
+  private inFlightCycle:
+    | Promise<WatchRuntimeSchedulerCycleResult>
+    | null = null;
 
   public async runCycle(params?: {
     now?: number;
@@ -291,12 +296,30 @@ export class WatchRuntimeScheduler {
     );
 
     const run = () => {
-      void this.runCycle({
+      if (this.inFlightCycle) {
+        return;
+      }
+
+      const cycle = this.runCycle({
         leaseMs: params?.leaseMs,
         maxJobs: params?.maxJobs,
-      }).catch((error) => {
-        console.error('Watch runtime scheduler cycle failed:', error);
       });
+      this.inFlightCycle = cycle;
+
+      void cycle
+        .catch((error) => {
+          console.error(
+            'Watch runtime scheduler cycle failed:',
+            error
+          );
+        })
+        .finally(() => {
+          if (
+            this.inFlightCycle === cycle
+          ) {
+            this.inFlightCycle = null;
+          }
+        });
     };
 
     run();
@@ -314,6 +337,58 @@ export class WatchRuntimeScheduler {
     if (!this.timer) return;
     clearInterval(this.timer);
     this.timer = null;
+  }
+
+  public async drain(
+    timeoutMs: number
+  ): Promise<boolean> {
+    this.stop();
+
+    if (
+      !watchPersistence.usesPostgres()
+    ) {
+      return true;
+    }
+
+    const cycle =
+      this.inFlightCycle;
+    if (!cycle) {
+      return true;
+    }
+
+    let timer:
+      | ReturnType<typeof setTimeout>
+      | undefined;
+
+    try {
+      return await Promise.race([
+        cycle
+          .then(() => true)
+          .catch(() => true),
+        new Promise<boolean>(
+          (resolve) => {
+            timer = setTimeout(
+              () => resolve(false),
+              Math.max(
+                1,
+                timeoutMs
+              )
+            );
+            timer.unref?.();
+          }
+        ),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  public isCycleInFlight(): boolean {
+    return Boolean(
+      this.inFlightCycle
+    );
   }
 }
 

@@ -268,6 +268,12 @@ jobs:
       - name: Production H2 build/image contract proof
         run: npm run check:production:h2-build-image-contract
 
+      - name: Production H3 runtime edge contract proof
+        run: npm run check:production:h3-runtime-edge-contract
+
+      - name: Production H3 graceful drain proof
+        run: npm run check:production:h3-graceful-drain
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 

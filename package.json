@@ -131,6 +131,8 @@
     "check:production:h2-build-image-contract": "tsx scripts/check-production-h2-build-image-contract.ts",
     "check:production:h2-package-layout": "node scripts/check-production-h2-package-layout.mjs",
     "check:production:h2-image-smoke": "node scripts/check-production-h2-image-smoke.mjs",
+    "check:production:h3-runtime-edge-contract": "tsx scripts/check-production-h3-runtime-edge-contract.ts",
+    "check:production:h3-graceful-drain": "tsx scripts/check-production-h3-graceful-drain.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
     "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
