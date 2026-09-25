@@ -6,6 +6,11 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      outDir: 'dist/public',
+      emptyOutDir: false,
+      sourcemap: false,
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
