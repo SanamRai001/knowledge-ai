@@ -6,9 +6,9 @@ import {
   googleDriveServerConfig,
 } from './googleDriveConfig.js';
 import {
-  IntegrationCredentialStore,
-  integrationCredentialStore,
-} from './integrationCredentialStore.js';
+  integrationOAuthSecretRuntime,
+  type IntegrationCredentialAccess,
+} from './integrationOAuthSecretRuntime.js';
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
@@ -63,8 +63,8 @@ export class GoogleDriveOAuthService {
   constructor(
     private readonly stateStore: GoogleDriveOAuthStateStore =
       googleDriveOAuthStateStore,
-    private readonly credentialStore: IntegrationCredentialStore =
-      integrationCredentialStore,
+    private readonly credentialStore: IntegrationCredentialAccess =
+      integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
@@ -246,12 +246,14 @@ export class GoogleDriveOAuthService {
           : 'Bearer',
     };
 
-    const credentialRef = this.credentialStore.create({
+    const credentialRef =
+      await this.credentialStore.create({
       accountId: attempt.accountId,
       provider: 'GOOGLE_DRIVE',
       secret,
     });
 
+    let attached = false;
     try {
       let connection;
       if (attempt.connectionId) {
@@ -292,15 +294,19 @@ export class GoogleDriveOAuthService {
           }
         );
 
+        attached = true;
+
         if (
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          this.credentialStore.delete({
-            accountId: attempt.accountId,
-            provider: 'GOOGLE_DRIVE',
-            credentialRef: oldCredentialRef,
-          });
+          await Promise.resolve(
+            this.credentialStore.delete({
+              accountId: attempt.accountId,
+              provider: 'GOOGLE_DRIVE',
+              credentialRef: oldCredentialRef,
+            })
+          ).catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -315,6 +321,7 @@ export class GoogleDriveOAuthService {
             connectedAt: Date.now(),
           },
         });
+        attached = true;
       }
 
       return {
@@ -323,11 +330,15 @@ export class GoogleDriveOAuthService {
         accessModel: 'PER_FILE',
       };
     } catch (error) {
-      this.credentialStore.delete({
-        accountId: attempt.accountId,
-        provider: 'GOOGLE_DRIVE',
-        credentialRef,
-      });
+      if (!attached) {
+        await Promise.resolve(
+          this.credentialStore.delete({
+            accountId: attempt.accountId,
+            provider: 'GOOGLE_DRIVE',
+            credentialRef,
+          })
+        ).catch(() => false);
+      }
       throw error;
     }
   }
@@ -356,7 +367,7 @@ export class GoogleDriveOAuthService {
     if (connection.credentialRef) {
       try {
         const secret =
-          this.credentialStore.get<GoogleDriveCredentialSecret>({
+          await this.credentialStore.get<GoogleDriveCredentialSecret>({
             accountId: params.accountId,
             provider: 'GOOGLE_DRIVE',
             credentialRef: connection.credentialRef,
@@ -383,7 +394,7 @@ export class GoogleDriveOAuthService {
         remoteRevoked = false;
       }
 
-      this.credentialStore.delete({
+      await this.credentialStore.delete({
         accountId: params.accountId,
         provider: 'GOOGLE_DRIVE',
         credentialRef: connection.credentialRef,

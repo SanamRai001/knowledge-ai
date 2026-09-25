@@ -4,9 +4,9 @@ import {
   microsoftOneDriveServerConfig,
 } from './microsoftOneDriveConfig.js';
 import {
-  IntegrationCredentialStore,
-  integrationCredentialStore,
-} from './integrationCredentialStore.js';
+  integrationOAuthSecretRuntime,
+  type IntegrationCredentialAccess,
+} from './integrationOAuthSecretRuntime.js';
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
@@ -71,8 +71,8 @@ export class MicrosoftOneDriveOAuthService {
   constructor(
     private readonly stateStore: MicrosoftOneDriveOAuthStateStore =
       microsoftOneDriveOAuthStateStore,
-    private readonly credentialStore: IntegrationCredentialStore =
-      integrationCredentialStore,
+    private readonly credentialStore: IntegrationCredentialAccess =
+      integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
@@ -265,12 +265,14 @@ export class MicrosoftOneDriveOAuthService {
           : 'Bearer',
     };
 
-    const credentialRef = this.credentialStore.create({
+    const credentialRef =
+      await this.credentialStore.create({
       accountId: attempt.accountId,
       provider: 'MICROSOFT_ONEDRIVE',
       secret,
     });
 
+    let attached = false;
     try {
       let connection;
       if (attempt.connectionId) {
@@ -313,15 +315,19 @@ export class MicrosoftOneDriveOAuthService {
           }
         );
 
+        attached = true;
+
         if (
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          this.credentialStore.delete({
-            accountId: attempt.accountId,
-            provider: 'MICROSOFT_ONEDRIVE',
-            credentialRef: oldCredentialRef,
-          });
+          await Promise.resolve(
+            this.credentialStore.delete({
+              accountId: attempt.accountId,
+              provider: 'MICROSOFT_ONEDRIVE',
+              credentialRef: oldCredentialRef,
+            })
+          ).catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -338,6 +344,7 @@ export class MicrosoftOneDriveOAuthService {
             connectedAt: Date.now(),
           },
         });
+        attached = true;
       }
 
       return {
@@ -349,11 +356,15 @@ export class MicrosoftOneDriveOAuthService {
         pkce: 'S256',
       };
     } catch (error) {
-      this.credentialStore.delete({
-        accountId: attempt.accountId,
-        provider: 'MICROSOFT_ONEDRIVE',
-        credentialRef,
-      });
+      if (!attached) {
+        await Promise.resolve(
+          this.credentialStore.delete({
+            accountId: attempt.accountId,
+            provider: 'MICROSOFT_ONEDRIVE',
+            credentialRef,
+          })
+        ).catch(() => false);
+      }
       throw error;
     }
   }
@@ -399,7 +410,7 @@ export class MicrosoftOneDriveOAuthService {
     }
 
     const localCredentialDeleted = connection.credentialRef
-      ? this.credentialStore.delete({
+      ? await this.credentialStore.delete({
           accountId: params.accountId,
           provider: 'MICROSOFT_ONEDRIVE',
           credentialRef: connection.credentialRef,

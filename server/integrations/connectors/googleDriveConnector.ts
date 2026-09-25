@@ -4,9 +4,9 @@ import {
   googleDriveServerConfig,
 } from '../googleDriveConfig.js';
 import {
-  IntegrationCredentialStore,
-  integrationCredentialStore,
-} from '../integrationCredentialStore.js';
+  integrationOAuthSecretRuntime,
+  type IntegrationCredentialAccess,
+} from '../integrationOAuthSecretRuntime.js';
 import {
   ExternalChangePage,
   ExternalRecord,
@@ -201,8 +201,8 @@ export class GoogleDriveConnector
   public readonly provider = 'GOOGLE_DRIVE' as const;
 
   constructor(
-    private readonly credentialStore: IntegrationCredentialStore =
-      integrationCredentialStore,
+    private readonly credentialStore: IntegrationCredentialAccess =
+      integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
@@ -545,9 +545,9 @@ export class GoogleDriveConnector
     return body.startPageToken;
   }
 
-  private credential(
+  private async credential(
     context: IntegrationConnectorContext
-  ): GoogleDriveCredentialSecret {
+  ): Promise<GoogleDriveCredentialSecret> {
     const credentialRef =
       context.connection.credentialRef;
     if (!credentialRef) {
@@ -558,7 +558,7 @@ export class GoogleDriveConnector
       );
     }
 
-    return this.credentialStore.get<GoogleDriveCredentialSecret>({
+    return await this.credentialStore.get<GoogleDriveCredentialSecret>({
       accountId: context.connection.accountId,
       provider: 'GOOGLE_DRIVE',
       credentialRef,
@@ -599,7 +599,8 @@ export class GoogleDriveConnector
     context: IntegrationConnectorContext,
     forceRefresh = false
   ): Promise<string> {
-    const secret = this.credential(context);
+    const secret =
+      await this.credential(context);
     if (
       !forceRefresh &&
       secret.accessToken &&
@@ -674,7 +675,7 @@ export class GoogleDriveConnector
           : secret.tokenType,
     };
 
-    this.credentialStore.update({
+    await this.credentialStore.update({
       accountId: context.connection.accountId,
       provider: 'GOOGLE_DRIVE',
       credentialRef: context.connection.credentialRef!,
