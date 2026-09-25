@@ -134,12 +134,15 @@ async function main() {
       'workspaceRuntimeService'
     ) &&
       unified.includes(
-        'await workspaceRuntimeService.requireKB'
+        '.requireKB('
+      ) &&
+      unified.includes(
+        "'workspace_materialization'"
       ) &&
       !unified.includes(
         'workspaceAccessService.requireKB'
       ),
-    'Unified Ask must hydrate the durable workspace document corpus before document grounding.'
+    'Unified Ask must hydrate the durable workspace document corpus before document grounding, including when later observability wrappers surround the runtime call.'
   );
 
   const specialized = read(
