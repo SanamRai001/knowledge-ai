@@ -28,6 +28,30 @@ export const productionEntrypoints = {
       'node dist/private/recovery-validate.cjs',
     currentlyRequiresDevTooling: false,
   },
+  releaseManifest: {
+    packageScript:
+      'release:manifest',
+    command:
+      'node dist/private/release-manifest.cjs',
+  },
+  releaseGate: {
+    packageScript:
+      'release:gate',
+    command:
+      'node dist/private/release-gate.cjs',
+  },
+  releaseMigrationGate: {
+    packageScript:
+      'release:migration-gate',
+    command:
+      'node dist/private/release-migration-gate.cjs',
+  },
+  releaseReadinessSmoke: {
+    packageScript:
+      'release:readiness-smoke',
+    command:
+      'node dist/private/release-readiness-smoke.cjs',
+  },
 } as const;
 
 export const productionImageRequirements = {
