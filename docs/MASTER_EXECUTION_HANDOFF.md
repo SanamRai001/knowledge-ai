@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan.**
+> **Continue with Production Hardening F2 — Integration OAuth SecretStore Foundation + Migration.**
 
 Phases 0–8 are complete.
 
@@ -1094,7 +1094,8 @@ Track A relational milestones:
 - E3 Action Post-Commit Discovery Refresh Worker Migration — COMPLETE, workflow `36022612284`
 - E4 Integration Sync Worker Migration — COMPLETE, workflow `36029571982`
 - E5 Automation Execution/Recovery Worker Migration — COMPLETE, workflow `36035111875`
-- F1 Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan — NEXT
+- F1 Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan — COMPLETE, workflow `36085952941`
+- F2 Integration OAuth SecretStore Foundation + Migration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1166,6 +1167,8 @@ E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
 
 E5 evidence: `docs/PRODUCTION_E5_AUTOMATION_EXECUTION_WORKER.md`.
 
+F1 evidence: `docs/PRODUCTION_F1_SECRET_KMS_AUDIT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1230,17 +1233,19 @@ E4 now moves Integration synchronization onto the E2 durable worker runtime with
 
 E5 now moves Controlled Automation execution onto the E2 durable worker runtime while preserving D2 as the sole governed execution/recovery engine. Queued principals are revalidated at execution time, worker crash/restart safely replays durable D2 state without duplicate company mutation, deterministic policy outcomes remain distinct from queue transport health, and synchronous execution/manual compensation compatibility remains available.
 
-Next, do **F1 only — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan**:
+F1 now inventories every production credential boundary and separates deployment-injected secrets from account-scoped managed OAuth credentials. Password/session/API-key material remains one-way hashed; DB/Gemini/S3/OAuth-client/bootstrap secrets remain deployment injected. The critical remaining debt is the AES-256-GCM local `data/integration_credentials.json` store protected by one deployment-wide `INTEGRATION_CREDENTIAL_KEY`. F1 defines provider-neutral SecretStore/KMS contracts plus rotation, revocation, outage, backup, and multi-replica requirements.
 
-1. inventory all deployment/account/provider/OAuth/encryption/signing secret sources and storage locations
-2. trace create/read/update/revoke/delete/rotation flows for each secret family
-3. identify plaintext exposure risk in logs, APIs, worker payloads, PostgreSQL metadata, backups, and runtime/source files
-4. audit current local encryption key origin/storage/restart/rotation/multi-replica behavior
-5. separate deployment-injected secrets from account-scoped managed credentials
-6. define provider-neutral SecretStore/KMS contracts and metadata-vs-secret boundaries without selecting a vendor SDK
-7. define migration/rollback for existing persisted Integration OAuth credentials and any other local encrypted secrets
-8. define rotation, deletion/revocation, audit, and secret-backend outage semantics
-9. add an executable secret-boundary proof
-10. produce the exact F2 managed-secret implementation slice from evidence
+Next, do **F2 only — Integration OAuth SecretStore Foundation + Migration**:
 
-Do not add a cloud secret-manager SDK or migrate credentials in F1. Preserve current product/OAuth/API-key behavior during the audit.
+1. activate the provider-neutral SecretStore/KMS boundary for Integration OAuth credential bundles
+2. migrate Google Drive and OneDrive credential callers to async account/provider-scoped secret operations
+3. preserve authorize, refresh-token rotation, reauthorize, sync/health, disconnect, and revoke behavior
+4. keep ordinary Integration metadata limited to opaque credential references and non-secret settings
+5. provide safe read-through/one-time migration for legacy `data/integration_credentials.json`
+6. make web and E4 worker replicas resolve the same secret through the shared runtime boundary
+7. define crash-safe create/rotate/reference-update/old-secret cleanup ordering
+8. add secret-operation audit metadata without token plaintext/ciphertext
+9. prove token material cannot enter API responses, worker payloads, logs, ordinary PostgreSQL metadata, or source control
+10. keep deployment secrets and one-way credentials outside this migration
+
+Do not change OAuth scopes, Integration RBAC, C6 checkpoint semantics, E4 worker semantics, or deployment-secret injection in F2.
