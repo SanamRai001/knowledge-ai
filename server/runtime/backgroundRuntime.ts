@@ -26,12 +26,24 @@ import {
 type WorkerLoop = Pick<
   WatchRuntimeScheduler,
   'start' | 'stop'
->;
+> &
+  Partial<
+    Pick<
+      WatchRuntimeScheduler,
+      'drain'
+    >
+  >;
 
 type GenericJobLoop = Pick<
   WorkerJobRuntime,
   'start' | 'stop'
->;
+> &
+  Partial<
+    Pick<
+      WorkerJobRuntime,
+      'drain'
+    >
+  >;
 
 export interface BackgroundRuntimeStartResult {
   started: boolean;
@@ -91,6 +103,48 @@ export class BackgroundRuntime {
     this.watchLoop.stop();
     this.genericJobLoop?.stop();
     this.started = false;
+  }
+
+  public async drain(
+    timeoutMs: number
+  ): Promise<{
+    drained: boolean;
+    watchDrained: boolean;
+    genericDrained: boolean;
+  }> {
+    if (!this.started) {
+      return {
+        drained: true,
+        watchDrained: true,
+        genericDrained: true,
+      };
+    }
+
+    this.started = false;
+
+    const watchDrained =
+      this.watchLoop.drain
+        ? await this.watchLoop.drain(
+            timeoutMs
+          )
+        : (this.watchLoop.stop(),
+          true);
+
+    const genericDrained =
+      this.genericJobLoop?.drain
+        ? await this.genericJobLoop.drain(
+            timeoutMs
+          )
+        : (this.genericJobLoop?.stop(),
+          true);
+
+    return {
+      drained:
+        watchDrained &&
+        genericDrained,
+      watchDrained,
+      genericDrained,
+    };
   }
 
   public isStarted(): boolean {
