@@ -20,10 +20,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.14.0
 
-      - name: Install dependencies
-        run: npm install
+      - name: Verify release npm version
+        run: test "$(npm --version)" = "10.9.2"
+
+      - name: Install dependencies from frozen lockfile
+        run: npm ci
 
       - name: Benchmark leakage guard
         run: npm run check:benchmark-leakage
@@ -42,6 +45,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Production H2 package layout proof
+        run: npm run check:production:h2-package-layout
 
       - name: Workspace isolation proof
         run: npm run check:workspace-isolation
@@ -259,6 +265,9 @@ jobs:
       - name: Production H1 deployment supply-chain forensic audit proof
         run: npm run check:production:h1-deployment-supply-chain-audit
 
+      - name: Production H2 build/image contract proof
+        run: npm run check:production:h2-build-image-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -313,10 +322,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.14.0
 
-      - name: Install dependencies
-        run: npm install
+      - name: Verify release npm version
+        run: test "$(npm --version)" = "10.9.2"
+
+      - name: Install dependencies from frozen lockfile
+        run: npm ci
 
       - name: Production A2 PostgreSQL proof
         run: npm run check:production-a2-postgres
@@ -428,3 +440,24 @@ jobs:
 
       - name: Production G3 recovery PostgreSQL proof
         run: npm run check:production:g3-recovery-postgres
+
+
+  h2_image:
+    name: Production H2 Image Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+
+      - name: Verify release npm version
+        run: test "$(npm --version)" = "10.9.2"
+
+      - name: Build and smoke immutable production image
+        run: node scripts/check-production-h2-image-smoke.mjs
