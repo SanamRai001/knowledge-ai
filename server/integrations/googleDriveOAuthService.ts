@@ -253,6 +253,7 @@ export class GoogleDriveOAuthService {
       secret,
     });
 
+    let attached = false;
     try {
       let connection;
       if (attempt.connectionId) {
@@ -293,15 +294,19 @@ export class GoogleDriveOAuthService {
           }
         );
 
+        attached = true;
+
         if (
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          await this.credentialStore.delete({
-            accountId: attempt.accountId,
-            provider: 'GOOGLE_DRIVE',
-            credentialRef: oldCredentialRef,
-          });
+          await this.credentialStore
+            .delete({
+              accountId: attempt.accountId,
+              provider: 'GOOGLE_DRIVE',
+              credentialRef: oldCredentialRef,
+            })
+            .catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -316,6 +321,7 @@ export class GoogleDriveOAuthService {
             connectedAt: Date.now(),
           },
         });
+        attached = true;
       }
 
       return {
@@ -324,11 +330,15 @@ export class GoogleDriveOAuthService {
         accessModel: 'PER_FILE',
       };
     } catch (error) {
-      await this.credentialStore.delete({
-        accountId: attempt.accountId,
-        provider: 'GOOGLE_DRIVE',
-        credentialRef,
-      });
+      if (!attached) {
+        await this.credentialStore
+          .delete({
+            accountId: attempt.accountId,
+            provider: 'GOOGLE_DRIVE',
+            credentialRef,
+          })
+          .catch(() => false);
+      }
       throw error;
     }
   }
