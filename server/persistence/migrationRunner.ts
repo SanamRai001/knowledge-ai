@@ -79,7 +79,7 @@ export function expectedPostgresMigrations():
   );
 }
 
-const MIGRATION_ADVISORY_LOCK_KEY =
+export const MIGRATION_ADVISORY_LOCK_KEY =
   1_264_257_041;
 
 export async function runPostgresMigrations(): Promise<MigrationResult> {
