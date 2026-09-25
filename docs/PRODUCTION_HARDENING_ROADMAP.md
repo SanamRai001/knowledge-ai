@@ -188,7 +188,9 @@ The implementation sequence is deliberately split into small slices:
 33. **E5 — Automation Execution/Recovery Worker Migration** — COMPLETE, workflow `36035111875`
 34. **F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan** — COMPLETE, workflow `36085952941`
 35. **F2 — Integration OAuth SecretStore Foundation + Migration** — COMPLETE, workflow `36147480475`
-36. **G1 — Observability, Backup, and Operational Recovery Forensic Audit** — NEXT
+36. **G1 — Observability, Backup, and Operational Recovery Forensic Audit** — COMPLETE, workflow `36150854623`
+37. **G2 — Production Observability + Real Readiness Foundation** — NEXT
+38. **G3 — Backup/Restore + Recovery Drill Foundation** — PLANNED
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -259,6 +261,8 @@ E5 evidence: `docs/PRODUCTION_E5_AUTOMATION_EXECUTION_WORKER.md`.
 F1 evidence: `docs/PRODUCTION_F1_SECRET_KMS_AUDIT.md`.
 
 F2 evidence: `docs/PRODUCTION_F2_INTEGRATION_OAUTH_SECRET_STORE.md`.
+
+G1 evidence: `docs/PRODUCTION_G1_OPERATIONAL_RECOVERY_AUDIT.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -738,22 +742,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening G1 — Observability, Backup, and Operational Recovery Forensic Audit**
+**Production Hardening G2 — Production Observability + Real Readiness Foundation**
 
-Keep G1 audit/foundation focused.
+Keep G2 limited to real runtime instrumentation/readiness. Preserve the provider-neutral G1 contract.
 
-1. inventory every current HTTP, provider, database, queue/worker, Integration, Watch, Action/Automation, retrieval, and tenant-correlated observability signal
-2. identify which signals are structured, durable, ephemeral, sampled, or absent
-3. inventory health/readiness endpoints and define what web vs worker readiness must actually prove
-4. inventory PostgreSQL backup/restore assumptions, migration compatibility, and current point-in-time recovery capability
-5. inventory durable object-storage retention/versioning/deletion assumptions for original source bytes and derived payloads
-6. inventory SecretStore/KMS backup/key-lifecycle requirements introduced by F2
-7. define minimum production metrics/log/event contracts without choosing an observability vendor
-8. define incident-correlation requirements that preserve tenant privacy and never log secret/content payloads
-9. define RPO/RTO targets, degraded-mode expectations, provider-outage behavior, and restore validation requirements
-10. add an executable repository drift proof and evidence document; do not implement Track H deployment yet
+1. add a vendor-neutral operational metric/event sink with a deterministic test adapter; do not select a monitoring SaaS
+2. add global request correlation and structured secret/content-safe operational events
+3. instrument HTTP request count/latency/error-class metrics using route templates rather than raw paths/query strings
+4. instrument real Gemini/provider outcomes and query/retrieval stage latency/failure without reviving prototype mediator telemetry
+5. instrument PostgreSQL pool/query duration/error/slow-query signals without logging raw SQL or bound values
+6. derive worker queue depth/job age/retry/dead-letter metrics from durable worker_jobs and add a steady-state worker heartbeat/readiness signal
+7. implement real web readiness distinct from liveness: process role, PostgreSQL, required schema, object-storage configuration/access, and SecretStore/KMS configuration
+8. implement real worker readiness: process role, PostgreSQL/schema, registered handlers, required storage/SecretStore dependencies, and recent worker-loop health
+9. keep external Gemini/Google/Microsoft outages as degraded feature state rather than making the whole process unready
+10. add focused executable proofs and keep all existing quality/PostgreSQL gates green
 
-Do not choose a monitoring vendor in G1. Do not redesign product dashboards. Do not implement Docker/deployment/staging or broad load testing in this phase.
+Do not implement PostgreSQL backups/PITR, object-store retention/versioning, restore drills, Docker/staging, vendor dashboards, or broad load/abuse testing in G2. Those remain G3/H/I.
 ---
 
 # Track A closure note
