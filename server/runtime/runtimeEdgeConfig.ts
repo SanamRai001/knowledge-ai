@@ -142,6 +142,28 @@ export function runtimeEdgeConfig(
     );
   }
 
+  const trustProxyHops =
+    integerEnv(
+      env,
+      'KNOWLEDGE_AI_TRUST_PROXY_HOPS',
+      0,
+      0,
+      10
+    );
+
+  if (
+    hstsOwnerRaw === 'app' &&
+    env.NODE_ENV
+      ?.trim()
+      .toLowerCase() ===
+      'production' &&
+    trustProxyHops === 0
+  ) {
+    throw new RuntimeEdgeConfigurationError(
+      'KNOWLEDGE_AI_HSTS_OWNER=app requires KNOWLEDGE_AI_TRUST_PROXY_HOPS > 0 because the Node web server terminates plain HTTP.'
+    );
+  }
+
   return {
     port: integerEnv(
       env,
@@ -150,14 +172,7 @@ export function runtimeEdgeConfig(
       1,
       65535
     ),
-    trustProxyHops:
-      integerEnv(
-        env,
-        'KNOWLEDGE_AI_TRUST_PROXY_HOPS',
-        0,
-        0,
-        10
-      ),
+    trustProxyHops,
     jsonBodyLimitBytes,
     urlencodedBodyLimitBytes,
     maxRequestBodyBytes,
