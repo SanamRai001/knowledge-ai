@@ -256,6 +256,9 @@ jobs:
       - name: Production G3 recovery contract proof
         run: npm run check:production:g3-recovery-contract
 
+      - name: Production H1 deployment supply-chain forensic audit proof
+        run: npm run check:production:h1-deployment-supply-chain-audit
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
