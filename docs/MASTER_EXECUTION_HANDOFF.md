@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening H4 — Staging Promotion + Rollback Release Gate.**
+> **Continue with Production Hardening I1 — Load, Abuse, and Security Test Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1102,7 +1102,8 @@ Track A relational milestones:
 - H1 Deployment & Supply-Chain Forensic Audit — COMPLETE, workflow `36163177196`
 - H2 Reproducible Build + Production Image Foundation — COMPLETE, workflow `36167552759`
 - H3 Runtime Edge + Graceful Shutdown Hardening — COMPLETE, workflow `36171328745`
-- H4 Staging Promotion + Rollback Release Gate — NEXT
+- H4 Staging Promotion + Rollback Release Gate — COMPLETE, workflow `36175108771`
+- I1 Load, Abuse, and Security Test Foundation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1266,21 +1267,25 @@ H2 now provides one canonical npm lockfile, exact Node/npm versioning, frozen CI
 
 H3 now validates/configures the web edge, enforces explicit trusted-proxy/HSTS ownership and production security headers, reduces general API body limits, drains accepted web requests on shutdown, prevents overlapping Watch/generic worker cycles, drains workers before PostgreSQL close, and exposes a private `/health` + real G2 `/ready` worker supervisor surface.
 
+H4 now enforces immutable build-once promotion using one source/build/image identity, single-writer checksum-verified migrations, fresh web/worker readiness and G3 recovery evidence, staging/production separation across DB/object/KMS/origin/web/worker/migration identities, forward-only rollback policy, immutable GitHub Action pins, CycloneDX SBOM plus dependency gates, and a hardened runtime image that passes HIGH/CRITICAL Trivy scanning.
+
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 
-Next, do **H4 only — Staging Promotion + Rollback Release Gate**:
+H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 
-1. define one provider-neutral release manifest with source commit, immutable image digest/reference, build ID, migration inventory/checksums, and release timestamp
-2. prove the staging-tested image digest is exactly the artifact eligible for production promotion; never rebuild between staging and production
-3. add a single-writer compiled migration-job gate plus post-migration checksum/schema verification before web/worker promotion
-4. enforce staging/production separation for PostgreSQL, object storage, SecretStore/KMS material, OAuth/browser origins, web, worker, and migration-job topology
-5. require real G2 web readiness and H3 worker readiness before release promotion
-6. require current G3 backup/restore evidence before production promotion
-7. add dependency/container vulnerability policy and SBOM generation/verification
-8. pin third-party GitHub Actions to immutable commit SHAs
-9. encode forward-only rollback rules with explicit schema-compatibility evidence or G3 isolated restore validation
-10. add focused release/promotion/migration/readiness/recovery/supply-chain proofs and stop before Track I
+Next, do **I1 only — Load, Abuse, and Security Test Foundation**:
 
-Do not start broad Track I load/abuse/security testing or vendor-specific production rollout automation in H4.
+1. inventory production-facing HTTP/auth/upload/OAuth/provider/worker surfaces requiring adversarial or load coverage
+2. define measurable thresholds for concurrency, latency, errors, retries, payload limits, and isolation failures
+3. create one reusable isolated-environment load/security harness with no production credentials/data
+4. prove concurrent HUMAN_SESSION and API_KEY tenant isolation
+5. prove API-key abuse/rate-limit behavior against deterministic thresholds
+6. prove general request-body and upload-limit enforcement at/over boundaries
+7. add malformed PDF/XLSX parser-failure fixtures with durable-state integrity checks
+8. add OAuth callback/state replay plus origin/CSRF abuse coverage
+9. add SSRF regression coverage for remote-provider/import URL boundaries
+10. record the remaining Track I test matrix for prompt-injection/evidence boundaries, race/idempotency, and sustained workers
+
+Do not start Track J UX/admin cleanup or vendor-specific production rollout automation in I1.
