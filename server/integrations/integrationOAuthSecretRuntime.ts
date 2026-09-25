@@ -7,6 +7,7 @@ import {
   SecretStoreError,
 } from '../security/postgresSecretStore.js';
 import {
+  IntegrationCredentialError,
   IntegrationCredentialStore,
   integrationCredentialStore,
 } from './integrationCredentialStore.js';
@@ -225,10 +226,27 @@ export class IntegrationOAuthSecretRuntime
       credentialRef: string;
     }
   ): Promise<T> {
-    const legacy =
-      this.legacyStore.get<T>(
-        params
-      );
+    let legacy: T;
+    try {
+      legacy =
+        this.legacyStore.get<T>(
+          params
+        );
+    } catch (error) {
+      if (
+        error instanceof
+          IntegrationCredentialError &&
+        error.code ===
+          'CREDENTIAL_NOT_FOUND'
+      ) {
+        throw new SecretStoreError(
+          'SECRET_NOT_FOUND',
+          404,
+          'Integration OAuth credential was not found in the current account/provider scope.'
+        );
+      }
+      throw error;
+    }
 
     await this.secretStore
       .importLegacyWithId({
