@@ -1,0 +1,31 @@
+name: H2 Lockfile Refresh
+
+on:
+  push:
+    branches:
+      - production-h2-reproducible-build-image
+    paths:
+      - package.json
+      - .github/workflows/h2-lockfile-refresh.yml
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+
+      - name: Generate canonical npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Upload package lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: h2-package-lock
+          path: package-lock.json
+          if-no-files-found: error
