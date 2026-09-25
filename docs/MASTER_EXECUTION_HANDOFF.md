@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening H2 — Reproducible Build + Production Image Foundation.**
+> **Continue with Production Hardening H3 — Runtime Edge + Graceful Shutdown Hardening.**
 
 Phases 0–8 are complete.
 
@@ -1100,7 +1100,8 @@ Track A relational milestones:
 - G2 Production Observability + Real Readiness Foundation — COMPLETE, workflow `36155946479`
 - G3 Backup/Restore + Recovery Drill Foundation — COMPLETE, workflow `36158941696`
 - H1 Deployment & Supply-Chain Forensic Audit — COMPLETE, workflow `36163177196`
-- H2 Reproducible Build + Production Image Foundation — NEXT
+- H2 Reproducible Build + Production Image Foundation — COMPLETE, workflow `36167552759`
+- H3 Runtime Edge + Graceful Shutdown Hardening — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1260,17 +1261,21 @@ G3 now enforces provider-neutral PostgreSQL backup/PITR evidence against the 5-m
 
 H1 now inventories every production entrypoint/environment class and turns deployment assumptions into a provider-neutral contract. It identifies the current public/private `dist/` collision, Bun-lock/npm-install reproducibility gap, missing immutable image, web graceful-shutdown gap, dev-tool-dependent migration/recovery CLIs, incomplete edge/security-header ownership, and missing supply-chain/staging release gates. It also defines forward-only rollback/restore rules, staging topology, and H2/H3/H4 slices without choosing a hosting vendor.
 
-Next, do **H2 only — Reproducible Build + Production Image Foundation**:
+H2 now provides one canonical npm lockfile, exact Node/npm versioning, frozen CI installs, separate public/private build artifacts, compiled production operations CLIs, and a minimal non-root multi-stage image shared by web and worker roles. Real Docker smoke proves the runtime image contains production dependencies/artifacts plus migration SQL without TypeScript source or dev tooling.
 
-1. choose one release package manager and enforce its committed lockfile
-2. use frozen dependency installation in CI/release builds
-3. declare the Node/package-manager version contract
-4. split public client output from private server/worker/operations artifacts
-5. compile/package migration and recovery CLIs so immutable operations do not depend on dev-only `tsx`
-6. add a multi-stage non-root production image
-7. provide separate web and worker commands from the same immutable artifact
-8. minimize runtime files/dependencies while retaining required migrations/operational assets
-9. add package/image layout + startup smoke proofs
-10. stop before staging rollout and runtime-edge/graceful-shutdown hardening
+H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
-Do not start broad load/abuse testing, product UX cleanup, final reverse-proxy/CSP work, or staging promotion in H2.
+Next, do **H3 only — Runtime Edge + Graceful Shutdown Hardening**:
+
+1. add bounded graceful web shutdown and HTTP drain
+2. add bounded worker drain before PostgreSQL close
+3. validate/configure the web port
+4. define explicit trusted-proxy behavior
+5. add CSP/security-header ownership while preserving explicit TLS/HSTS boundary assumptions
+6. tighten global request-body limits without breaking route-specific multipart limits
+7. align/document proxy/application request-size contracts
+8. expose supervisor-consumable worker readiness using real G2 checks
+9. add focused runtime-edge/shutdown/header/readiness proofs
+10. preserve H2 image/build invariants and stop before staging promotion
+
+Do not start H4 staging/promotion/rollback gates, container/SBOM release scanning policy, or Track I load/abuse/security testing in H3.
