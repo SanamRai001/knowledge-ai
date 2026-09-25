@@ -272,6 +272,7 @@ export class MicrosoftOneDriveOAuthService {
       secret,
     });
 
+    let attached = false;
     try {
       let connection;
       if (attempt.connectionId) {
@@ -314,15 +315,19 @@ export class MicrosoftOneDriveOAuthService {
           }
         );
 
+        attached = true;
+
         if (
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          await this.credentialStore.delete({
-            accountId: attempt.accountId,
-            provider: 'MICROSOFT_ONEDRIVE',
-            credentialRef: oldCredentialRef,
-          });
+          await this.credentialStore
+            .delete({
+              accountId: attempt.accountId,
+              provider: 'MICROSOFT_ONEDRIVE',
+              credentialRef: oldCredentialRef,
+            })
+            .catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -339,6 +344,7 @@ export class MicrosoftOneDriveOAuthService {
             connectedAt: Date.now(),
           },
         });
+        attached = true;
       }
 
       return {
@@ -350,11 +356,15 @@ export class MicrosoftOneDriveOAuthService {
         pkce: 'S256',
       };
     } catch (error) {
-      await this.credentialStore.delete({
-        accountId: attempt.accountId,
-        provider: 'MICROSOFT_ONEDRIVE',
-        credentialRef,
-      });
+      if (!attached) {
+        await this.credentialStore
+          .delete({
+            accountId: attempt.accountId,
+            provider: 'MICROSOFT_ONEDRIVE',
+            credentialRef,
+          })
+          .catch(() => false);
+      }
       throw error;
     }
   }
