@@ -222,10 +222,34 @@ export class PostgresSecretStore
       return existing;
     }
 
-    return this.createWithId({
-      ...params,
-      operation: 'MIGRATE',
-    });
+    try {
+      return await this.createWithId({
+        ...params,
+        operation: 'MIGRATE',
+      });
+    } catch (error: any) {
+      if (
+        String(error?.code || '') !==
+        '23505'
+      ) {
+        throw error;
+      }
+
+      const raced =
+        await this.findMetadata(
+          params.accountId,
+          params.secretId
+        );
+      if (!raced) {
+        throw error;
+      }
+      this.assertScope(
+        raced,
+        params.purpose,
+        params.provider
+      );
+      return raced;
+    }
   }
 
   private async createWithId<T>(params: {
@@ -770,6 +794,63 @@ export class PostgresSecretStore
         return true;
       }
     );
+  }
+
+  async cleanupUnreferencedIntegrationOAuthSecrets(params: {
+    accountId: string;
+    provider: string;
+    olderThanMs?: number;
+  }): Promise<number> {
+    const cutoff = new Date(
+      Date.now() -
+        Math.max(
+          0,
+          params.olderThanMs ??
+            5 * 60 * 1000
+        )
+    );
+
+    const result =
+      await postgresPool().query<{
+        id: string;
+      }>(
+        `SELECT s.id
+         FROM account_secrets s
+         WHERE s.account_id = $1
+           AND s.purpose = 'INTEGRATION_OAUTH'
+           AND s.provider = $2
+           AND s.status = 'ACTIVE'
+           AND s.created_at <= $3
+           AND NOT EXISTS (
+             SELECT 1
+             FROM integration_connections c
+             WHERE c.account_id = s.account_id
+               AND c.credential_ref = s.id
+           )
+         ORDER BY s.created_at ASC
+         LIMIT 100`,
+        [
+          params.accountId,
+          params.provider,
+          cutoff,
+        ]
+      );
+
+    let deleted = 0;
+    for (const row of result.rows) {
+      const removed =
+        await this.delete({
+          accountId:
+            params.accountId,
+          secretId: row.id,
+          purpose:
+            'INTEGRATION_OAUTH',
+          provider:
+            params.provider,
+        });
+      if (removed) deleted += 1;
+    }
+    return deleted;
   }
 
   async findMetadata(
