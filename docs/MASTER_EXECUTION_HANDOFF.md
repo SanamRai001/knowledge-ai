@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening H1 — Deployment & Supply-Chain Forensic Audit.**
+> **Continue with Production Hardening H2 — Reproducible Build + Production Image Foundation.**
 
 Phases 0–8 are complete.
 
@@ -1099,7 +1099,8 @@ Track A relational milestones:
 - G1 Observability, Backup, and Operational Recovery Forensic Audit — COMPLETE, workflow `36150854623`
 - G2 Production Observability + Real Readiness Foundation — COMPLETE, workflow `36155946479`
 - G3 Backup/Restore + Recovery Drill Foundation — COMPLETE, workflow `36158941696`
-- H1 Deployment & Supply-Chain Forensic Audit — NEXT
+- H1 Deployment & Supply-Chain Forensic Audit — COMPLETE, workflow `36163177196`
+- H2 Reproducible Build + Production Image Foundation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1181,6 +1182,8 @@ G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
 
 G3 evidence: `docs/PRODUCTION_G3_BACKUP_RESTORE_RECOVERY.md`.
 
+H1 evidence: `docs/PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1255,17 +1258,19 @@ G2 now wires that contract into real runtime behavior: global privacy-safe corre
 
 G3 now enforces provider-neutral PostgreSQL backup/PITR evidence against the 5-minute RPO / 60-minute RTO target, verifies real S3-compatible versioning/noncurrent retention, blocks production/same-DB/same-bucket restore targets, validates restored schema/build and every SecretStore historical KMS key, reconstructs durable document and current/historical Dataset payloads, inspects restored worker jobs without executing them, and emits recovery freshness/validation through the G2 operational telemetry boundary.
 
-Next, do **H1 only — Deployment & Supply-Chain Forensic Audit**:
+H1 now inventories every production entrypoint/environment class and turns deployment assumptions into a provider-neutral contract. It identifies the current public/private `dist/` collision, Bun-lock/npm-install reproducibility gap, missing immutable image, web graceful-shutdown gap, dev-tool-dependent migration/recovery CLIs, incomplete edge/security-header ownership, and missing supply-chain/staging release gates. It also defines forward-only rollback/restore rules, staging topology, and H2/H3/H4 slices without choosing a hosting vendor.
 
-1. inventory the current web, worker, migration, and recovery entrypoints plus their build/start scripts and process-role assumptions
-2. inventory every required production environment variable and classify deployment secret vs managed account secret vs non-secret configuration
-3. audit startup ordering: migrations, readiness, web acceptance, worker startup, and recovery validation dependencies
-4. audit graceful shutdown for HTTP, PostgreSQL pools, worker leases/heartbeats, and in-flight jobs
-5. audit reverse-proxy/HTTPS assumptions, trust-proxy behavior, cookies, origin checks, security headers/CSP, and request/upload limits
-6. define the production image contract: immutable build output, non-root runtime, minimal runtime files, separate web/worker commands, and migration job
-7. audit dependency/lockfile/security scanning requirements and fail-closed release gates
-8. define staging topology and readiness/recovery gates using the real G2/G3 contracts
-9. define application + migration rollback rules, including which migrations are forward-only and when rollback must use restore instead of down-migration
-10. add a focused H1 drift proof and stop before implementing the final Docker/staging deployment
+Next, do **H2 only — Reproducible Build + Production Image Foundation**:
 
-Do not start broad load/abuse testing, product UX cleanup, or choose a hosting vendor in H1.
+1. choose one release package manager and enforce its committed lockfile
+2. use frozen dependency installation in CI/release builds
+3. declare the Node/package-manager version contract
+4. split public client output from private server/worker/operations artifacts
+5. compile/package migration and recovery CLIs so immutable operations do not depend on dev-only `tsx`
+6. add a multi-stage non-root production image
+7. provide separate web and worker commands from the same immutable artifact
+8. minimize runtime files/dependencies while retaining required migrations/operational assets
+9. add package/image layout + startup smoke proofs
+10. stop before staging rollout and runtime-edge/graceful-shutdown hardening
+
+Do not start broad load/abuse testing, product UX cleanup, final reverse-proxy/CSP work, or staging promotion in H2.
