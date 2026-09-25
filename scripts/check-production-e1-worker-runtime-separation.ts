@@ -307,7 +307,7 @@ async function main() {
       pkg.scripts?.[
         'start:worker'
       ] ===
-        'node dist/worker.cjs',
+        'node dist/private/worker.cjs',
     'Build/runtime scripts must publish a dedicated worker artifact and entrypoint.'
   );
 
