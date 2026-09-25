@@ -2,7 +2,7 @@
 
 Date: **2026-09-25**
 
-Status: **IMPLEMENTED — awaiting integrated Quality Gate validation.**
+Status: **COMPLETE** — authoritative implementation Quality Gate `36150854623`.
 
 ## Verdict
 
@@ -784,14 +784,28 @@ Track H deployment should consume these contracts rather than invent them indepe
 
 ---
 
-# 20. G1 validation
+# 20. Validation
 
-G1 is complete only when:
+Authoritative implementation Quality Gate:
 
-- the production operations contract exists
-- the forensic inventory matches current source behavior
-- synthetic mediator health/telemetry is explicitly excluded from production SLO claims
-- recovery targets and degraded modes are explicit
-- backup/restore gaps are explicit
-- the executable G1 drift proof is in the Quality Gate
-- all existing Phase 0–8 and production-hardening gates remain green
+`36150854623`
+
+Verified green:
+
+- TypeScript
+- production build
+- all Phase 0–8 regressions
+- all prior production-hardening contract proofs
+- full PostgreSQL production suite through F2
+- F1/F2 secret/KMS proofs
+- G1 operational recovery forensic audit proof
+- arithmetic grounding guard
+- deterministic synthesis guard
+- unseen-corpus effectiveness benchmark
+- live Gemini unseen-corpus benchmark
+
+## Next phase
+
+**G2 — Production Observability + Real Readiness Foundation**
+
+G2 should wire the real runtime signals identified by this audit into the provider-neutral contract and replace synthetic readiness assumptions with real web/worker readiness. Backup/restore execution remains G3.
