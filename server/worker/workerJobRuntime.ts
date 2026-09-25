@@ -10,7 +10,11 @@ import {
 import {
   WorkerJobHandlerError,
   WorkerJobLeaseError,
+  type WorkerRuntimeHealthSnapshot,
 } from './workerJobTypes.js';
+import {
+  operationalTelemetry,
+} from '../operations/operationalTelemetry.js';
 
 const DEFAULT_TICK_MS = 5_000;
 const DEFAULT_LEASE_MS = 60_000;
@@ -41,6 +45,74 @@ export class WorkerJobRuntime {
   private timer:
     | ReturnType<typeof setInterval>
     | null = null;
+  private lastActivityAt?: number;
+  private lastCycleStartedAt?: number;
+  private lastCycleCompletedAt?: number;
+  private lastCycleOutcome?:
+    | 'success'
+    | 'failure';
+  private lastCycleErrorCode?: string;
+
+  private markActivity(
+    at: number = Date.now()
+  ): void {
+    this.lastActivityAt = at;
+  }
+
+  private recordAttempt(
+    jobType: string,
+    outcome: string
+  ): void {
+    operationalTelemetry.recordMetric({
+      name:
+        'worker_job_attempts_total',
+      kind: 'COUNTER',
+      value: 1,
+      labels: {
+        job_type: jobType,
+        outcome,
+      },
+    });
+  }
+
+  private async recordQueueMetrics(
+    now: number
+  ): Promise<void> {
+    const summary =
+      await this.repository
+        .operationalSummary(now);
+
+    for (const row of summary) {
+      operationalTelemetry.recordMetric({
+        name: 'worker_queue_depth',
+        kind: 'GAUGE',
+        value: row.count,
+        labels: {
+          job_type: row.jobType,
+          status: row.status,
+        },
+      });
+
+      if (
+        row.oldestCreatedAt !==
+        undefined
+      ) {
+        operationalTelemetry.recordMetric({
+          name: 'worker_job_age_ms',
+          kind: 'HISTOGRAM',
+          value: Math.max(
+            0,
+            now -
+              row.oldestCreatedAt
+          ),
+          labels: {
+            job_type: row.jobType,
+            status: row.status,
+          },
+        });
+      }
+    }
+  }
 
   constructor(
     private readonly repository:
@@ -53,7 +125,7 @@ export class WorkerJobRuntime {
       string = runtimeWorkerId()
   ) {}
 
-  public async runCycle(params?: {
+  private async runCycleCore(params?: {
     now?: number;
     leaseMs?: number;
     maxJobs?: number;
@@ -104,6 +176,24 @@ export class WorkerJobRuntime {
       recovered.map(
         (job) => job.id
       );
+    this.markActivity();
+
+    for (const job of recovered) {
+      if (
+        job.status ===
+        'DEAD_LETTER'
+      ) {
+        operationalTelemetry.recordMetric({
+          name:
+            'worker_dead_letter_total',
+          kind: 'COUNTER',
+          value: 1,
+          labels: {
+            job_type: job.jobType,
+          },
+        });
+      }
+    }
 
     for (
       let index = 0;
@@ -125,6 +215,7 @@ export class WorkerJobRuntime {
       result.claimedJobIds.push(
         job.id
       );
+      this.markActivity();
 
       const handler =
         this.registry.get(
@@ -154,6 +245,11 @@ export class WorkerJobRuntime {
         result.failedJobIds.push(
           settled.id
         );
+        this.recordAttempt(
+          job.jobType,
+          'failed'
+        );
+        this.markActivity();
         continue;
       }
 
@@ -165,18 +261,23 @@ export class WorkerJobRuntime {
           heartbeat: async (
             requestedLeaseMs =
               leaseMs
-          ) =>
-            this.repository.heartbeat({
-              accountId:
-                job.accountId,
-              jobId: job.id,
-              workerId:
-                this.workerId,
-              leaseToken:
-                job.leaseToken!,
-              leaseMs:
-                requestedLeaseMs,
-            }),
+          ) => {
+            const heartbeat =
+              await this.repository
+                .heartbeat({
+                  accountId:
+                    job.accountId,
+                  jobId: job.id,
+                  workerId:
+                    this.workerId,
+                  leaseToken:
+                    job.leaseToken!,
+                  leaseMs:
+                    requestedLeaseMs,
+                });
+            this.markActivity();
+            return heartbeat;
+          },
         });
 
         const completed =
@@ -193,6 +294,11 @@ export class WorkerJobRuntime {
         result.succeededJobIds.push(
           completed.id
         );
+        this.recordAttempt(
+          job.jobType,
+          'succeeded'
+        );
+        this.markActivity();
       } catch (error: any) {
         if (
           error instanceof
@@ -201,6 +307,11 @@ export class WorkerJobRuntime {
           result.leaseLostJobIds.push(
             job.id
           );
+          this.recordAttempt(
+            job.jobType,
+            'lease_lost'
+          );
+          this.markActivity();
           continue;
         }
 
@@ -246,6 +357,10 @@ export class WorkerJobRuntime {
             result.retryingJobIds.push(
               settled.id
             );
+            this.recordAttempt(
+              job.jobType,
+              'retrying'
+            );
           } else if (
             settled.status ===
               'DEAD_LETTER'
@@ -253,11 +368,30 @@ export class WorkerJobRuntime {
             result.deadLetterJobIds.push(
               settled.id
             );
+            this.recordAttempt(
+              job.jobType,
+              'dead_letter'
+            );
+            operationalTelemetry.recordMetric({
+              name:
+                'worker_dead_letter_total',
+              kind: 'COUNTER',
+              value: 1,
+              labels: {
+                job_type:
+                  job.jobType,
+              },
+            });
           } else {
             result.failedJobIds.push(
               settled.id
             );
+            this.recordAttempt(
+              job.jobType,
+              'failed'
+            );
           }
+          this.markActivity();
         } catch (
           settlementError
         ) {
@@ -268,6 +402,11 @@ export class WorkerJobRuntime {
             result.leaseLostJobIds.push(
               job.id
             );
+            this.recordAttempt(
+              job.jobType,
+              'lease_lost'
+            );
+            this.markActivity();
             continue;
           }
           throw settlementError;
@@ -276,6 +415,198 @@ export class WorkerJobRuntime {
     }
 
     return result;
+  }
+
+  public async runCycle(params?: {
+    now?: number;
+    leaseMs?: number;
+    maxJobs?: number;
+  }): Promise<WorkerJobRuntimeCycleResult> {
+    const startedAt =
+      params?.now ?? Date.now();
+    this.lastCycleStartedAt =
+      startedAt;
+    this.markActivity(startedAt);
+
+    operationalTelemetry.emitEvent({
+      level: 'debug',
+      eventName:
+        'worker.cycle.started',
+      component: 'worker',
+      processRole: 'worker',
+      outcome: 'started',
+      correlation: {
+        job_id: undefined,
+      },
+      metadata: {
+        workerId:
+          this.workerId,
+      },
+    });
+
+    try {
+      const result =
+        await this.runCycleCore(
+          params
+        );
+      const completedAt =
+        Date.now();
+      this.lastCycleCompletedAt =
+        completedAt;
+      this.lastCycleOutcome =
+        'success';
+      this.lastCycleErrorCode =
+        undefined;
+      this.markActivity(
+        completedAt
+      );
+
+      await this
+        .recordQueueMetrics(
+          completedAt
+        )
+        .catch((error: any) => {
+          operationalTelemetry.emitEvent({
+            level: 'warn',
+            eventName:
+              'worker.metrics.snapshot_failed',
+            component: 'worker',
+            processRole:
+              'worker',
+            outcome:
+              'failure',
+            metadata: {
+              errorCode:
+                error?.code ||
+                error?.name,
+            },
+          });
+        });
+
+      operationalTelemetry.emitEvent({
+        level: 'info',
+        eventName:
+          'worker.cycle.completed',
+        component: 'worker',
+        processRole: 'worker',
+        outcome: 'success',
+        metadata: {
+          workerId:
+            this.workerId,
+          recoveredCount:
+            result.recoveredJobIds
+              .length,
+          claimedCount:
+            result.claimedJobIds
+              .length,
+          succeededCount:
+            result.succeededJobIds
+              .length,
+          retryingCount:
+            result.retryingJobIds
+              .length,
+          failedCount:
+            result.failedJobIds
+              .length,
+          deadLetterCount:
+            result.deadLetterJobIds
+              .length,
+          leaseLostCount:
+            result.leaseLostJobIds
+              .length,
+          durationMs:
+            Math.max(
+              0,
+              completedAt -
+                startedAt
+            ),
+        },
+      });
+
+      return result;
+    } catch (error: any) {
+      const failedAt =
+        Date.now();
+      this.lastCycleCompletedAt =
+        failedAt;
+      this.lastCycleOutcome =
+        'failure';
+      this.lastCycleErrorCode =
+        String(
+          error?.code ||
+            error?.name ||
+            'WORKER_CYCLE_FAILED'
+        ).slice(0, 120);
+      this.markActivity(
+        failedAt
+      );
+
+      operationalTelemetry.emitEvent({
+        level: 'error',
+        eventName:
+          'worker.cycle.failed',
+        component: 'worker',
+        processRole: 'worker',
+        outcome: 'failure',
+        metadata: {
+          workerId:
+            this.workerId,
+          errorCode:
+            this.lastCycleErrorCode,
+          durationMs:
+            Math.max(
+              0,
+              failedAt -
+                startedAt
+            ),
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  public getHealthSnapshot(
+    now: number = Date.now(),
+    maxStalenessMs: number = Math.max(
+      5_000,
+      Number(
+        process.env
+          .KNOWLEDGE_AI_WORKER_READINESS_MAX_STALENESS_MS ||
+          '30000'
+      ) || 30_000
+    )
+  ): WorkerRuntimeHealthSnapshot {
+    const started =
+      this.isStarted();
+    const recent =
+      this.lastActivityAt !==
+        undefined &&
+      now -
+        this.lastActivityAt <=
+        maxStalenessMs;
+
+    return {
+      workerId:
+        this.workerId,
+      started,
+      healthy:
+        started &&
+        recent &&
+        this.lastCycleOutcome !==
+          'failure',
+      lastActivityAt:
+        this.lastActivityAt,
+      lastCycleStartedAt:
+        this.lastCycleStartedAt,
+      lastCycleCompletedAt:
+        this.lastCycleCompletedAt,
+      lastCycleOutcome:
+        this.lastCycleOutcome,
+      lastCycleErrorCode:
+        this.lastCycleErrorCode,
+      maxStalenessMs,
+    };
   }
 
   public start(params?: {
