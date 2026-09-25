@@ -47,19 +47,74 @@ import {
 import {
   productionReadinessService,
 } from './server/operations/productionReadinessService.js';
+import {
+  closePostgresPool,
+} from './server/persistence/postgres.js';
+import {
+  runtimeEdgeConfig,
+} from './server/runtime/runtimeEdgeConfig.js';
+import {
+  requestSizeGuard,
+  securityHeadersMiddleware,
+} from './server/runtime/securityHeadersMiddleware.js';
+import {
+  httpDrainController,
+} from './server/runtime/httpDrainController.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const edgeConfig =
+  runtimeEdgeConfig();
+const PORT = edgeConfig.port;
+
+app.disable('x-powered-by');
+app.set(
+  'trust proxy',
+  edgeConfig.trustProxyHops > 0
+    ? edgeConfig.trustProxyHops
+    : false
+);
 
 app.use(
   operationalHttpMiddleware
 );
 
-// Body parsers
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+if (
+  process.env.NODE_ENV ===
+  'production'
+) {
+  app.use(
+    securityHeadersMiddleware(
+      edgeConfig
+    )
+  );
+}
+
+app.use(
+  requestSizeGuard(
+    edgeConfig.maxRequestBodyBytes
+  )
+);
+app.use(
+  httpDrainController.middleware()
+);
+
+// General API bodies stay small. Large PDFs/Datasets keep their own
+// route-specific multipart limits.
+app.use(
+  express.json({
+    limit:
+      edgeConfig.jsonBodyLimitBytes,
+  })
+);
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit:
+      edgeConfig.urlencodedBodyLimitBytes,
+  })
+);
 
 // Multer memory storage for PDF uploads
 const upload = multer({
@@ -1493,18 +1548,142 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(
-      `Knowledge AI server running on http://0.0.0.0:${PORT} (role=${processRole})`
-    );
-    backgroundRuntime.startForRole(
-      processRole,
-      {
-        keepProcessAlive: false,
+  const server =
+    app.listen(
+      PORT,
+      '0.0.0.0',
+      () => {
+        console.log(
+          `Knowledge AI server running on http://0.0.0.0:${PORT} (role=${processRole})`
+        );
+        backgroundRuntime.startForRole(
+          processRole,
+          {
+            keepProcessAlive:
+              false,
+          }
+        );
       }
     );
-  });
+
+  let shutdownPromise:
+    | Promise<void>
+    | null = null;
+
+  const shutdown = (
+    signal: string
+  ): Promise<void> => {
+    if (shutdownPromise) {
+      return shutdownPromise;
+    }
+
+    shutdownPromise =
+      (async () => {
+        console.log(
+          'Knowledge AI web shutting down after ' +
+            signal
+        );
+
+        httpDrainController
+          .beginDrain();
+
+        const serverClosed =
+          new Promise<boolean>(
+            (resolve) => {
+              server.close(
+                (error) =>
+                  resolve(!error)
+              );
+            }
+          );
+
+        server
+          .closeIdleConnections?.();
+
+        const timeoutMs =
+          edgeConfig
+            .shutdownTimeoutMs;
+
+        const serverWithinBudget =
+          new Promise<boolean>(
+            (resolve) => {
+              const timer =
+                setTimeout(
+                  () =>
+                    resolve(false),
+                  timeoutMs
+                );
+              timer.unref?.();
+              void serverClosed.then(
+                (closed) => {
+                  clearTimeout(timer);
+                  resolve(closed);
+                }
+              );
+            }
+          );
+
+        const [
+          requestsDrained,
+          workersDrained,
+          listenerClosed,
+        ] = await Promise.all([
+          httpDrainController
+            .waitForIdle(
+              timeoutMs
+            ),
+          backgroundRuntime.drain(
+            timeoutMs
+          ),
+          serverWithinBudget,
+        ]);
+
+        if (
+          !requestsDrained ||
+          !workersDrained.drained ||
+          !listenerClosed
+        ) {
+          console.warn(
+            'Knowledge AI web graceful shutdown exceeded its drain budget.',
+            {
+              requestsDrained,
+              workersDrained:
+                workersDrained.drained,
+              listenerClosed,
+              activeRequests:
+                httpDrainController
+                  .getActiveRequestCount(),
+            }
+          );
+          server
+            .closeAllConnections?.();
+        }
+
+        await closePostgresPool();
+      })();
+
+    return shutdownPromise;
+  };
+
+  process.once(
+    'SIGTERM',
+    () => {
+      void shutdown('SIGTERM');
+    }
+  );
+  process.once(
+    'SIGINT',
+    () => {
+      void shutdown('SIGINT');
+    }
+  );
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error(
+    'Knowledge AI web failed to start:',
+    error
+  );
+  process.exitCode = 1;
+});
 
