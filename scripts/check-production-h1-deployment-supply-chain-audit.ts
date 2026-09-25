@@ -1,4 +1,7 @@
 import fs from 'fs';
+import {
+  execFileSync,
+} from 'node:child_process';
 
 function assert(
   condition: unknown,
@@ -9,6 +12,25 @@ function assert(
 
 function read(path: string): string {
   return fs.readFileSync(path, 'utf8');
+}
+
+function tracked(path: string): boolean {
+  try {
+    execFileSync(
+      'git',
+      [
+        'ls-files',
+        '--error-unmatch',
+        path,
+      ],
+      {
+        stdio: 'ignore',
+      }
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function main() {
@@ -97,8 +119,8 @@ async function main() {
   );
 
   assert(
-    fs.existsSync('bun.lock') &&
-      !fs.existsSync(
+    tracked('bun.lock') &&
+      !tracked(
         'package-lock.json'
       ) &&
       workflow.includes(
