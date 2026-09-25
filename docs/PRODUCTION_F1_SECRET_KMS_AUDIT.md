@@ -1,6 +1,6 @@
 # Production F1 — Secret/KMS Forensic Audit + Managed-Secret Boundary Plan
 
-Status: **IMPLEMENTED — awaiting integrated Quality Gate validation.**
+Status: **COMPLETE** — authoritative Quality Gate `36085952941`.
 
 ## Scope
 
@@ -472,10 +472,29 @@ F2 should not migrate:
 
 A managed provider SDK choice can be made in F2 only if the deployment target is known; otherwise implement the provider-neutral boundary plus a production-ready shared backend adapter separately from local compatibility.
 
-## F1 exit criteria
+## Validation
 
-F1 is complete when:
-- executable secret-boundary proof is green
-- this evidence is integrated into Quality Gate
-- roadmap/handoff identify F2 exactly
-- no credential runtime behavior changed
+Authoritative Quality Gate:
+
+`36085952941`
+
+Green:
+
+- TypeScript
+- production build
+- all Phase 0–8 regressions
+- all A–E production-hardening proofs
+- F1 secret/KMS forensic audit proof
+- PostgreSQL production suite
+- unseen-corpus benchmark
+- live Gemini benchmark
+
+No production credential runtime behavior changed.
+
+## Verdict
+
+**F1 is complete.**
+
+The immediate production secret-management debt is account-scoped Integration OAuth token storage. Deployment secrets and one-way credentials remain in their existing appropriate boundaries.
+
+Proceed with **F2 — Integration OAuth SecretStore Foundation + Migration**.
