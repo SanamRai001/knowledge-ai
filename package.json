@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "tsx server.ts",
     "worker:dev": "tsx worker.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/worker.cjs",
-    "start": "node dist/server.cjs",
-    "start:worker": "node dist/worker.cjs",
+    "build": "npm run clean:dist && npm run build:client && npm run build:web && npm run build:worker && npm run build:ops",
+    "start": "node dist/private/server.cjs",
+    "start:worker": "node dist/private/worker.cjs",
     "lint": "tsc --noEmit",
     "check:benchmark-leakage": "node scripts/check-benchmark-leakage.mjs",
     "check:provider-boundary": "node scripts/check-provider-boundary.mjs",
@@ -58,9 +58,9 @@
     "check:phase8c-custom-detectors": "tsx scripts/check-phase8c-custom-detectors.ts",
     "check:phase8d-domain-packs": "tsx scripts/check-phase8d-domain-packs.ts",
     "check:phase8e-platform-ui": "tsx scripts/check-phase8e-platform-ui.ts",
-    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:migrate": "node dist/private/db-migrate.cjs",
     "db:import-legacy": "tsx scripts/db-import-legacy.ts",
-    "recovery:validate": "tsx scripts/recovery-validate.ts",
+    "recovery:validate": "node dist/private/recovery-validate.cjs",
     "check:production-a2-postgres": "tsx scripts/check-production-a2-postgres.ts",
     "check:production-a3-postgres": "tsx scripts/check-production-a3-postgres.ts",
     "check:production-a4-postgres": "tsx scripts/check-production-a4-postgres.ts",
@@ -127,26 +127,24 @@
     "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts",
     "check:production:g3-recovery-contract": "tsx scripts/check-production-g3-recovery-contract.ts",
     "check:production:g3-recovery-postgres": "tsx scripts/check-production-g3-recovery-postgres.ts",
-    "check:production:h1-deployment-supply-chain-audit": "tsx scripts/check-production-h1-deployment-supply-chain-audit.ts"
+    "check:production:h1-deployment-supply-chain-audit": "tsx scripts/check-production-h1-deployment-supply-chain-audit.ts",
+    "clean:dist": "node scripts/clean-dist.mjs",
+    "build:client": "vite build",
+    "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/server.cjs",
+    "build:worker": "esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/worker.cjs",
+    "build:ops": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/db-migrate.cjs && esbuild scripts/recovery-validate.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/private/recovery-validate.cjs",
+    "db:migrate:dev": "tsx scripts/db-migrate.ts",
+    "recovery:validate:dev": "tsx scripts/recovery-validate.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
     "@google/genai": "^2.4.0",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "lucide-react": "^0.546.0",
-    "motion": "^12.23.24",
     "multer": "^2.3.0",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "react-markdown": "^10.1.0",
-    "vite": "^6.2.3",
     "@ayocore/exceljs": "5.0.4",
-    "@googleworkspace/drive-picker-react": "^0.2.0",
     "pg": "^8.23.0"
   },
   "devDependencies": {
@@ -160,6 +158,19 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3",
-    "@types/pg": "^8.23.1"
+    "@types/pg": "^8.23.1",
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@googleworkspace/drive-picker-react": "^0.2.0",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-markdown": "^10.1.0"
+  },
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": "22.14.x",
+    "npm": "10.9.x"
   }
 }
