@@ -126,7 +126,8 @@
     "check:production:g2-observability-readiness-contract": "tsx scripts/check-production-g2-observability-readiness-contract.ts",
     "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts",
     "check:production:g3-recovery-contract": "tsx scripts/check-production-g3-recovery-contract.ts",
-    "check:production:g3-recovery-postgres": "tsx scripts/check-production-g3-recovery-postgres.ts"
+    "check:production:g3-recovery-postgres": "tsx scripts/check-production-g3-recovery-postgres.ts",
+    "check:production:h1-deployment-supply-chain-audit": "tsx scripts/check-production-h1-deployment-supply-chain-audit.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
