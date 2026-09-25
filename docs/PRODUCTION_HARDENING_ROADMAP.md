@@ -189,8 +189,8 @@ The implementation sequence is deliberately split into small slices:
 34. **F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan** — COMPLETE, workflow `36085952941`
 35. **F2 — Integration OAuth SecretStore Foundation + Migration** — COMPLETE, workflow `36147480475`
 36. **G1 — Observability, Backup, and Operational Recovery Forensic Audit** — COMPLETE, workflow `36150854623`
-37. **G2 — Production Observability + Real Readiness Foundation** — NEXT
-38. **G3 — Backup/Restore + Recovery Drill Foundation** — PLANNED
+37. **G2 — Production Observability + Real Readiness Foundation** — COMPLETE, workflow `36155946479`
+38. **G3 — Backup/Restore + Recovery Drill Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -263,6 +263,8 @@ F1 evidence: `docs/PRODUCTION_F1_SECRET_KMS_AUDIT.md`.
 F2 evidence: `docs/PRODUCTION_F2_INTEGRATION_OAUTH_SECRET_STORE.md`.
 
 G1 evidence: `docs/PRODUCTION_G1_OPERATIONAL_RECOVERY_AUDIT.md`.
+
+G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -742,22 +744,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening G2 — Production Observability + Real Readiness Foundation**
+**Production Hardening G3 — Backup/Restore + Recovery Drill Foundation**
 
-Keep G2 limited to real runtime instrumentation/readiness. Preserve the provider-neutral G1 contract.
+Keep G3 limited to recoverability contracts, backup evidence, and isolated restore verification. Preserve the G1 RPO/RTO targets and the real G2 readiness boundary.
 
-1. add a vendor-neutral operational metric/event sink with a deterministic test adapter; do not select a monitoring SaaS
-2. add global request correlation and structured secret/content-safe operational events
-3. instrument HTTP request count/latency/error-class metrics using route templates rather than raw paths/query strings
-4. instrument real Gemini/provider outcomes and query/retrieval stage latency/failure without reviving prototype mediator telemetry
-5. instrument PostgreSQL pool/query duration/error/slow-query signals without logging raw SQL or bound values
-6. derive worker queue depth/job age/retry/dead-letter metrics from durable worker_jobs and add a steady-state worker heartbeat/readiness signal
-7. implement real web readiness distinct from liveness: process role, PostgreSQL, required schema, object-storage configuration/access, and SecretStore/KMS configuration
-8. implement real worker readiness: process role, PostgreSQL/schema, registered handlers, required storage/SecretStore dependencies, and recent worker-loop health
-9. keep external Gemini/Google/Microsoft outages as degraded feature state rather than making the whole process unready
-10. add focused executable proofs and keep all existing quality/PostgreSQL gates green
+1. define deployment-target PostgreSQL continuous-backup/PITR requirements that can meet the current relational-state RPO of 5 minutes and RTO of 60 minutes; do not pretend an unmanaged local `pg_dump` alone satisfies PITR
+2. add provider-neutral backup metadata/freshness contracts so operators can prove when the last successful relational backup/recovery point was created without exposing database credentials
+3. add object-storage versioning/retention verification for durable source/derived/Dataset payloads, including the current minimum recoverable-delete window of 30 days
+4. define and implement an isolated restore workflow that restores PostgreSQL into a non-production target, checks migration/build compatibility, and verifies required object payload versions before readiness can pass
+5. validate SecretStore recovery: restored encrypted secret versions must remain bound to the required historical KMS key IDs; missing historical key material must fail closed without copying plaintext secrets into backup artifacts
+6. add an automated recovery smoke proof that reconstructs at least one workspace/document corpus and one Dataset/current+historical analytical version from restored relational metadata plus restored durable objects
+7. verify durable worker jobs/retry/dead-letter state survives relational restore and remains restart-safe; do not execute restored jobs against production providers during the drill
+8. emit backup freshness / restore-validation operational evidence through the vendor-neutral G2 event/metric boundary without choosing a monitoring vendor
+9. document destructive-safety guards: restore tooling must reject the production target by default and require an explicit isolated destination
+10. add focused executable G3 proofs and keep all existing quality/PostgreSQL gates green
 
-Do not implement PostgreSQL backups/PITR, object-store retention/versioning, restore drills, Docker/staging, vendor dashboards, or broad load/abuse testing in G2. Those remain G3/H/I.
+Do not build the final production Docker/staging deployment, select a managed backup/monitoring vendor, run destructive recovery against production, or begin broad load/abuse testing in G3. Those remain Track H/I.
 ---
 
 # Track A closure note
