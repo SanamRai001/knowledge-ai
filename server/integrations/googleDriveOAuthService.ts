@@ -300,13 +300,13 @@ export class GoogleDriveOAuthService {
           oldCredentialRef &&
           oldCredentialRef !== credentialRef
         ) {
-          await this.credentialStore
-            .delete({
+          await Promise.resolve(
+            this.credentialStore.delete({
               accountId: attempt.accountId,
               provider: 'GOOGLE_DRIVE',
               credentialRef: oldCredentialRef,
             })
-            .catch(() => false);
+          ).catch(() => false);
         }
       } else {
         connection = await integrationRuntimeService.createConnection({
@@ -331,13 +331,13 @@ export class GoogleDriveOAuthService {
       };
     } catch (error) {
       if (!attached) {
-        await this.credentialStore
-          .delete({
+        await Promise.resolve(
+          this.credentialStore.delete({
             accountId: attempt.accountId,
             provider: 'GOOGLE_DRIVE',
             credentialRef,
           })
-          .catch(() => false);
+        ).catch(() => false);
       }
       throw error;
     }
