@@ -5,9 +5,9 @@ import {
   microsoftOneDriveServerConfig,
 } from '../microsoftOneDriveConfig.js';
 import {
-  IntegrationCredentialStore,
-  integrationCredentialStore,
-} from '../integrationCredentialStore.js';
+  integrationOAuthSecretRuntime,
+  type IntegrationCredentialAccess,
+} from '../integrationOAuthSecretRuntime.js';
 import {
   ExternalChangePage,
   ExternalRecord,
@@ -183,8 +183,8 @@ export class MicrosoftOneDriveConnector
     'MICROSOFT_ONEDRIVE' as const;
 
   constructor(
-    private readonly credentialStore: IntegrationCredentialStore =
-      integrationCredentialStore,
+    private readonly credentialStore: IntegrationCredentialAccess =
+      integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
@@ -337,9 +337,9 @@ export class MicrosoftOneDriveConnector
     };
   }
 
-  private credential(
+  private async credential(
     context: IntegrationConnectorContext
-  ): MicrosoftOneDriveCredentialSecret {
+  ): Promise<MicrosoftOneDriveCredentialSecret> {
     const credentialRef =
       context.connection.credentialRef;
     if (!credentialRef) {
@@ -350,7 +350,7 @@ export class MicrosoftOneDriveConnector
       );
     }
 
-    return this.credentialStore.get<MicrosoftOneDriveCredentialSecret>({
+    return await this.credentialStore.get<MicrosoftOneDriveCredentialSecret>({
       accountId: context.connection.accountId,
       provider: 'MICROSOFT_ONEDRIVE',
       credentialRef,
@@ -391,7 +391,8 @@ export class MicrosoftOneDriveConnector
     context: IntegrationConnectorContext,
     forceRefresh = false
   ): Promise<string> {
-    const secret = this.credential(context);
+    const secret =
+      await this.credential(context);
     if (
       !forceRefresh &&
       secret.accessToken &&
@@ -475,7 +476,7 @@ export class MicrosoftOneDriveConnector
           : secret.tokenType,
     };
 
-    this.credentialStore.update({
+    await this.credentialStore.update({
       accountId: context.connection.accountId,
       provider: 'MICROSOFT_ONEDRIVE',
       credentialRef: context.connection.credentialRef!,
