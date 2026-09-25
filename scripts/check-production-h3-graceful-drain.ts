@@ -162,7 +162,10 @@ async function main() {
       'workerHealthServer.start'
     ) &&
       workerEntry.includes(
-        'workerHealthServer.setDraining'
+        'workerHealthServer'
+      ) &&
+      workerEntry.includes(
+        '.setDraining(true)'
       ) &&
       workerEntry.includes(
         'backgroundRuntime.drain('
