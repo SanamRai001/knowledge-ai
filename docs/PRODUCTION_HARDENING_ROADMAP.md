@@ -186,7 +186,8 @@ The implementation sequence is deliberately split into small slices:
 31. **E3 — Action Post-Commit Discovery Refresh Worker Migration** — COMPLETE, workflow `36022612284`
 32. **E4 — Integration Sync Worker Migration** — COMPLETE, workflow `36029571982`
 33. **E5 — Automation Execution/Recovery Worker Migration** — COMPLETE, workflow `36035111875`
-34. **F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan** — NEXT
+34. **F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan** — COMPLETE, workflow `36085952941`
+35. **F2 — Integration OAuth SecretStore Foundation + Migration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -253,6 +254,8 @@ E3 evidence: `docs/PRODUCTION_E3_ACTION_DISCOVERY_WORKER.md`.
 E4 evidence: `docs/PRODUCTION_E4_INTEGRATION_SYNC_WORKER.md`.
 
 E5 evidence: `docs/PRODUCTION_E5_AUTOMATION_EXECUTION_WORKER.md`.
+
+F1 evidence: `docs/PRODUCTION_F1_SECRET_KMS_AUDIT.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -732,22 +735,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening F1 — Production Secret/KMS Forensic Audit + Managed-Secret Boundary Plan**
+**Production Hardening F2 — Integration OAuth SecretStore Foundation + Migration**
 
-Keep F1 audit-only. Do not migrate secrets or choose a managed provider until the current secret flows are proven.
+Keep F2 limited to Google Drive and Microsoft OneDrive OAuth credential bundles.
 
-1. inventory every production secret source: environment variables, local encrypted files, PostgreSQL metadata, browser-visible configuration, connector/runtime caches, OAuth token stores, provider keys, signing/encryption keys, and test/dev fallbacks
-2. classify each item as deployment secret, account/provider credential, OAuth token, encryption/KMS key, webhook/signing secret, or non-secret configuration
-3. trace create/read/update/revoke/delete/rotation flow for each credential family
-4. identify every place plaintext secret material can enter logs, API responses, worker payloads, ordinary database metadata, backups, or source-controlled/runtime files
-5. audit current local encryption/key-management assumptions including key origin, storage, restart behavior, rotation support, and multi-replica behavior
-6. identify which secrets require account-scoped managed storage versus deployment/environment injection
-7. define a provider-neutral SecretStore/KMS contract and metadata-vs-secret separation without implementing a vendor SDK yet
-8. define migration/rollback behavior for existing Integration OAuth credentials and other persisted secrets
-9. define rotation/revocation/audit requirements and failure semantics when the secret backend is unavailable
-10. add an executable F1 secret-boundary proof and evidence document that produces the exact F2 implementation slice
+1. turn the F1 `SecretStore` / `KmsService` contracts into the runtime credential boundary without exposing vendor identifiers through IntegrationConnection
+2. migrate IntegrationCredentialStore callers to async SecretStore operations while preserving account + provider scope
+3. keep Deployment secrets (DB URL, Gemini, S3, OAuth app client secrets, bootstrap token) outside account SecretStore
+4. keep passwords, sessions, and API keys one-way hashed; do not make them reversible secrets
+5. preserve authorize, token refresh/rotation, reauthorize, health/sync, disconnect/revoke semantics for Google Drive and OneDrive
+6. provide safe one-time read-through/migration for existing `data/integration_credentials.json` records without losing current credentials
+7. define shared web/worker resolution so E4 Integration workers can retrieve the same credential across replicas
+8. make secret create/rotate/reference update/old-secret cleanup crash-safe and truthful
+9. add durable secret-operation audit metadata without storing token plaintext/ciphertext in ordinary Integration metadata
+10. prove access/refresh tokens never appear in browser responses, generic worker payloads, logs, PostgreSQL IntegrationConnection metadata, or source-controlled files
 
-Do not add AWS/GCP/Azure secret-manager SDKs in F1. Do not move credentials yet. Do not change OAuth/API-key/product behavior during the forensic audit.
+Do not migrate deployment secrets in F2. Do not change OAuth scopes, Integration authorization policy, C6 checkpoint semantics, or E4 worker semantics.
 ---
 
 # Track A closure note
