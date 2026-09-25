@@ -17,6 +17,12 @@ import {
 import {
   operationalTelemetry,
 } from './server/operations/operationalTelemetry.js';
+import {
+  runtimeEdgeConfig,
+} from './server/runtime/runtimeEdgeConfig.js';
+import {
+  workerHealthServer,
+} from './server/runtime/workerHealthServer.js';
 
 dotenv.config();
 
@@ -29,6 +35,9 @@ async function startWorker() {
     }
   );
   assertWorkerEntrypointRole(role);
+
+  const edgeConfig =
+    runtimeEdgeConfig();
 
   if (!postgresPersistenceEnabled()) {
     throw new Error(
@@ -65,9 +74,21 @@ async function startWorker() {
       }
     );
 
+  await workerHealthServer.start({
+    host:
+      edgeConfig.workerHealthHost,
+    port:
+      edgeConfig.workerHealthPort,
+  });
+
   console.log(
     'Knowledge AI worker running: ' +
-      started.workloads.join(', ')
+      started.workloads.join(', ') +
+      ' (health=' +
+      edgeConfig.workerHealthHost +
+      ':' +
+      edgeConfig.workerHealthPort +
+      ')'
   );
 
   const readinessTick = async () => {
@@ -139,7 +160,41 @@ async function startWorker() {
     clearInterval(
       readinessTimer
     );
-    backgroundRuntime.stop();
+
+    workerHealthServer
+      .setDraining(true);
+
+    const drain =
+      await backgroundRuntime.drain(
+        edgeConfig.shutdownTimeoutMs
+      );
+
+    if (!drain.drained) {
+      operationalTelemetry.emitEvent({
+        level: 'warn',
+        eventName:
+          'worker.shutdown.drain_timeout',
+        component: 'worker',
+        processRole: role,
+        outcome: 'timeout',
+        metadata: {
+          watchDrained:
+            drain.watchDrained,
+          genericDrained:
+            drain.genericDrained,
+          timeoutMs:
+            edgeConfig.shutdownTimeoutMs,
+        },
+      });
+    }
+
+    await workerHealthServer.stop(
+      Math.min(
+        5_000,
+        edgeConfig.shutdownTimeoutMs
+      )
+    );
+
     await closePostgresPool();
   };
 
@@ -151,7 +206,12 @@ async function startWorker() {
   });
 }
 
-startWorker().catch((error) => {
+startWorker().catch(async (error) => {
+  workerHealthServer
+    .setDraining(true);
+  await workerHealthServer
+    .stop(1_000)
+    .catch(() => undefined);
   console.error(
     'Knowledge AI worker failed to start:',
     error
