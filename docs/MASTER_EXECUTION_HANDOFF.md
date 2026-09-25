@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening G3 — Backup/Restore + Recovery Drill Foundation.**
+> **Continue with Production Hardening H1 — Deployment & Supply-Chain Forensic Audit.**
 
 Phases 0–8 are complete.
 
@@ -1098,7 +1098,8 @@ Track A relational milestones:
 - F2 Integration OAuth SecretStore Foundation + Migration — COMPLETE, workflow `36147480475`
 - G1 Observability, Backup, and Operational Recovery Forensic Audit — COMPLETE, workflow `36150854623`
 - G2 Production Observability + Real Readiness Foundation — COMPLETE, workflow `36155946479`
-- G3 Backup/Restore + Recovery Drill Foundation — NEXT
+- G3 Backup/Restore + Recovery Drill Foundation — COMPLETE, workflow `36158941696`
+- H1 Deployment & Supply-Chain Forensic Audit — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1178,6 +1179,8 @@ G1 evidence: `docs/PRODUCTION_G1_OPERATIONAL_RECOVERY_AUDIT.md`.
 
 G2 evidence: `docs/PRODUCTION_G2_OBSERVABILITY_READINESS.md`.
 
+G3 evidence: `docs/PRODUCTION_G3_BACKUP_RESTORE_RECOVERY.md`.
+
 B2A provides durable human users, OWNER/ADMIN/MEMBER account memberships, revocable/expiring opaque browser sessions, membership-bound account selection, and session-scoped workspace selection.
 
 B2B1 provides salted scrypt human credentials, one-time OWNER bootstrap, same-origin login, Secure/HttpOnly browser sessions, `GET /api/auth/me`, CSRF-protected logout, and durable session revocation.
@@ -1250,17 +1253,19 @@ G1 now separates authoritative durable operational state from ephemeral runtime 
 
 G2 now wires that contract into real runtime behavior: global privacy-safe correlation, HTTP/provider/query/PostgreSQL/worker telemetry, durable queue signals, separate liveness/readiness, real schema/storage/KMS checks, registered-handler and recent worker-loop readiness, and provider-outage degraded mode without reviving synthetic mediator telemetry.
 
-Next, do **G3 only — Backup/Restore + Recovery Drill Foundation**:
+G3 now enforces provider-neutral PostgreSQL backup/PITR evidence against the 5-minute RPO / 60-minute RTO target, verifies real S3-compatible versioning/noncurrent retention, blocks production/same-DB/same-bucket restore targets, validates restored schema/build and every SecretStore historical KMS key, reconstructs durable document and current/historical Dataset payloads, inspects restored worker jobs without executing them, and emits recovery freshness/validation through the G2 operational telemetry boundary.
 
-1. codify deployment-target PostgreSQL continuous-backup/PITR requirements for the current 5-minute relational RPO / 60-minute RTO
-2. add provider-neutral relational backup freshness/recovery-point evidence without exposing credentials
-3. verify durable object-storage versioning/retention and the 30-day minimum recoverable-delete window
-4. implement an isolated non-production restore workflow with schema/build compatibility and object-version checks
-5. validate restored SecretStore ciphertext against the required historical KMS key IDs; missing key history must fail closed
-6. add a recovery smoke proof that reconstructs a workspace/document corpus plus current/historical Dataset analytical state from restored DB + object bytes
-7. prove restored worker jobs remain durable/restart-safe without executing them against production providers during the drill
-8. surface backup freshness and restore-validation evidence through the G2 operational event/metric contract
-9. fail closed against production restore targets by default
-10. add focused G3 proofs and stop before deployment/load-testing work
+Next, do **H1 only — Deployment & Supply-Chain Forensic Audit**:
 
-Do not choose a managed backup/monitoring vendor, run destructive recovery against production, build the final Docker/staging deployment, or start broad load/abuse testing in G3.
+1. inventory the current web, worker, migration, and recovery entrypoints plus their build/start scripts and process-role assumptions
+2. inventory every required production environment variable and classify deployment secret vs managed account secret vs non-secret configuration
+3. audit startup ordering: migrations, readiness, web acceptance, worker startup, and recovery validation dependencies
+4. audit graceful shutdown for HTTP, PostgreSQL pools, worker leases/heartbeats, and in-flight jobs
+5. audit reverse-proxy/HTTPS assumptions, trust-proxy behavior, cookies, origin checks, security headers/CSP, and request/upload limits
+6. define the production image contract: immutable build output, non-root runtime, minimal runtime files, separate web/worker commands, and migration job
+7. audit dependency/lockfile/security scanning requirements and fail-closed release gates
+8. define staging topology and readiness/recovery gates using the real G2/G3 contracts
+9. define application + migration rollback rules, including which migrations are forward-only and when rollback must use restore instead of down-migration
+10. add a focused H1 drift proof and stop before implementing the final Docker/staging deployment
+
+Do not start broad load/abuse testing, product UX cleanup, or choose a hosting vendor in H1.
