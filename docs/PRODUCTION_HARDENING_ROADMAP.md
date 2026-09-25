@@ -194,7 +194,8 @@ The implementation sequence is deliberately split into small slices:
 39. **H1 — Deployment & Supply-Chain Forensic Audit** — COMPLETE, workflow `36163177196`
 40. **H2 — Reproducible Build + Production Image Foundation** — COMPLETE, workflow `36167552759`
 41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — COMPLETE, workflow `36171328745`
-42. **H4 — Staging Promotion + Rollback Release Gate** — NEXT
+42. **H4 — Staging Promotion + Rollback Release Gate** — COMPLETE, workflow `36175108771`
+43. **I1 — Load, Abuse, and Security Test Foundation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -277,6 +278,8 @@ H1 evidence: `docs/PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT.md`.
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
+
+H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -756,22 +759,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening H4 — Staging Promotion + Rollback Release Gate**
+**Production Hardening I1 — Load, Abuse, and Security Test Foundation**
 
-Keep H4 limited to executable release/promotion controls around the already-validated H2/H3 artifact.
+Keep I1 limited to a measured, repeatable adversarial/load test foundation. Do not claim production scale from synthetic happy-path tests.
 
-1. define a provider-neutral staging release manifest carrying source commit, immutable image reference/digest, build ID, migration inventory/checksums, and release timestamp
-2. enforce build-once promotion: the staging-tested immutable image digest must be the exact artifact eligible for production; rebuilding after staging validation must fail closed
-3. add a deployment-owned single-writer migration-job gate using the compiled H2 migration command, then verify schema checksums/current migration inventory before web/worker rollout
-4. enforce staging/production separation for PostgreSQL, object storage, SecretStore/KMS material, OAuth/browser origins, web, worker, and migration-job topology
-5. require real G2 web readiness plus H3 supervisor-consumable worker readiness before promotion
-6. require current G3 backup/restore evidence before production promotion
-7. add dependency vulnerability policy, container-image vulnerability policy, and SBOM generation/verification to the release gate
-8. pin third-party GitHub Actions to immutable commit SHAs instead of floating major tags
-9. encode forward-only rollback rules: compatible app rollback only with explicit schema-compatibility evidence; otherwise require a forward fix or G3 isolated restore validation
-10. add focused release-manifest/promotion/migration/readiness/recovery/supply-chain proofs and stop before Track I
+1. inventory every production-facing HTTP/auth/upload/OAuth/provider/worker surface that needs Track I coverage
+2. define explicit measurable thresholds for concurrency, latency, error rate, retry behavior, payload size, and isolation failures
+3. add a reusable load/security test harness that can target an isolated test deployment without embedding credentials or production data
+4. add concurrent cross-account isolation tests covering HUMAN_SESSION and API_KEY request paths
+5. add API-key abuse/rate-limit tests with deterministic threshold assertions
+6. add boundary tests for existing general body/upload limits and oversized request rejection
+7. add malformed PDF/XLSX ingestion fixtures that prove parser failures are bounded and do not corrupt durable source/runtime state
+8. add OAuth callback/state replay and origin/CSRF abuse tests without weakening the B2/F2 identity/secret contracts
+9. add SSRF regression coverage for provider/import URL boundaries that currently accept or construct remote URLs
+10. document the remaining Track I matrix (prompt injection/evidence boundary, race/idempotency, sustained Watch/Integration/Automation workers) and stop before broad product UX/admin cleanup
 
-Do not begin broad load/abuse/security testing, product UX cleanup, or vendor-specific production rollout automation in H4.
+Do not start Track J UI/admin cleanup or make unsupported “handles N users” claims in I1.
 ---
 
 # Track A closure note

@@ -3,28 +3,54 @@ export const PRODUCTION_NODE_MAJOR = 22 as const;
 export const productionEntrypoints = {
   web: {
     packageScript: 'start',
-    command: 'node dist/server.cjs',
+    command:
+      'node dist/private/server.cjs',
     processRole: 'web',
     livenessPath: '/api/health',
     readinessPath: '/api/ready',
   },
   worker: {
     packageScript: 'start:worker',
-    command: 'node dist/worker.cjs',
+    command:
+      'node dist/private/worker.cjs',
     processRole: 'worker',
   },
   migration: {
     packageScript: 'db:migrate',
     currentCommand:
-      'tsx scripts/db-migrate.ts',
+      'node dist/private/db-migrate.cjs',
     requiresMigrationSqlDirectory: true,
-    currentlyRequiresDevTooling: true,
+    currentlyRequiresDevTooling: false,
   },
   recovery: {
     packageScript: 'recovery:validate',
     currentCommand:
-      'tsx scripts/recovery-validate.ts',
-    currentlyRequiresDevTooling: true,
+      'node dist/private/recovery-validate.cjs',
+    currentlyRequiresDevTooling: false,
+  },
+  releaseManifest: {
+    packageScript:
+      'release:manifest',
+    command:
+      'node dist/private/release-manifest.cjs',
+  },
+  releaseGate: {
+    packageScript:
+      'release:gate',
+    command:
+      'node dist/private/release-gate.cjs',
+  },
+  releaseMigrationGate: {
+    packageScript:
+      'release:migration-gate',
+    command:
+      'node dist/private/release-migration-gate.cjs',
+  },
+  releaseReadinessSmoke: {
+    packageScript:
+      'release:readiness-smoke',
+    command:
+      'node dist/private/release-readiness-smoke.cjs',
   },
 } as const;
 

@@ -161,19 +161,53 @@ async function main() {
   );
 
   assert(
-    workflow.includes(
+    !workflow.includes(
       'uses: actions/checkout@v4'
     ) &&
-      workflow.includes(
+      !workflow.includes(
         'uses: actions/setup-node@v4'
       ) &&
-      !workflow.includes(
-        'npm audit'
+      /uses: actions\/checkout@[0-9a-f]{40}/.test(
+        workflow
       ) &&
-      !workflow.includes(
+      /uses: actions\/setup-node@[0-9a-f]{40}/.test(
+        workflow
+      ) &&
+      workflow.includes(
         'permissions:'
-      ),
-    'H1 must keep current release supply-chain gaps explicit until the release-gate slice.'
+      ) &&
+      workflow.includes(
+        'npm audit --omit=dev --audit-level=high'
+      ) &&
+      workflow.includes(
+        'npm sbom --omit=dev --sbom-format=cyclonedx'
+      ) &&
+      workflow.includes(
+        'aquasecurity/trivy-action@'
+      ) &&
+      workflow.includes(
+        "severity: 'CRITICAL,HIGH'"
+      ) &&
+      workflow.includes(
+        'check:production:h4-action-pins'
+      ) &&
+      pkg.scripts[
+        'release:manifest'
+      ] ===
+        'node dist/private/release-manifest.cjs' &&
+      pkg.scripts[
+        'release:gate'
+      ] ===
+        'node dist/private/release-gate.cjs' &&
+      pkg.scripts[
+        'release:migration-gate'
+      ] ===
+        'node dist/private/release-migration-gate.cjs' &&
+      pkg.scripts[
+        'release:readiness-smoke'
+      ] ===
+        'node dist/private/release-readiness-smoke.cjs',
+    'H1 historical guard must recognize the H4 immutable Action pins, explicit token permissions, vulnerability/SBOM/image scan gates, and compiled release entrypoints.'
   );
 
   assert(
@@ -450,7 +484,7 @@ async function main() {
     'PRODUCTION_H1_DEPLOYMENT_SUPPLY_CHAIN_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'H1 deployment contracts remain guarded after H3: reproducible packaging, runtime-edge security, graceful drain, request limits, and worker readiness are closed while supply-chain scan/pinning, staging, and rollback-promotion gaps remain explicit for H4.'
+    'H1 deployment contracts remain guarded after H4: reproducible packaging, runtime-edge security, supply-chain scanning/pinning, immutable release promotion, migration gating, readiness/recovery evidence, and rollback policy are now executable while vendor-specific rollout remains outside the contract.'
   );
 }
 
