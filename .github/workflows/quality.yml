@@ -253,6 +253,9 @@ jobs:
       - name: Production G2 observability readiness contract proof
         run: npm run check:production:g2-observability-readiness-contract
 
+      - name: Production G3 recovery contract proof
+        run: npm run check:production:g3-recovery-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -419,3 +422,6 @@ jobs:
 
       - name: Production G2 observability readiness PostgreSQL proof
         run: npm run check:production:g2-observability-readiness-postgres
+
+      - name: Production G3 recovery PostgreSQL proof
+        run: npm run check:production:g3-recovery-postgres

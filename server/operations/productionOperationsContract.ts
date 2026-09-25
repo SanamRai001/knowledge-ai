@@ -17,7 +17,10 @@ export type OperationalMetricName =
   | 'watch_job_lag_seconds'
   | 'action_execution_total'
   | 'automation_run_total'
-  | 'secret_store_operation_total';
+  | 'secret_store_operation_total'
+  | 'backup_recovery_point_age_seconds'
+  | 'recovery_validation_total'
+  | 'recovery_validation_age_seconds';
 
 export interface OperationalMetricContract {
   name: OperationalMetricName;
@@ -212,6 +215,32 @@ export const PRODUCTION_METRIC_CONTRACT:
         'secret_id',
         'ciphertext',
         'secret_value',
+      ],
+    },
+    {
+      name:
+        'backup_recovery_point_age_seconds',
+      kind: 'GAUGE',
+      requiredLabels: [
+        'component',
+        'evidence_source',
+      ],
+    },
+    {
+      name:
+        'recovery_validation_total',
+      kind: 'COUNTER',
+      requiredLabels: [
+        'check',
+        'outcome',
+      ],
+    },
+    {
+      name:
+        'recovery_validation_age_seconds',
+      kind: 'GAUGE',
+      requiredLabels: [
+        'validation',
       ],
     },
   ] as const;

@@ -60,6 +60,7 @@
     "check:phase8e-platform-ui": "tsx scripts/check-phase8e-platform-ui.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:import-legacy": "tsx scripts/db-import-legacy.ts",
+    "recovery:validate": "tsx scripts/recovery-validate.ts",
     "check:production-a2-postgres": "tsx scripts/check-production-a2-postgres.ts",
     "check:production-a3-postgres": "tsx scripts/check-production-a3-postgres.ts",
     "check:production-a4-postgres": "tsx scripts/check-production-a4-postgres.ts",
@@ -123,7 +124,9 @@
     "check:production:f2-integration-oauth-secret-store-postgres": "tsx scripts/check-production-f2-integration-oauth-secret-store-postgres.ts",
     "check:production:g1-operational-recovery-audit": "tsx scripts/check-production-g1-operational-recovery-audit.ts",
     "check:production:g2-observability-readiness-contract": "tsx scripts/check-production-g2-observability-readiness-contract.ts",
-    "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts"
+    "check:production:g2-observability-readiness-postgres": "tsx scripts/check-production-g2-observability-readiness-postgres.ts",
+    "check:production:g3-recovery-contract": "tsx scripts/check-production-g3-recovery-contract.ts",
+    "check:production:g3-recovery-postgres": "tsx scripts/check-production-g3-recovery-postgres.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
