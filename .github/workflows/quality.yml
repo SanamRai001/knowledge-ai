@@ -244,6 +244,9 @@ jobs:
       - name: Production F1 secret KMS forensic audit proof
         run: npm run check:production:f1-secret-kms-audit
 
+      - name: Production F2 Integration OAuth SecretStore contract proof
+        run: npm run check:production:f2-integration-oauth-secret-store-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -404,3 +407,6 @@ jobs:
 
       - name: Production E5 Automation execution worker PostgreSQL proof
         run: npm run check:production:e5-automation-execution-worker-postgres
+
+      - name: Production F2 Integration OAuth SecretStore PostgreSQL proof
+        run: npm run check:production:f2-integration-oauth-secret-store-postgres
