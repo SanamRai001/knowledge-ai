@@ -190,6 +190,7 @@ type AutomationContext = {
   role: AutomationActorRole;
   source: string;
   capabilities: {
+    canManagePolicy: boolean;
     canControlEmergencyStop: boolean;
     canResolveApprovals: boolean;
     canCompensate: boolean;
@@ -704,6 +705,20 @@ export const AutomationWorkspace: React.FC = () => {
               <h3 className="text-sm font-semibold text-slate-900">
                 Effective automation policy
               </h3>
+            </div>
+
+            <div
+              id="automation-policy-admin-boundary"
+              className={
+                'mb-4 rounded-xl border px-3.5 py-3 text-[11px] leading-5 ' +
+                (context?.capabilities.canManagePolicy
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-500')
+              }
+            >
+              {context?.capabilities.canManagePolicy
+                ? 'Policy administration is available to your OWNER/ADMIN role. This dashboard remains the read/operational view; policy writes still use the privileged server boundary.'
+                : 'Automation policy is read-only for your current role. OWNER or ADMIN membership is required to create or change policy.'}
             </div>
 
             {policy ? (
