@@ -150,6 +150,7 @@
     "check:production:i3a-adversarial-evidence": "tsx scripts/check-production-i3a-adversarial-evidence.ts",
     "check:production:i3b-transaction-race-stress-postgres": "tsx scripts/check-production-i3b-transaction-race-stress-postgres.ts",
     "check:production:i3c-sustained-worker-pressure-postgres": "tsx scripts/check-production-i3c-sustained-worker-pressure-postgres.ts",
+    "check:production:j1-ux-admin-forensic-audit": "tsx scripts/check-production-j1-ux-admin-forensic-audit.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
     "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
