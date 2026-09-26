@@ -15,6 +15,11 @@ export interface AuthMeResponse {
     role: MembershipRole;
     status: string;
   } | null;
+  memberships: Array<{
+    accountId: string;
+    role: MembershipRole;
+    status: string;
+  }>;
   session: {
     id: string;
     selectedAccountId: string | null;
