@@ -865,8 +865,7 @@ async function genericWorkerPressure() {
               FROM action_executions
              WHERE account_id = $1
                AND proposal_id =
-                 ANY($2::text[])
-               AND status = 'SUCCEEDED')
+                 ANY($2::text[]))
              AS executions,
            (SELECT count(*)::int
               FROM knowledge_claims
