@@ -38,11 +38,13 @@ export type RequestIdentityErrorCode =
 export class RequestIdentityError extends Error {
   public statusCode: number;
   public code: RequestIdentityErrorCode;
+  public readonly retryAfterSeconds?: number;
 
   constructor(
     code: RequestIdentityErrorCode,
     statusCode: number,
-    message: string
+    message: string,
+    retryAfterSeconds?: number
   ) {
     super(message);
     this.name = 'RequestIdentityError';
