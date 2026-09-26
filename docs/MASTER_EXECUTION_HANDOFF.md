@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J4 — Organization/Member Administration.**
+> **Continue with Production Hardening J5 — Production Recovery/Diagnostics UX.**
 
 Phases 0–8 are complete.
 
@@ -1109,7 +1109,8 @@ Track A relational milestones:
 - J1 Production UX/Admin Forensic Audit — COMPLETE, workflow `36231584786`
 - J2 Session + Role-Aware Application Shell — COMPLETE, workflow `36233824606`
 - J3 Admin/Developer Surface Separation — COMPLETE, workflow `36236249878`
-- J4 Organization/Member Administration — NEXT
+- J4 Organization/Member Administration — COMPLETE, workflow `36252491424`
+- J5 Production Recovery/Diagnostics UX — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1297,17 +1298,19 @@ I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
 J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 
-Next, do **J4 only — Organization/Member Administration**:
+J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
 
-1. audit existing user/account-membership/session/account-selection server contracts first
-2. define only the missing durable OWNER/ADMIN member-management endpoints required by the product UI
-3. add a member list with user identity, role, and membership status
-4. add invite/join lifecycle only when backed by explicit server state and validation
-5. add role changes with OWNER/ADMIN enforcement and last-owner/self-demotion safety where applicable
-6. expose membership activation/deactivation only where the backend status model supports it
-7. keep account selection session/membership bound; never trust arbitrary frontend account IDs
-8. hide privileged member mutation controls from MEMBER users while preserving allowed organization visibility
-9. add J4 cross-account, authorization, and UI drift proofs
-10. stop before J5 production recovery/diagnostics UX
+Next, do **J5 only — Production Recovery/Diagnostics UX**:
 
-Do not build organization/member UI on top of nonexistent backend mutation contracts. Audit and define the server contract first.
+1. audit the current G2 readiness/degraded-state plus G3/H4 recovery/release contracts first
+2. classify diagnostics by ordinary-member versus privileged/operator visibility
+3. surface provider/storage/dependency degradation with stable user-facing explanations
+4. add one supported diagnostics surface only where current backend authorization/contracts permit it
+5. expose recovery links/actions only when backed by a real server operation
+6. redact secrets, credentials, buckets, KMS material, database details, topology, and stack traces from browser diagnostics
+7. preserve J2 session/permission/degraded behavior and J3/J4 capability-aware navigation
+8. keep readiness/recovery semantics aligned with G2/G3/H4 evidence
+9. add J5 authorization/redaction/degraded-state/UI drift proofs
+10. stop before new product capabilities or unsupported infrastructure controls
+
+Do not invent recovery controls on top of nonexistent backend operations.
