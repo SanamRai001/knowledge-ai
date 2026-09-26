@@ -1,5 +1,17 @@
 # Knowledge AI Product Direction
 
+> **Current-state note — 2026-09-26**
+>
+> The original document-assistant positioning below remains the trust foundation, but the implemented product has expanded substantially beyond document Q&A. Product Phases 0–8 and Production Hardening A–J are complete on `main`.
+>
+> For the authoritative description of what exists today, what is definitely next, and what remains optional future work, read:
+>
+> `docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md`
+>
+> Current committed next objective: **L1 — Real staging promotion**.
+>
+> Do not interpret older “advanced/future” wording in this file as evidence that a capability is still missing; check the canonical current-state roadmap first.
+
 ## Positioning
 
 **Knowledge AI is a trustworthy private document assistant for teams.**
