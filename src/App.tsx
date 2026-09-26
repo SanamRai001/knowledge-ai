@@ -28,7 +28,7 @@ import {
 } from './types';
 import {
   ApiRequestError,
-  canManageDeveloperPlatform,
+  canManageIntegrationLifecycle,
   readApiResponse,
   shellStateFromError,
   type AuthMeResponse,
@@ -570,26 +570,16 @@ export default function App() {
 
   const membershipRole =
     authContext?.membership?.role;
-  const canManageDeveloper =
-    canManageDeveloperPlatform(
+  const canManageIntegrations =
+    canManageIntegrationLifecycle(
       membershipRole
     );
   const effectiveTab: ActiveTab =
-    currentTab === 'developer' &&
-    !canManageDeveloper
-      ? 'playground'
-      : currentTab;
+    currentTab;
 
   const handleTabChange = (
     tab: ActiveTab
   ) => {
-    if (
-      tab === 'developer' &&
-      !canManageDeveloper
-    ) {
-      setCurrentTab('playground');
-      return;
-    }
     setCurrentTab(tab);
   };
 
@@ -692,7 +682,13 @@ export default function App() {
         {effectiveTab === 'watch' && <WatchWorkspace />}
 
         {/* External provider connections and sync history */}
-        {effectiveTab === 'integrations' && <IntegrationsWorkspace />}
+        {effectiveTab === 'integrations' && (
+          <IntegrationsWorkspace
+            canManageLifecycle={
+              canManageIntegrations
+            }
+          />
+        )}
 
         {/* Structured business datasets */}
         {effectiveTab === 'datasets' && (
@@ -764,13 +760,15 @@ export default function App() {
           />
         )}
 
-        {/* Developer platform and REST API */}
-        {effectiveTab === 'developer' &&
-          canManageDeveloper && (
-            <DeveloperPlatform
-              activeKb={activeKb}
-            />
-          )}
+        {/* Stable developer platform + privileged key administration */}
+        {effectiveTab === 'developer' && (
+          <DeveloperPlatform
+            activeKb={activeKb}
+            membershipRole={
+              authContext.membership.role
+            }
+          />
+        )}
 
       </div>
 
