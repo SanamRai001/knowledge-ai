@@ -4,9 +4,9 @@
 
 # Knowledge AI
 
-**Trustworthy answers from your private documents.**
+**A trustworthy company intelligence layer that can ask, understand, act, and watch.**
 
-Knowledge AI is a document-grounded assistant for teams. Upload company knowledge, ask questions in natural language, and receive answers backed by retrieved evidence and citations. When the available documents do not support an answer, the system is designed to abstain instead of guessing.
+Knowledge AI started as a document-grounded assistant and has grown into a private company intelligence platform. It combines evidence-backed Ask, structured analytics, Insights, Living Company Knowledge, safe Actions, Watch rules, Integrations, and controlled Automation while preserving provenance, tenant isolation, auditability, and explicit refusal when evidence is insufficient.
 
 ## Product promise
 
@@ -56,20 +56,26 @@ The project currently includes:
 
 - React 19 + Vite frontend
 - Express + TypeScript backend
-- PDF ingestion and document workspaces
-- hybrid retrieval and reranking
-- hierarchical indexing
-- knowledge-graph retrieval
-- corrective RAG / re-retrieval
-- structured-table arithmetic
-- claim verification and citations
-- conversational query resolution
-- multilingual query support
-- evaluation and benchmark tooling
-- memory and learning experiments
-- multi-tenant / API platform experiments
+- PostgreSQL-authoritative multi-tenant application state
+- S3-compatible durable source/object storage
+- evidence-grounded document Ask with citations and abstention
+- CSV/XLSX Dataset analytics and historical versions
+- Insights and Living Company Knowledge
+- safe natural-language Actions with transactional confirmation
+- Watch rules and controlled Automation
+- Google Drive and Microsoft OneDrive integration foundations
+- durable PostgreSQL worker jobs with retries, leases, dead-letter state, and health/readiness
+- encrypted SecretStore/KMS boundary for OAuth credentials
+- role-aware human sessions plus separate API-key machine identity
+- organization/member administration and privileged platform management
+- production observability, recovery validation, and operator diagnostics
+- reproducible non-root production image and immutable staging/release promotion gate
+- load, abuse, race/idempotency, and adversarial regression gates
+- evaluation, unseen-corpus, and live Gemini benchmark tooling
 
-Gemini is currently the primary live LLM path. A deterministic grounded generator is used as a fallback when no Gemini key is available or generation fails.
+Gemini is currently the primary live LLM path. A deterministic grounded generator remains available as a grounded fallback when live generation is unavailable.
+
+The complete Product Phase 0–8 roadmap and Production Hardening A–J roadmap have both passed their defined exit gates. The next committed work is real staging/pilot/launch execution rather than another speculative hardening phase.
 
 ## Run locally
 
@@ -123,7 +129,9 @@ The product should be evaluated on metrics such as:
 - multilingual retrieval quality
 - latency and provider failure rate
 
-See `docs/PRODUCT_DIRECTION.md` and `docs/EFFECTIVENESS_AUDIT.md` for the current product contract and audit findings.
+See `docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md` for the canonical current product state, committed launch roadmap, and clearly separated optional future ideas.
+
+See `docs/PRODUCT_DIRECTION.md` and `docs/EFFECTIVENESS_AUDIT.md` for the product contract and effectiveness findings.
 
 For the larger destination beyond the current document-assistant milestone, see `docs/LONG_TERM_PRODUCT_VISION.md`. It defines the long-term direction toward a living company intelligence layer that can **read, understand, act, and watch** while preserving evidence, permissions, history, and safe approvals.
 
@@ -139,4 +147,5 @@ For the implementation sequence and phase exit gates, see `docs/IMPLEMENTATION_R
 
 - [`docs/PLATFORM_API_V1.md`](docs/PLATFORM_API_V1.md) — stable Platform API v1 developer contract.
 - [`docs/PHASE_8_FINAL_AUDIT.md`](docs/PHASE_8_FINAL_AUDIT.md) — final extensible-platform exit audit.
-- [`docs/PRODUCTION_HARDENING_ROADMAP.md`](docs/PRODUCTION_HARDENING_ROADMAP.md) — current roadmap after completion of product Phases 0–8.
+- [`docs/PRODUCTION_HARDENING_ROADMAP.md`](docs/PRODUCTION_HARDENING_ROADMAP.md) — completed historical A–J production-hardening roadmap.
+- [`docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md`](docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md) — canonical current state, committed L1–L5 launch roadmap, and optional future ideas.
