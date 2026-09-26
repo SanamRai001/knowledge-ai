@@ -785,7 +785,7 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 **Production hardening roadmap — COMPLETE**
 
-J6 is the final phase defined in the current A–J production-hardening roadmap.
+J6 is the final phase defined in the A–J production-hardening roadmap.
 
 The completed hardening program now covers:
 
@@ -801,16 +801,23 @@ The completed hardening program now covers:
 - abuse/race/security stress hardening
 - production UX/admin/recovery cleanup
 
-Do **not** invent J7 or continue implementation under an undefined phase.
+Do **not** invent J7.
 
-Before further implementation, author an explicit next roadmap based on one of:
+The required post-hardening roadmap has now been authored:
 
-1. staging/release execution using the existing H4 promotion gate
-2. production launch/readiness verification using G2/G3/H4 contracts
-3. a new product-capability roadmap
-4. a measured follow-up from staging/production evidence
+`docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md`
 
-Reopen a completed hardening phase only for a demonstrated regression.
+The committed next objective is:
+
+**L1 — Real staging promotion**
+
+That roadmap deliberately separates:
+
+- completed capabilities
+- committed launch work we definitely plan to execute
+- optional future product/infrastructure ideas that are not commitments
+
+Reopen a completed A–J phase only for a demonstrated regression.
 
 ---
 
