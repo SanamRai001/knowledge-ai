@@ -10,6 +10,12 @@ import {
   postgresApiKeyRepository,
   postgresApiUsageRepository,
 } from './persistence/postgresRepositories.js';
+import {
+  distributedSecurityState,
+} from './security/distributedSecurityState.js';
+import {
+  I2_SECURITY_THRESHOLDS,
+} from './security/i2SecurityThresholds.js';
 
 export class ApiKeyRuntimeService {
   public usesPostgres(): boolean {
@@ -99,6 +105,35 @@ export class ApiKeyRuntimeService {
           'Could not persist API-key last-used timestamp:',
           error
         );
+      });
+  }
+
+  public async checkRateLimit(
+    keyId: string,
+    maxRequests =
+      I2_SECURITY_THRESHOLDS
+        .apiKey
+        .maxRequestsPerWindow
+  ): Promise<{
+    allowed: boolean;
+    remaining: number;
+    resetSeconds: number;
+  }> {
+    if (!this.usesPostgres()) {
+      return apiKeyStore.checkRateLimit(
+        keyId,
+        maxRequests
+      );
+    }
+
+    return distributedSecurityState
+      .consumeRateLimit({
+        scope: 'API_KEY',
+        subject: keyId,
+        maxEvents: maxRequests,
+        windowMs:
+          I2_SECURITY_THRESHOLDS
+            .apiKey.windowMs,
       });
   }
 
