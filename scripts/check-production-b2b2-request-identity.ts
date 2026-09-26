@@ -351,11 +351,13 @@ async function main() {
         },
       }
     );
+    const syncMachineBody =
+      await json(syncMachine);
     assert(
-      syncMachine.status === 200 &&
-        (await json(syncMachine)).source ===
-          'API_KEY',
-      'The existing synchronous machine API-key path must keep working before B2C.'
+      syncMachine.status === 503 &&
+        syncMachineBody.code ===
+          'UNAUTHORIZED',
+      'After I2, the obsolete synchronous PostgreSQL API-key resolver must fail closed rather than bypass distributed quota enforcement.'
     );
 
     const ambiguous = await fetch(

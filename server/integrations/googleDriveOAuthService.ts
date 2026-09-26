@@ -12,8 +12,9 @@ import {
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
-  GoogleDriveOAuthStateStore,
-  googleDriveOAuthStateStore,
+  GoogleDriveOAuthStateError,
+  type GoogleDriveOAuthStateAccess,
+  googleDriveOAuthStateRuntime,
 } from './googleDriveOAuthStateStore.js';
 import {
   GoogleDriveCredentialSecret,
@@ -61,8 +62,9 @@ export class GoogleDriveOAuthError extends Error {
 
 export class GoogleDriveOAuthService {
   constructor(
-    private readonly stateStore: GoogleDriveOAuthStateStore =
-      googleDriveOAuthStateStore,
+    private readonly stateStore:
+      GoogleDriveOAuthStateAccess =
+        googleDriveOAuthStateRuntime,
     private readonly credentialStore: IntegrationCredentialAccess =
       integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
@@ -106,7 +108,8 @@ export class GoogleDriveOAuthService {
       displayName = existing.displayName;
     }
 
-    const { state, attempt } = this.stateStore.create({
+    const { state, attempt } =
+      await this.stateStore.create({
       accountId: params.accountId,
       displayName,
       redirectUri: config.redirectUri,
@@ -150,7 +153,29 @@ export class GoogleDriveOAuthService {
       );
     }
 
-    const attempt = this.stateStore.consume(params.state);
+    let attempt;
+    try {
+      attempt =
+        await this.stateStore.consume(
+          params.state,
+          params.expectedAccountId
+        );
+    } catch (error) {
+      if (
+        error instanceof
+          GoogleDriveOAuthStateError &&
+        error.code ===
+          'OAUTH_ACCOUNT_MISMATCH'
+      ) {
+        throw new GoogleDriveOAuthError(
+          'OAUTH_ACCOUNT_MISMATCH',
+          403,
+          'Google Drive OAuth state belongs to a different account.'
+        );
+      }
+      throw error;
+    }
+
     if (
       params.expectedAccountId &&
       attempt.accountId !== params.expectedAccountId

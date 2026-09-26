@@ -1270,6 +1270,10 @@ H3 now validates/configures the web edge, enforces explicit trusted-proxy/HSTS o
 
 H4 now enforces immutable build-once promotion using one source/build/image identity, single-writer checksum-verified migrations, fresh web/worker readiness and G3 recovery evidence, staging/production separation across DB/object/KMS/origin/web/worker/migration identities, forward-only rollback policy, immutable GitHub Action pins, CycloneDX SBOM plus dependency gates, and a hardened runtime image that passes HIGH/CRITICAL Trivy scanning.
 
+I1 now provides measured concurrent tenant-isolation smoke, modern API-key abuse coverage, bounded ingestion/malformed-input tests, OAuth/CSRF/SSRF regression guards, and reusable isolated-environment load tooling without making production-capacity claims.
+
+I2 now makes API-key quota enforcement and human-login throttling shared across PostgreSQL-backed web replicas, moves Google/OneDrive OAuth attempts to shared one-time relational state, keeps OneDrive PKCE verifier material encrypted behind the F2 SecretStore, preserves account binding/replay/expiry semantics, and adds bounded cleanup plus cross-replica proofs.
+
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
@@ -1278,17 +1282,19 @@ H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 
 I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 
-Next, do **I2 only — Distributed Abuse & Auth-State Hardening**:
+I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
-1. replace process-local API-key rate-limit state with a shared/durable multi-replica enforcement boundary
-2. retain the measured 100 requests / 60 seconds / key contract unless new evidence deliberately changes it
-3. prove one API key shares one quota across two independent web instances
-4. add non-enumerating human-login attempt throttling with bounded cleanup
-5. replace in-memory Google/OneDrive OAuth attempt state with shared one-time state
-6. prove OAuth start on web instance A can complete on web instance B
-7. preserve state expiry, account binding, replay denial, Google scope/refresh rules, and OneDrive PKCE
-8. protect PKCE verifier/state secrets using the existing F2 secret boundary where appropriate
-9. test cross-replica replay/cross-account abuse and cleanup/retention
-10. stop before I3 prompt-injection/evidence, race/idempotency stress, sustained worker load, or Track J UI/admin cleanup
+Next, do **I3 only — Deep Adversarial, Race/Idempotency & Sustained Worker Stress**:
 
-Do not claim cluster capacity merely because distributed security-state tests pass.
+1. build a prompt-injection/evidence-boundary adversarial corpus for document, Dataset, and mixed-source queries
+2. stress source-authority conflicts and prove weaker/untrusted evidence cannot silently win
+3. add adversarial cross-tenant retrieval/query isolation cases
+4. stress concurrent D1 Action confirmation idempotency
+5. stress concurrent D2 Automation execution idempotency
+6. stress concurrent D3 Watch completion idempotency
+7. run sustained Watch worker pressure with measured lease/retry/dead-letter behavior
+8. run sustained Integration worker pressure with C6 checkpoint/cursor correctness
+9. run sustained Automation worker pressure with D2 mutation idempotency
+10. use explicit bounded CI/staging thresholds and stop before Track J UX/admin cleanup
+
+Do not make production-scale claims from I3 synthetic tests.

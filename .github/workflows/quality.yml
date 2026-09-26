@@ -289,6 +289,9 @@ jobs:
       - name: Production I1 adversarial boundary proof
         run: npm run check:production:i1-abuse-boundaries
 
+      - name: Production I2 distributed abuse auth-state contract proof
+        run: npm run check:production:i2-distributed-abuse-auth-state-contract
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -467,6 +470,9 @@ jobs:
 
       - name: Production I1 concurrent identity isolation PostgreSQL proof
         run: npm run check:production:i1-concurrent-isolation-postgres
+
+      - name: Production I2 distributed abuse auth-state PostgreSQL proof
+        run: npm run check:production:i2-distributed-abuse-auth-state-postgres
 
 
   h2_image:

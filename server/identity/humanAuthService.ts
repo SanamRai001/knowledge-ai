@@ -14,6 +14,9 @@ import type {
   HumanUser,
   IdentityFoundationRepository,
 } from './types.js';
+import {
+  humanLoginThrottleService,
+} from './humanLoginThrottleService.js';
 
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 1024;
@@ -29,19 +32,24 @@ export type HumanAuthErrorCode =
   | 'AUTH_BOOTSTRAP_ALREADY_USED'
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
+  | 'AUTH_RATE_LIMITED'
   | 'AUTH_EMAIL_INVALID'
   | 'AUTH_PASSWORD_INVALID';
 
 export class HumanAuthError extends Error {
   public readonly code: HumanAuthErrorCode;
+  public readonly retryAfterSeconds?: number;
 
   constructor(
     code: HumanAuthErrorCode,
-    message: string
+    message: string,
+    retryAfterSeconds?: number
   ) {
     super(message);
     this.name = 'HumanAuthError';
     this.code = code;
+    this.retryAfterSeconds =
+      retryAfterSeconds;
   }
 }
 
@@ -315,6 +323,18 @@ export class HumanAuthService {
     password: string;
     previousSessionSecret?: string;
   }) {
+    const throttle =
+      await humanLoginThrottleService
+        .reserve(params.email);
+
+    if (!throttle.allowed) {
+      throw new HumanAuthError(
+        'AUTH_RATE_LIMITED',
+        'Email or password is incorrect. Try again later.',
+        throttle.resetSeconds
+      );
+    }
+
     const normalizedEmail = normalizeLoginEmail(params.email);
     const login =
       await this.authRepository.findLoginIdentity(
@@ -359,6 +379,9 @@ export class HumanAuthService {
         'No active account membership is available for this user.'
       );
     }
+
+    await humanLoginThrottleService
+      .clear(params.email);
 
     if (params.previousSessionSecret) {
       await humanIdentityFoundationService.revokeSession(

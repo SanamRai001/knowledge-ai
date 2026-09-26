@@ -63,9 +63,9 @@ function humanSessionSecret(
   ];
 }
 
-function resolveApiKeyIdentity(
+async function resolveApiKeyIdentity(
   authHeader: string | string[] | undefined
-): RequestIdentity | null {
+): Promise<RequestIdentity | null> {
   if (!authHeader) return null;
 
   if (typeof authHeader !== 'string') {
@@ -102,9 +102,10 @@ function resolveApiKeyIdentity(
   }
 
   const rateLimit =
-    apiKeyStore.checkRateLimit(
-      validation.apiKey.id
-    );
+    await apiKeyRuntimeService
+      .checkRateLimit(
+        validation.apiKey.id
+      );
   if (!rateLimit.allowed) {
     throw new RequestIdentityError(
       'RATE_LIMITED',
@@ -187,10 +188,93 @@ export function resolveRequestIdentity(
     sessionSecret
   );
 
-  const apiKeyIdentity =
-    resolveApiKeyIdentity(authHeader);
-  if (apiKeyIdentity) {
-    return apiKeyIdentity;
+  if (authHeader) {
+    if (
+      apiKeyRuntimeService.usesPostgres()
+    ) {
+      throw new RequestIdentityError(
+        'UNAUTHORIZED',
+        503,
+        'Legacy synchronous API-key identity is unavailable in PostgreSQL production mode.'
+      );
+    }
+
+    if (
+      typeof authHeader !== 'string'
+    ) {
+      throw new RequestIdentityError(
+        'UNAUTHORIZED',
+        401,
+        'Invalid Authorization header.'
+      );
+    }
+
+    const parts =
+      authHeader
+        .trim()
+        .split(/\s+/);
+    if (
+      parts.length !== 2 ||
+      parts[0].toLowerCase() !==
+        'bearer'
+    ) {
+      throw new RequestIdentityError(
+        'UNAUTHORIZED',
+        401,
+        'Invalid Authorization header format. Expected "Bearer <API_KEY>".'
+      );
+    }
+
+    const validation =
+      apiKeyStore.validateApiKey(
+        parts[1]
+      );
+    if (
+      !validation.valid ||
+      !validation.apiKey
+    ) {
+      const revoked =
+        validation.error
+          ?.toLowerCase()
+          .includes('revoked') ||
+        false;
+      throw new RequestIdentityError(
+        revoked
+          ? 'FORBIDDEN'
+          : 'UNAUTHORIZED',
+        revoked ? 403 : 401,
+        validation.error ||
+          'Invalid API key.'
+      );
+    }
+
+    const rateLimit =
+      apiKeyStore.checkRateLimit(
+        validation.apiKey.id
+      );
+    if (!rateLimit.allowed) {
+      throw new RequestIdentityError(
+        'RATE_LIMITED',
+        429,
+        'Rate limit exceeded. Please try again later.',
+        rateLimit.resetSeconds
+      );
+    }
+
+    apiKeyRuntimeService
+      .noteValidatedKey(
+        validation.apiKey
+      );
+
+    return {
+      accountId:
+        validation.apiKey
+          .accountId,
+      source: 'API_KEY',
+      authenticated: true,
+      apiKeyId:
+        validation.apiKey.id,
+    };
   }
 
   if (sessionSecret) {
@@ -224,7 +308,9 @@ export async function resolveAuthenticatedRequestIdentity(
   );
 
   const apiKeyIdentity =
-    resolveApiKeyIdentity(authHeader);
+    await resolveApiKeyIdentity(
+      authHeader
+    );
   if (apiKeyIdentity) {
     return apiKeyIdentity;
   }

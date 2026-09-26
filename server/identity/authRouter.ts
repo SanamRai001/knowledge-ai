@@ -73,13 +73,25 @@ function handleAuthError(error: unknown, res: any) {
           ? 403
           : error.code === 'AUTH_BOOTSTRAP_ALREADY_USED'
             ? 409
-            : error.code === 'AUTH_PASSWORD_INVALID' ||
-                error.code === 'AUTH_EMAIL_INVALID'
-              ? 400
-              : error.code ===
-                  'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
-                ? 403
-                : 401;
+            : error.code === 'AUTH_RATE_LIMITED'
+              ? 429
+              : error.code === 'AUTH_PASSWORD_INVALID' ||
+                  error.code === 'AUTH_EMAIL_INVALID'
+                ? 400
+                : error.code ===
+                    'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
+                  ? 403
+                  : 401;
+    if (
+      error.code === 'AUTH_RATE_LIMITED' &&
+      error.retryAfterSeconds
+    ) {
+      res.setHeader(
+        'Retry-After',
+        String(error.retryAfterSeconds)
+      );
+    }
+
     return res.status(status).json({
       error: {
         code: error.code,

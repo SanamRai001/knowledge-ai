@@ -10,8 +10,9 @@ import {
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
-  MicrosoftOneDriveOAuthStateStore,
-  microsoftOneDriveOAuthStateStore,
+  MicrosoftOneDriveOAuthStateError,
+  type MicrosoftOneDriveOAuthStateAccess,
+  microsoftOneDriveOAuthStateRuntime,
 } from './microsoftOneDriveOAuthStateStore.js';
 import {
   MicrosoftOneDriveCredentialSecret,
@@ -69,8 +70,9 @@ export class MicrosoftOneDriveOAuthError extends Error {
 
 export class MicrosoftOneDriveOAuthService {
   constructor(
-    private readonly stateStore: MicrosoftOneDriveOAuthStateStore =
-      microsoftOneDriveOAuthStateStore,
+    private readonly stateStore:
+      MicrosoftOneDriveOAuthStateAccess =
+        microsoftOneDriveOAuthStateRuntime,
     private readonly credentialStore: IntegrationCredentialAccess =
       integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
@@ -115,7 +117,7 @@ export class MicrosoftOneDriveOAuthService {
     }
 
     const { state, codeChallenge, attempt } =
-      this.stateStore.create({
+      await this.stateStore.create({
         accountId: params.accountId,
         displayName,
         redirectUri: config.redirectUri,
@@ -165,7 +167,29 @@ export class MicrosoftOneDriveOAuthService {
       );
     }
 
-    const attempt = this.stateStore.consume(params.state);
+    let attempt;
+    try {
+      attempt =
+        await this.stateStore.consume(
+          params.state,
+          params.expectedAccountId
+        );
+    } catch (error) {
+      if (
+        error instanceof
+          MicrosoftOneDriveOAuthStateError &&
+        error.code ===
+          'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH'
+      ) {
+        throw new MicrosoftOneDriveOAuthError(
+          'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH',
+          403,
+          'OneDrive OAuth state belongs to a different account.'
+        );
+      }
+      throw error;
+    }
+
     if (
       params.expectedAccountId &&
       attempt.accountId !== params.expectedAccountId

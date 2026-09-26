@@ -432,10 +432,21 @@ async function main() {
           'OAUTH_ACCOUNT_MISMATCH',
       'Google OAuth callback must reject state from another account before token exchange.'
     );
+    const googleRightful =
+      googleState.consume(
+        google.state,
+        'acc_i1_google_a'
+      );
+    assert(
+      googleRightful.accountId ===
+        'acc_i1_google_a',
+      'After I2, a wrong-account Google callback must not burn the rightful account state.'
+    );
     await expectReject(
       Promise.resolve().then(() =>
         googleState.consume(
-          google.state
+          google.state,
+          'acc_i1_google_a'
         )
       ),
       (error) =>
@@ -443,7 +454,7 @@ async function main() {
           GoogleDriveOAuthStateError &&
         error.code ===
           'OAUTH_STATE_INVALID',
-      'Consumed Google OAuth state must not be replayable.'
+      'After rightful consumption, Google OAuth state must not be replayable.'
     );
 
     const oneDriveState =
@@ -483,10 +494,21 @@ async function main() {
           'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH',
       'OneDrive OAuth callback must reject state from another account before token exchange.'
     );
+    const oneDriveRightful =
+      oneDriveState.consume(
+        oneDrive.state,
+        'acc_i1_onedrive_a'
+      );
+    assert(
+      oneDriveRightful.accountId ===
+        'acc_i1_onedrive_a',
+      'After I2, a wrong-account OneDrive callback must not burn the rightful account state.'
+    );
     await expectReject(
       Promise.resolve().then(() =>
         oneDriveState.consume(
-          oneDrive.state
+          oneDrive.state,
+          'acc_i1_onedrive_a'
         )
       ),
       (error) =>
@@ -494,7 +516,7 @@ async function main() {
           MicrosoftOneDriveOAuthStateError &&
         error.code ===
           'ONEDRIVE_OAUTH_STATE_INVALID',
-      'Consumed OneDrive OAuth state must not be replayable.'
+      'After rightful consumption, OneDrive OAuth state must not be replayable.'
     );
 
     let originBlocked = false;
