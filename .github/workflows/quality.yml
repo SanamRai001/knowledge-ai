@@ -480,6 +480,9 @@ jobs:
       - name: Production I3B transaction race stress PostgreSQL proof
         run: npm run check:production:i3b-transaction-race-stress-postgres
 
+      - name: Production I3C sustained worker pressure PostgreSQL proof
+        run: npm run check:production:i3c-sustained-worker-pressure-postgres
+
 
   h2_image:
     name: Production H2 Image Smoke
