@@ -148,26 +148,32 @@ async function main() {
   }
 
   assert(
-    fs.existsSync(
+    !fs.existsSync(
       'src/components/Phase7ReadinessView.tsx'
     ) &&
-      fs.existsSync(
+      !fs.existsSync(
         'src/components/Phase8OperationalDashboard.tsx'
+      ) &&
+      !fs.existsSync(
+        'src/components/Phase9SaaSPlatformView.tsx'
       ) &&
       !app.includes(
         'Phase7ReadinessView'
       ) &&
       !app.includes(
         'Phase8OperationalDashboard'
+      ) &&
+      !app.includes(
+        'Phase9SaaSPlatformView'
       ),
-    'J5 must add a supported diagnostics surface without reviving deprecated phase-numbered operator UI.'
+    'J5 diagnostics must remain supported and privileged after J6 removes deprecated phase-numbered operator UI.'
   );
 
   console.log(
     'PRODUCTION_J5_RECOVERY_DIAGNOSTICS_UI_CHECK_PASSED'
   );
   console.log(
-    'Privileged navigation, direct-URL gating, sanitized 503 UX, read-only diagnostics, no unsafe recovery controls, and legacy operator UI quarantine are verified.'
+    'Privileged navigation, direct-URL gating, sanitized 503 UX, read-only diagnostics, no unsafe recovery controls, and post-J6 legacy operator UI removal are verified.'
   );
 }
 

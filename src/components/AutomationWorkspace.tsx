@@ -777,7 +777,7 @@ export const AutomationWorkspace: React.FC = () => {
 
                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-3 text-[11px] leading-5 text-slate-500">
                   <span className="font-semibold text-slate-700">
-                    Phase 7 execution boundary:
+                    Execution safety boundary:
                   </span>{' '}
                   RECEIVE_INVENTORY is the only automatic write path currently
                   implemented. RECORD_PAYMENT, UPDATE_STATUS, and CREATE_ORDER cannot
