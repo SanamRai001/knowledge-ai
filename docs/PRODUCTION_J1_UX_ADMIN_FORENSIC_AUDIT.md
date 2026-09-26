@@ -1,6 +1,6 @@
 # Production J1 — UX/Admin Forensic Audit
 
-Status: **IMPLEMENTED — awaiting integrated Quality Gate validation.**
+Status: **COMPLETE** — authoritative integrated Quality Gate `36231584786`.
 
 ## Goal
 
@@ -361,3 +361,40 @@ J1 is complete when:
 - an executable drift proof protects these findings until implementation begins
 
 No production UI behavior is intentionally changed in J1.
+
+
+## Validation
+
+Authoritative integrated Quality Gate:
+
+`36231584786`
+
+Verified green:
+
+- TypeScript
+- production build
+- Phase 0–8 product regression suite
+- PostgreSQL production proofs through I3
+- J1 UX/Admin forensic drift proof
+- immutable production image smoke
+- dependency vulnerability gate
+- CycloneDX SBOM verification
+- production image vulnerability scan
+- arithmetic grounding
+- deterministic synthesis
+- unseen-corpus benchmark
+- live Gemini benchmark
+
+## Next phase
+
+**J2 — Session + Role-Aware Application Shell**
+
+J2 should implement only the smallest high-value shell cutover identified by this audit:
+
+1. bootstrap the browser shell from `GET /api/auth/me`
+2. represent loading/authenticated/session-required/permission/degraded states explicitly
+3. make Header navigation membership-role aware
+4. remove normal-user exposure of Trust Checks
+5. prevent unauthorized direct Developer tab selection
+6. preserve all backend authorization as the final enforcement layer
+7. avoid redesigning the actual Ask/Knowledge/Actions/Watch/Integration workspaces
