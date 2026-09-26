@@ -198,7 +198,8 @@ The implementation sequence is deliberately split into small slices:
 43. **I1 — Load, Abuse, and Security Test Foundation** — COMPLETE, workflow `36218326048`
 44. **I2 — Distributed Abuse & Auth-State Hardening** — COMPLETE, workflow `36221948773`
 45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228815635`
-46. **J1 — Production UX/Admin Forensic Audit** — NEXT
+46. **J1 — Production UX/Admin Forensic Audit** — COMPLETE, workflow `36231584786`
+47. **J2 — Session + Role-Aware Application Shell** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -768,7 +769,7 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J1 — Production UX/Admin Forensic Audit**
+**Production Hardening J2 — Session + Role-Aware Application Shell**
 
 Do not redesign first.
 
