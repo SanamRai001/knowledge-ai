@@ -197,7 +197,7 @@ The implementation sequence is deliberately split into small slices:
 42. **H4 — Staging Promotion + Rollback Release Gate** — COMPLETE, workflow `36175108771`
 43. **I1 — Load, Abuse, and Security Test Foundation** — COMPLETE, workflow `36218326048`
 44. **I2 — Distributed Abuse & Auth-State Hardening** — COMPLETE, workflow `36221948773`
-45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228011034`
+45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228815635`
 46. **J1 — Production UX/Admin Forensic Audit** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
