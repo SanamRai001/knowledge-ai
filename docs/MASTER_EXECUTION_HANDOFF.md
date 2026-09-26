@@ -1,6 +1,6 @@
 # Knowledge AI — Master Execution Handoff
 
-Last updated: **2026-09-18**
+Last updated: **2026-09-26**
 
 This is the **continuity source of truth** for continuing Knowledge AI development across chats/sessions.
 
@@ -860,11 +860,13 @@ Complete when extensions can add domain value without bypassing:
 
 The original Phase 0–8 product capability roadmap is complete.
 
-### Exact next implementation task
+### Historical next task at Phase 8 closure
 
-Continue with **Production Hardening A1 — persistence forensic audit**.
+> Historical context only. This was the next task when Product Phase 8 first closed; A1 and the full A–J hardening program are now complete.
 
-Read `docs/PRODUCTION_HARDENING_ROADMAP.md` and inventory every mutable runtime store before introducing PostgreSQL.
+The hardening program originally continued with **Production Hardening A1 — persistence forensic audit**.
+
+The instructions below are retained as historical execution context, not as the current task.
 
 1. audit existing public/developer endpoints, API-key auth, scopes, and DeveloperPlatform UI
 2. define versioned external contracts for Sources, Ask, Insights, Actions, Watch, and Audit
@@ -1307,20 +1309,26 @@ J6 evidence: `docs/PRODUCTION_J6_COPY_DEAD_SURFACE_CLEANUP.md`.
 
 The defined **Production Hardening A–J roadmap is complete**.
 
-J6 is the final named phase in this roadmap. Do not create J7 implicitly.
+J6 is the final named phase in that roadmap. Do not create J7 implicitly.
 
-Before writing more production code:
+The post-hardening roadmap now exists:
 
-1. verify the latest `main` Quality Gate and release evidence
-2. choose the next objective explicitly
-3. author a new roadmap for that objective before implementation
-4. prefer staging/production measurements over speculative hardening
+`docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md`
 
-Reasonable next objectives are:
+## Exact next objective
 
-- execute a real staging promotion through H4 and collect release/readiness evidence
-- perform production launch/readiness verification using G2/G3/H4
-- define the next product-capability roadmap
-- open a targeted follow-up only when observed evidence demonstrates a gap
+**L1 — Real staging promotion**
 
-Completed hardening phases should only be reopened for regressions.
+Continue in this order unless measured evidence changes the priority:
+
+1. L1 real staging promotion
+2. L2 staging failure/recovery rehearsal
+3. L3 real pilot onboarding
+4. L4 measured pilot quality loop
+5. L5 production launch readiness
+
+These are **committed next objectives**.
+
+The same roadmap also contains a separate **Future / Optional** section for integrations, notification channels, domain packs, predictive intelligence, commercial features, BYOK/self-hosting, and specialized infrastructure. Those ideas are not active commitments until explicitly promoted into the committed roadmap.
+
+Completed Product Phases 0–8 and Production Hardening A–J should only be reopened for demonstrated regressions.
