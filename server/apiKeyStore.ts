@@ -10,8 +10,8 @@ const USAGE_FILE = path.join(DATA_DIR, 'api_usage.json');
 
 // Rate limiting in-memory bucket: keyId -> timestamps[]
 const rateLimitBuckets = new Map<string, number[]>();
-export const API_KEY_API_KEY_RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-export const API_KEY_API_KEY_RATE_LIMIT_MAX_REQUESTS = 100; // 100 req/min
+export const API_KEY_RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+export const API_KEY_RATE_LIMIT_MAX_REQUESTS = 100; // 100 req/min
 
 export class ApiKeyStore {
   private keys: Map<string, ApiKey> = new Map();
