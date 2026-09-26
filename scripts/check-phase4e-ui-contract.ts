@@ -27,7 +27,8 @@ function main() {
 
   assert(
     app.includes('<ActionsWorkspace') &&
-      app.includes("currentTab === 'actions'"),
+      (app.includes("currentTab === 'actions'") ||
+        app.includes("effectiveTab === 'actions'")),
     'App must mount the first-class Actions audit workspace.'
   );
 
