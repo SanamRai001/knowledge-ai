@@ -608,7 +608,11 @@ app.post('/api/kb/run-tests', async (req, res) => {
 // ==========================================
 
 // Helper: Extract & validate Bearer token
-function authenticateApiRequest(req: express.Request, res: express.Response, requestId: string): any {
+async function authenticateApiRequest(
+  req: express.Request,
+  res: express.Response,
+  requestId: string
+): Promise<any> {
   const authHeader = req.headers.authorization;
   if (!authHeader || typeof authHeader !== 'string') {
     res.status(401).json({
@@ -650,7 +654,11 @@ function authenticateApiRequest(req: express.Request, res: express.Response, req
   }
 
   // Check rate limit: 100 requests per minute
-  const rateLimit = apiKeyStore.checkRateLimit(validation.apiKey.id, 100);
+  const rateLimit =
+    await apiKeyRuntimeService.checkRateLimit(
+      validation.apiKey.id,
+      100
+    );
   if (!rateLimit.allowed) {
     res.setHeader('Retry-After', String(rateLimit.resetSeconds));
     res.status(429).json({
@@ -684,7 +692,7 @@ app.post('/api/v1/chat', async (req, res) => {
   res.setHeader('X-Request-ID', requestId);
   const startTime = Date.now();
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id, message, conversation_id } = req.body || {};
@@ -808,11 +816,11 @@ app.post('/api/v1/chat', async (req, res) => {
 });
 
 // 3. AI Status Endpoint: GET /api/v1/ai/:ai_id
-app.get('/api/v1/ai/:ai_id', (req, res) => {
+app.get('/api/v1/ai/:ai_id', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -855,11 +863,11 @@ app.get('/api/v1/ai/:ai_id', (req, res) => {
 });
 
 // 4. Knowledge Status Endpoint: GET /api/v1/ai/:ai_id/knowledge
-app.get('/api/v1/ai/:ai_id/knowledge', (req, res) => {
+app.get('/api/v1/ai/:ai_id/knowledge', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1020,11 +1028,11 @@ app.get('/api/v1/api-docs/openapi', (req, res) => {
 // --- 2. AUTHENTICATED REST API ROUTES (/api/v1/ai/:ai_id/...) ---
 
 // GET /api/v1/ai/:ai_id/memories
-app.get('/api/v1/ai/:ai_id/memories', (req, res) => {
+app.get('/api/v1/ai/:ai_id/memories', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1044,11 +1052,11 @@ app.get('/api/v1/ai/:ai_id/memories', (req, res) => {
 });
 
 // POST /api/v1/ai/:ai_id/memories
-app.post('/api/v1/ai/:ai_id/memories', (req, res) => {
+app.post('/api/v1/ai/:ai_id/memories', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1081,11 +1089,11 @@ app.post('/api/v1/ai/:ai_id/memories', (req, res) => {
 });
 
 // PATCH /api/v1/ai/:ai_id/memories/:memory_id/status
-app.patch('/api/v1/ai/:ai_id/memories/:memory_id/status', (req, res) => {
+app.patch('/api/v1/ai/:ai_id/memories/:memory_id/status', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id, memory_id } = req.params;
@@ -1121,11 +1129,11 @@ app.patch('/api/v1/ai/:ai_id/memories/:memory_id/status', (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/experiences
-app.get('/api/v1/ai/:ai_id/experiences', (req, res) => {
+app.get('/api/v1/ai/:ai_id/experiences', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1145,11 +1153,11 @@ app.get('/api/v1/ai/:ai_id/experiences', (req, res) => {
 });
 
 // POST /api/v1/ai/:ai_id/experiences
-app.post('/api/v1/ai/:ai_id/experiences', (req, res) => {
+app.post('/api/v1/ai/:ai_id/experiences', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1184,11 +1192,11 @@ app.post('/api/v1/ai/:ai_id/experiences', (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/sandbox/scenarios
-app.get('/api/v1/ai/:ai_id/sandbox/scenarios', (req, res) => {
+app.get('/api/v1/ai/:ai_id/sandbox/scenarios', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1201,11 +1209,11 @@ app.get('/api/v1/ai/:ai_id/sandbox/scenarios', (req, res) => {
 });
 
 // POST /api/v1/ai/:ai_id/sandbox/scenarios
-app.post('/api/v1/ai/:ai_id/sandbox/scenarios', (req, res) => {
+app.post('/api/v1/ai/:ai_id/sandbox/scenarios', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1243,7 +1251,7 @@ app.post('/api/v1/ai/:ai_id/sandbox/runs', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1275,7 +1283,7 @@ app.post('/api/v1/ai/:ai_id/sandbox/batch', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1296,11 +1304,11 @@ app.post('/api/v1/ai/:ai_id/sandbox/batch', async (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/sandbox/runs
-app.get('/api/v1/ai/:ai_id/sandbox/runs', (req, res) => {
+app.get('/api/v1/ai/:ai_id/sandbox/runs', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1313,11 +1321,11 @@ app.get('/api/v1/ai/:ai_id/sandbox/runs', (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/learning
-app.get('/api/v1/ai/:ai_id/learning', (req, res) => {
+app.get('/api/v1/ai/:ai_id/learning', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1334,7 +1342,7 @@ app.post('/api/v1/ai/:ai_id/learning/generate', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1354,11 +1362,11 @@ app.post('/api/v1/ai/:ai_id/learning/generate', async (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/improvements
-app.get('/api/v1/ai/:ai_id/improvements', (req, res) => {
+app.get('/api/v1/ai/:ai_id/improvements', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1375,7 +1383,7 @@ app.post('/api/v1/ai/:ai_id/improvements/propose', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1403,11 +1411,11 @@ app.post('/api/v1/ai/:ai_id/improvements/propose', async (req, res) => {
 });
 
 // POST /api/v1/ai/:ai_id/improvements/:id/approve
-app.post('/api/v1/ai/:ai_id/improvements/:id/approve', (req, res) => {
+app.post('/api/v1/ai/:ai_id/improvements/:id/approve', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { id } = req.params;
@@ -1434,11 +1442,11 @@ app.post('/api/v1/ai/:ai_id/improvements/:id/approve', (req, res) => {
 });
 
 // POST /api/v1/ai/:ai_id/improvements/:id/reject
-app.post('/api/v1/ai/:ai_id/improvements/:id/reject', (req, res) => {
+app.post('/api/v1/ai/:ai_id/improvements/:id/reject', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { id } = req.params;
@@ -1466,11 +1474,11 @@ app.post('/api/v1/ai/:ai_id/improvements/:id/reject', (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/dashboard
-app.get('/api/v1/ai/:ai_id/dashboard', (req, res) => {
+app.get('/api/v1/ai/:ai_id/dashboard', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
@@ -1483,11 +1491,11 @@ app.get('/api/v1/ai/:ai_id/dashboard', (req, res) => {
 });
 
 // GET /api/v1/ai/:ai_id/audit
-app.get('/api/v1/ai/:ai_id/audit', (req, res) => {
+app.get('/api/v1/ai/:ai_id/audit', async (req, res) => {
   const requestId = 'req_' + crypto.randomBytes(8).toString('hex');
   res.setHeader('X-Request-ID', requestId);
 
-  const apiKey = authenticateApiRequest(req, res, requestId);
+  const apiKey = await authenticateApiRequest(req, res, requestId);
   if (!apiKey) return;
 
   const { ai_id } = req.params;
