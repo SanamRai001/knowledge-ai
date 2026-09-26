@@ -197,7 +197,8 @@ The implementation sequence is deliberately split into small slices:
 42. **H4 — Staging Promotion + Rollback Release Gate** — COMPLETE, workflow `36175108771`
 43. **I1 — Load, Abuse, and Security Test Foundation** — COMPLETE, workflow `36218326048`
 44. **I2 — Distributed Abuse & Auth-State Hardening** — COMPLETE, workflow `36221948773`
-45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — NEXT
+45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228011034`
+46. **J1 — Production UX/Admin Forensic Audit** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -286,6 +287,8 @@ H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 
 I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
+
+I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -765,24 +768,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress**
+**Production Hardening J1 — Production UX/Admin Forensic Audit**
 
-Keep I3 limited to the remaining Track I matrix.
+Do not redesign first.
 
-1. add a prompt-injection/evidence-boundary adversarial corpus for document, Dataset, and mixed-source query flows
-2. prove lower-authority/untrusted content cannot silently override stronger source-authority evidence
-3. add adversarial cross-tenant retrieval/query isolation cases
-4. add concurrent D1 Action confirmation race/idempotency stress
-5. add concurrent D2 Automation execution race/idempotency stress
-6. add concurrent D3 Watch completion race/idempotency stress
-7. run sustained Watch worker pressure with measured lease/retry/dead-letter outcomes
-8. run sustained Integration worker pressure while verifying C6 cursor/checkpoint correctness
-9. run sustained Automation worker pressure while verifying D2 company-state mutation idempotency
-10. define explicit bounded thresholds for queue depth, retries, dead letters, latency/error rate, and isolation failures in CI/staging
+1. inventory every normal-user navigation surface and route
+2. inventory every admin/developer/platform-management surface and required role boundary
+3. identify duplicated or ambiguous navigation between product, admin, developer, recovery, and diagnostics surfaces
+4. audit organization/member administration UX against the existing OWNER/ADMIN/MEMBER authorization model
+5. audit source-authority administration and provenance visibility
+6. audit onboarding, first-run, empty-state, degraded-dependency, recovery, and permission-denied UX
+7. audit deployment/provider/readiness diagnostics and decide which belong to operators vs normal users
+8. identify stale prototype wording or implementation details that should no longer appear in the production UI
+9. define the smallest J2+ implementation slices that improve operability without changing core Phase 0–8 flows
+10. add an executable drift proof for the chosen navigation/admin boundary before implementing cleanup
 
-Use measured thresholds only. Do not claim broad production capacity from bounded tests.
-
-Do not start Track J UX/admin cleanup in I3.
+Do not redesign core product flows merely for novelty.
 ---
 
 # Track A closure note
