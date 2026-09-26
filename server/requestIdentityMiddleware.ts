@@ -42,6 +42,15 @@ export async function applicationIdentityMiddleware(
     next();
   } catch (error: any) {
     if (error instanceof RequestIdentityError) {
+      if (
+        error.code === 'RATE_LIMITED' &&
+        error.retryAfterSeconds
+      ) {
+        res.setHeader(
+          'Retry-After',
+          String(error.retryAfterSeconds)
+        );
+      }
       res.status(error.statusCode).json({
         error: error.message,
         code: error.code,
