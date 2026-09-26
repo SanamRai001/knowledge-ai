@@ -22,7 +22,8 @@ function main() {
 
   assert(
     app.includes('<AutomationWorkspace') &&
-      app.includes("currentTab === 'automation'"),
+      (app.includes("currentTab === 'automation'") ||
+        app.includes("effectiveTab === 'automation'")),
     'App must mount the real Automation workspace.'
   );
 
