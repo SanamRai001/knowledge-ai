@@ -193,19 +193,29 @@ async function main() {
     'src/components'
   );
   assert(
-    !componentListing.some((name) =>
-      /member|organization|accountadmin/i.test(
-        name
-      )
-    ),
-    'J1 organization/member administration gap changed and should be re-audited.'
+    componentListing.includes(
+      'OrganizationWorkspace.tsx'
+    ) &&
+      header.includes(
+        'nav-tab-organization'
+      ) &&
+      header.includes(
+        'account-selector-dropdown'
+      ) &&
+      app.includes(
+        'OrganizationWorkspace'
+      ) &&
+      app.includes(
+        "'/api/auth/select-account'"
+      ),
+    'J1 historical organization/member gap must advance with J4: organization membership and session-bound account switching are now first-class product surfaces.'
   );
 
   console.log(
     'PRODUCTION_J1_UX_ADMIN_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'J1 audit remains guarded after J3: session-aware shell, Trust Checks cleanup, and admin/developer separation advanced, while membership administration, orphan phase UI, and stale phase wording remain tracked for J4+.'
+    'J1 audit remains guarded after J4: session-aware shell, Trust Checks cleanup, admin/developer separation, and organization/member administration have advanced; orphan phase UI, stale phase wording, and later recovery/diagnostics UX remain tracked.'
   );
 }
 

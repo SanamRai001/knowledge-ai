@@ -17,6 +17,7 @@ import { SpecializedAIConfig } from './components/SpecializedAIConfig';
 import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
 import { DeveloperPlatform } from './components/DeveloperPlatform';
+import { OrganizationWorkspace } from './components/OrganizationWorkspace';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { NewKnowledgeBaseModal } from './components/NewKnowledgeBaseModal';
 import { SessionBoundary } from './components/SessionBoundary';
@@ -36,6 +37,24 @@ import {
 } from './session';
 import { AlertCircle, X } from 'lucide-react';
 
+function csrfToken(): string {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+
+  const entry = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) =>
+      item.startsWith('ka_csrf=')
+    );
+
+  if (!entry) return '';
+  return decodeURIComponent(
+    entry.slice('ka_csrf='.length)
+  );
+}
+
 export default function App() {
   const [activeKb, setActiveKb] = useState<KnowledgeBase | null>(null);
   const [allKbs, setAllKbs] = useState<{ id: string; name: string; documentCount: number }[]>([]);
@@ -54,6 +73,7 @@ export default function App() {
       'config',
       'evaluations',
       'developer',
+      'organization',
     ];
     return supported.includes(requested as ActiveTab)
       ? (requested as ActiveTab)
@@ -361,6 +381,68 @@ export default function App() {
     }
   };
 
+  const handleSwitchAccount = async (
+    accountId: string
+  ) => {
+    if (
+      !accountId ||
+      authContext?.session
+        .selectedAccountId === accountId
+    ) {
+      return;
+    }
+
+    try {
+      setGlobalError(null);
+
+      const response = await fetch(
+        '/api/auth/select-account',
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type':
+              'application/json',
+            'X-CSRF-Token':
+              csrfToken(),
+          },
+          body: JSON.stringify({
+            accountId,
+          }),
+        }
+      );
+
+      const context =
+        await readApiResponse<AuthMeResponse>(
+          response,
+          'Could not switch organization.'
+        );
+
+      if (
+        !context.membership ||
+        context.membership.status !==
+          'ACTIVE'
+      ) {
+        throw new ApiRequestError({
+          status: 403,
+          code:
+            'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED',
+          message:
+            'An active membership is required for the selected organization.',
+        });
+      }
+
+      setAuthContext(context);
+      setPreferredDatasetId(null);
+      await fetchActiveKb();
+    } catch (error) {
+      applyRequestFailure(
+        error,
+        'Could not switch organization.'
+      );
+    }
+  };
+
   // Create new Knowledge Base
   const handleCreateKb = async (name: string, description?: string) => {
     try {
@@ -610,6 +692,16 @@ export default function App() {
         onTabChange={handleTabChange}
         onNewKb={() => setIsNewKbModalOpen(true)}
         onSwitchKb={handleSwitchKb}
+        accountMemberships={
+          authContext.memberships
+        }
+        selectedAccountId={
+          authContext.session
+            .selectedAccountId
+        }
+        onSwitchAccount={
+          handleSwitchAccount
+        }
         membershipRole={
           authContext.membership.role
         }
@@ -764,6 +856,23 @@ export default function App() {
         {effectiveTab === 'developer' && (
           <DeveloperPlatform
             activeKb={activeKb}
+            membershipRole={
+              authContext.membership.role
+            }
+          />
+        )}
+
+        {/* Organization membership and access administration */}
+        {effectiveTab ===
+          'organization' && (
+          <OrganizationWorkspace
+            accountId={
+              authContext.membership
+                .accountId
+            }
+            currentUserId={
+              authContext.user.id
+            }
             membershipRole={
               authContext.membership.role
             }

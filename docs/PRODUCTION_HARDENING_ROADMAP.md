@@ -201,7 +201,8 @@ The implementation sequence is deliberately split into small slices:
 46. **J1 — Production UX/Admin Forensic Audit** — COMPLETE, workflow `36231584786`
 47. **J2 — Session + Role-Aware Application Shell** — COMPLETE, workflow `36233824606`
 48. **J3 — Admin/Developer Surface Separation** — COMPLETE, workflow `36236249878`
-49. **J4 — Organization/Member Administration** — NEXT
+49. **J4 — Organization/Member Administration** — COMPLETE, workflow `36252491424`
+50. **J5 — Production Recovery/Diagnostics UX** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -294,6 +295,8 @@ I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
 J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
+
+J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -773,22 +776,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J4 — Organization/Member Administration**
+**Production Hardening J5 — Production Recovery/Diagnostics UX**
 
-Keep this slice limited to supported account/member administration.
+Keep this slice limited to safe production diagnostics and recovery guidance already supported by the hardened backend.
 
-1. audit existing user, account-membership, session, and account-selection backend contracts before adding UI
-2. define the smallest supported OWNER/ADMIN member-management API surface where a required mutation contract does not yet exist
-3. add an account member list showing identity, role, status, and membership state without exposing secrets
-4. add invite/join lifecycle only where backed by explicit durable server contracts
-5. make role changes OWNER/ADMIN-controlled with server-side validation and protection against unsafe self-demotion/last-owner loss where applicable
-6. expose membership activation/deactivation/status controls only when supported by the backend model
-7. keep account selection tied to the authenticated session/membership boundary rather than arbitrary account IDs
-8. ensure MEMBER users can inspect only the organization information permitted by policy and cannot see privileged mutation controls
-9. add focused J4 cross-account/role UI and HTTP proofs while preserving J2/J3 shell/capability behavior
-10. stop before J5 production recovery/diagnostics UX
+1. inventory the existing G2 readiness/degraded-state and G3/H4 recovery/promotion contracts before adding browser UI
+2. define which diagnostics are safe for ordinary authenticated members versus privileged/operator roles
+3. surface dependency/readiness degradation with stable user-facing explanations rather than generic failure banners
+4. add an operator/admin diagnostics surface only for capabilities backed by current authorization contracts
+5. expose safe recovery or operational links/actions only where a real server contract exists
+6. never expose secrets, credentials, bucket names, KMS material, database connection data, internal stack traces, or low-level topology to ordinary members
+7. preserve J2 session-required/permission/degraded states and J3/J4 capability-aware navigation
+8. keep liveness/readiness semantics aligned with G2 and release/recovery evidence aligned with G3/H4
+9. add focused J5 authorization, redaction, degraded-state, and UI drift proofs
+10. stop before any new product capability or unsupported infrastructure-control workflow
 
-Do not invent frontend mutations on top of nonexistent backend contracts. Audit and define the server contract first.
+Do not invent recovery buttons on top of nonexistent backend operations. Prefer explanation and evidence over unsafe mutation.
 
 ---
 

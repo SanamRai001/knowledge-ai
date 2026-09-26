@@ -14,13 +14,15 @@ import {
   BellRing,
   PlugZap,
   Gauge,
+  Building2,
+  UsersRound,
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 import {
   type MembershipRole,
 } from '../session';
 
-export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer';
+export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'organization';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -29,6 +31,13 @@ interface HeaderProps {
   onTabChange: (tab: ActiveTab) => void;
   onNewKb: () => void;
   onSwitchKb: (id: string) => void;
+  accountMemberships: Array<{
+    accountId: string;
+    role: MembershipRole;
+    status: string;
+  }>;
+  selectedAccountId: string | null;
+  onSwitchAccount: (accountId: string) => void;
   membershipRole: MembershipRole;
 }
 
@@ -39,6 +48,9 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onNewKb,
   onSwitchKb,
+  accountMemberships,
+  selectedAccountId,
+  onSwitchAccount,
   membershipRole,
 }) => {
   const specializedName = activeKb?.specializedAi?.name || 'Assistant';
@@ -70,6 +82,44 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          <div
+            id="account-membership-selector"
+            className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs"
+          >
+            <Building2 className="w-3.5 h-3.5 text-slate-500 mr-1.5 shrink-0" />
+            <span className="text-slate-400 mr-1 hidden sm:inline">
+              Organization:
+            </span>
+            {accountMemberships.length > 1 ? (
+              <select
+                id="account-selector-dropdown"
+                value={selectedAccountId || ''}
+                onChange={(event) =>
+                  onSwitchAccount(event.target.value)
+                }
+                className="bg-transparent font-medium text-slate-800 focus:outline-hidden cursor-pointer max-w-44"
+              >
+                {accountMemberships
+                  .filter(
+                    (membership) =>
+                      membership.status === 'ACTIVE'
+                  )
+                  .map((membership) => (
+                    <option
+                      key={membership.accountId}
+                      value={membership.accountId}
+                    >
+                      {membership.accountId} · {membership.role}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <span className="font-medium text-slate-800 max-w-44 truncate">
+                {selectedAccountId || 'Current account'}
+              </span>
+            )}
+          </div>
+
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
             <Database className="w-3.5 h-3.5 text-slate-500 mr-1.5 shrink-0" />
             <span className="text-slate-400 mr-1 hidden sm:inline">Workspace:</span>
@@ -262,6 +312,22 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <BarChart2 className="w-3.5 h-3.5" />
           <span>Quality</span>
+        </button>
+
+        <button
+          id="nav-tab-organization"
+          onClick={() =>
+            onTabChange('organization')
+          }
+          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            currentTab ===
+            'organization'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+          }`}
+        >
+          <UsersRound className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Organization</span>
         </button>
 
         <button

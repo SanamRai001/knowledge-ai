@@ -412,10 +412,55 @@ export class HumanAuthService {
     };
   }
 
+  private async activeMemberships(
+    userId: string
+  ): Promise<AccountMembership[]> {
+    return (
+      await this.identityRepository
+        .listMemberships(userId)
+    ).filter(
+      (membership) =>
+        membership.status === 'ACTIVE'
+    );
+  }
+
   async resolveSession(secret: string) {
     return humanIdentityFoundationService.resolveSession(
       secret
     );
+  }
+
+  async sessionOverview(secret: string) {
+    const context =
+      await this.resolveSession(secret);
+    return {
+      context,
+      memberships:
+        await this.activeMemberships(
+          context.user.id
+        ),
+    };
+  }
+
+  async selectAccount(
+    secret: string,
+    accountId: string
+  ) {
+    const context =
+      await humanIdentityFoundationService
+        .selectAccount({
+          secret,
+          accountId:
+            accountId.trim(),
+        });
+
+    return {
+      context,
+      memberships:
+        await this.activeMemberships(
+          context.user.id
+        ),
+    };
   }
 
   async logout(secret: string): Promise<boolean> {

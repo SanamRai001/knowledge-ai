@@ -40,6 +40,7 @@ import { platformManagementRouter } from './server/platform/platformManagementRo
 import { legacyDeveloperRouteClosureRouter } from './server/platform/legacyDeveloperRouteClosureRouter.js';
 import { legacyPrototypeRouteQuarantineMiddleware } from './server/legacyRouteQuarantine.js';
 import { authRouter } from './server/identity/authRouter.js';
+import { organizationRouter } from './server/identity/organizationRouter.js';
 import crypto from 'crypto';
 import {
   operationalHttpMiddleware,
@@ -137,6 +138,10 @@ const upload = multer({
 // B2B1 human authentication surface. Product routers are intentionally not
 // cut over to HUMAN_SESSION until B2B2/B2C.
 app.use('/api/auth', authRouter);
+app.use(
+  '/api/organization',
+  organizationRouter
+);
 
 // Authoritative account-scoped workspace API. This router is mounted before
 // the legacy handlers below so normal /api/kb/* traffic cannot bypass
