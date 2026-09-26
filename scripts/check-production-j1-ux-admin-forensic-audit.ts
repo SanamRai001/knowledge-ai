@@ -170,13 +170,13 @@ async function main() {
   );
 
   assert(
-    fs.existsSync(
+    !fs.existsSync(
       'src/components/Phase7ReadinessView.tsx'
     ) &&
-      fs.existsSync(
+      !fs.existsSync(
         'src/components/Phase8OperationalDashboard.tsx'
       ) &&
-      fs.existsSync(
+      !fs.existsSync(
         'src/components/Phase9SaaSPlatformView.tsx'
       ) &&
       !app.includes(
@@ -206,14 +206,17 @@ async function main() {
       session.includes(
         "code: 'SERVICE_DEGRADED'"
       ),
-    'J1 historical diagnostics gap must advance with J5: supported sanitized diagnostics are privileged while phase-numbered operator surfaces remain unmounted pending J6 cleanup.'
+    'J1 historical diagnostics gap must advance through J6: supported sanitized diagnostics remain privileged and the orphan phase-numbered operator surfaces are removed.'
   );
 
   assert(
-    aiConfig.includes(
+    !aiConfig.includes(
       'Memory Retrieval Governance (Phase 4)'
-    ),
-    'J1 phase-numbered production-copy drift finding changed before planned cleanup.'
+    ) &&
+      aiConfig.includes(
+        'Memory Retrieval Governance'
+      ),
+    'J1 phase-numbered production-copy drift must remain resolved after J6 cleanup.'
   );
 
   const componentListing = fs.readdirSync(
@@ -242,7 +245,7 @@ async function main() {
     'PRODUCTION_J1_UX_ADMIN_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'J1 audit remains guarded after J5: session-aware shell, admin/developer separation, organization administration, and sanitized privileged diagnostics have advanced; orphan phase UI and stale phase wording remain tracked for later cleanup.'
+    'J1 audit remains guarded after J6: session-aware shell, admin/developer separation, organization administration, sanitized privileged diagnostics, orphan phase-surface removal, and product-copy cleanup are all preserved.'
   );
 }
 
