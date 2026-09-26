@@ -63,9 +63,9 @@ function humanSessionSecret(
   ];
 }
 
-function resolveApiKeyIdentity(
+async function resolveApiKeyIdentity(
   authHeader: string | string[] | undefined
-): RequestIdentity | null {
+): Promise<RequestIdentity | null> {
   if (!authHeader) return null;
 
   if (typeof authHeader !== 'string') {
@@ -102,9 +102,10 @@ function resolveApiKeyIdentity(
   }
 
   const rateLimit =
-    apiKeyStore.checkRateLimit(
-      validation.apiKey.id
-    );
+    await apiKeyRuntimeService
+      .checkRateLimit(
+        validation.apiKey.id
+      );
   if (!rateLimit.allowed) {
     throw new RequestIdentityError(
       'RATE_LIMITED',
@@ -188,7 +189,9 @@ export function resolveRequestIdentity(
   );
 
   const apiKeyIdentity =
-    resolveApiKeyIdentity(authHeader);
+    await resolveApiKeyIdentity(
+      authHeader
+    );
   if (apiKeyIdentity) {
     return apiKeyIdentity;
   }
