@@ -1307,15 +1307,23 @@ Final Phase 8 integrated gate:
 
 The product capability roadmap is complete.
 
-The next execution roadmap is:
+The Production Hardening A–J roadmap that followed it is also complete.
+
+Historical hardening roadmap:
 
 `docs/PRODUCTION_HARDENING_ROADMAP.md`
 
-Current task:
+Canonical current state and post-hardening roadmap:
 
-**Production Hardening A1 — persistence forensic audit**
+`docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md`
 
-Do not add another feature phase until the persistence/identity/deployment risks are deliberately re-prioritized.
+Current committed objective:
+
+**L1 — Real staging promotion**
+
+Do not invent Phase 9 or J7 implicitly.
+
+New product capability phases should only be created after staging/pilot evidence or an explicitly approved product roadmap justifies them.
 
 ---
 
