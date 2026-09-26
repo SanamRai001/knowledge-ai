@@ -57,16 +57,6 @@ function handleAuthError(error: unknown, res: any) {
       'AUTH_PUBLIC_ORIGIN_NOT_CONFIGURED'
         ? 503
         : 403;
-    if (
-      error.code === 'AUTH_RATE_LIMITED' &&
-      error.retryAfterSeconds
-    ) {
-      res.setHeader(
-        'Retry-After',
-        String(error.retryAfterSeconds)
-      );
-    }
-
     return res.status(status).json({
       error: {
         code: error.code,
@@ -92,6 +82,16 @@ function handleAuthError(error: unknown, res: any) {
                     'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED'
                   ? 403
                   : 401;
+    if (
+      error.code === 'AUTH_RATE_LIMITED' &&
+      error.retryAfterSeconds
+    ) {
+      res.setHeader(
+        'Retry-After',
+        String(error.retryAfterSeconds)
+      );
+    }
+
     return res.status(status).json({
       error: {
         code: error.code,
