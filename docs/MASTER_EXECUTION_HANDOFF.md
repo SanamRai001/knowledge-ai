@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J5 — Production Recovery/Diagnostics UX.**
+> **Continue with Production Hardening J6 — Copy + Dead Surface Cleanup.**
 
 Phases 0–8 are complete.
 
@@ -1110,7 +1110,8 @@ Track A relational milestones:
 - J2 Session + Role-Aware Application Shell — COMPLETE, workflow `36233824606`
 - J3 Admin/Developer Surface Separation — COMPLETE, workflow `36236249878`
 - J4 Organization/Member Administration — COMPLETE, workflow `36252491424`
-- J5 Production Recovery/Diagnostics UX — NEXT
+- J5 Production Recovery/Diagnostics UX — COMPLETE, workflow `36254240629`
+- J6 Copy + Dead Surface Cleanup — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1300,17 +1301,19 @@ J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 
 J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
 
-Next, do **J5 only — Production Recovery/Diagnostics UX**:
+J5 evidence: `docs/PRODUCTION_J5_RECOVERY_DIAGNOSTICS_UX.md`.
 
-1. audit the current G2 readiness/degraded-state plus G3/H4 recovery/release contracts first
-2. classify diagnostics by ordinary-member versus privileged/operator visibility
-3. surface provider/storage/dependency degradation with stable user-facing explanations
-4. add one supported diagnostics surface only where current backend authorization/contracts permit it
-5. expose recovery links/actions only when backed by a real server operation
-6. redact secrets, credentials, buckets, KMS material, database details, topology, and stack traces from browser diagnostics
-7. preserve J2 session/permission/degraded behavior and J3/J4 capability-aware navigation
-8. keep readiness/recovery semantics aligned with G2/G3/H4 evidence
-9. add J5 authorization/redaction/degraded-state/UI drift proofs
-10. stop before new product capabilities or unsupported infrastructure controls
+Next, do **J6 only — Copy + Dead Surface Cleanup**:
 
-Do not invent recovery controls on top of nonexistent backend operations.
+1. inventory browser-visible phase/prototype wording in supported components
+2. replace phase-numbered product copy with capability/user language without changing behavior
+3. verify the orphan Phase7/8/9 components have no supported imports
+4. remove those orphan components after that proof is explicit
+5. clean remaining prototype/test-era wording only from supported frontend product copy
+6. preserve historical phase terminology in docs/tests/scripts/migrations/evidence
+7. preserve J2/J3/J4/J5 authorization, session, admin, and diagnostics contracts
+8. do not rename stable API routes, telemetry events, persistence identifiers, or migrations
+9. add J6 copy/dead-surface drift proof
+10. stop before new capabilities or a broad visual redesign
+
+Do not redesign the product in J6. This is cleanup of obsolete UI/code and browser-visible wording only.

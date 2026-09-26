@@ -310,6 +310,12 @@ jobs:
       - name: Production J4 organization member UI proof
         run: npm run check:production:j4-organization-member-ui
 
+      - name: Production J5 recovery diagnostics proof
+        run: npm run check:production:j5-recovery-diagnostics
+
+      - name: Production J5 recovery diagnostics UI proof
+        run: npm run check:production:j5-recovery-diagnostics-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 

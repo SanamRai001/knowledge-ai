@@ -18,6 +18,7 @@ import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
 import { DeveloperPlatform } from './components/DeveloperPlatform';
 import { OrganizationWorkspace } from './components/OrganizationWorkspace';
+import { DiagnosticsWorkspace } from './components/DiagnosticsWorkspace';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { NewKnowledgeBaseModal } from './components/NewKnowledgeBaseModal';
 import { SessionBoundary } from './components/SessionBoundary';
@@ -30,6 +31,7 @@ import {
 import {
   ApiRequestError,
   canManageIntegrationLifecycle,
+  canViewOperationalDiagnostics,
   readApiResponse,
   shellStateFromError,
   type AuthMeResponse,
@@ -74,6 +76,7 @@ export default function App() {
       'evaluations',
       'developer',
       'organization',
+      'diagnostics',
     ];
     return supported.includes(requested as ActiveTab)
       ? (requested as ActiveTab)
@@ -656,12 +659,26 @@ export default function App() {
     canManageIntegrationLifecycle(
       membershipRole
     );
+  const canViewDiagnostics =
+    canViewOperationalDiagnostics(
+      membershipRole
+    );
   const effectiveTab: ActiveTab =
-    currentTab;
+    currentTab === 'diagnostics' &&
+    !canViewDiagnostics
+      ? 'playground'
+      : currentTab;
 
   const handleTabChange = (
     tab: ActiveTab
   ) => {
+    if (
+      tab === 'diagnostics' &&
+      !canViewDiagnostics
+    ) {
+      setCurrentTab('playground');
+      return;
+    }
     setCurrentTab(tab);
   };
 
@@ -861,6 +878,13 @@ export default function App() {
             }
           />
         )}
+
+        {/* Privileged, sanitized production diagnostics */ }
+        {effectiveTab ===
+          'diagnostics' &&
+          canViewDiagnostics && (
+            <DiagnosticsWorkspace />
+          )}
 
         {/* Organization membership and access administration */}
         {effectiveTab ===

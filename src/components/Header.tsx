@@ -16,13 +16,15 @@ import {
   Gauge,
   Building2,
   UsersRound,
+  Activity,
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 import {
+  canViewOperationalDiagnostics,
   type MembershipRole,
 } from '../session';
 
-export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'organization';
+export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer' | 'organization' | 'diagnostics';
 
 interface HeaderProps {
   activeKb: KnowledgeBase | null;
@@ -313,6 +315,26 @@ export const Header: React.FC<HeaderProps> = ({
           <BarChart2 className="w-3.5 h-3.5" />
           <span>Quality</span>
         </button>
+
+        {canViewOperationalDiagnostics(
+          membershipRole
+        ) && (
+          <button
+            id="nav-tab-diagnostics"
+            onClick={() =>
+              onTabChange('diagnostics')
+            }
+            className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+              currentTab ===
+              'diagnostics'
+                ? 'border-amber-600 text-amber-800 bg-amber-50/50'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-amber-600" />
+            <span>Diagnostics</span>
+          </button>
+        )}
 
         <button
           id="nav-tab-organization"

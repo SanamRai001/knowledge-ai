@@ -40,6 +40,15 @@ async function main() {
   const aiConfig = read(
     'src/components/SpecializedAIConfig.tsx'
   );
+  const diagnostics = read(
+    'src/components/DiagnosticsWorkspace.tsx'
+  );
+  const organizationRouter = read(
+    'server/identity/organizationRouter.ts'
+  );
+  const session = read(
+    'src/session.ts'
+  );
 
   assert(
     auth.includes("authRouter.get('/me'") &&
@@ -178,8 +187,26 @@ async function main() {
       ) &&
       !app.includes(
         'Phase9SaaSPlatformView'
+      ) &&
+      app.includes(
+        'DiagnosticsWorkspace'
+      ) &&
+      header.includes(
+        'nav-tab-diagnostics'
+      ) &&
+      diagnostics.includes(
+        "'/api/organization/diagnostics'"
+      ) &&
+      organizationRouter.includes(
+        "'/diagnostics'"
+      ) &&
+      organizationRouter.includes(
+        'requireOwnerOrAdmin'
+      ) &&
+      session.includes(
+        "code: 'SERVICE_DEGRADED'"
       ),
-    'J1 expects phase-numbered orphan UI surfaces to remain unmounted pending J6 cleanup.'
+    'J1 historical diagnostics gap must advance with J5: supported sanitized diagnostics are privileged while phase-numbered operator surfaces remain unmounted pending J6 cleanup.'
   );
 
   assert(
@@ -215,7 +242,7 @@ async function main() {
     'PRODUCTION_J1_UX_ADMIN_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'J1 audit remains guarded after J4: session-aware shell, Trust Checks cleanup, admin/developer separation, and organization/member administration have advanced; orphan phase UI, stale phase wording, and later recovery/diagnostics UX remain tracked.'
+    'J1 audit remains guarded after J5: session-aware shell, admin/developer separation, organization administration, and sanitized privileged diagnostics have advanced; orphan phase UI and stale phase wording remain tracked for later cleanup.'
   );
 }
 
