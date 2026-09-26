@@ -151,8 +151,9 @@ export function shellStateFromError(
   if (error.status === 503) {
     return {
       status: 'degraded',
-      code: error.code,
-      message: error.message,
+      code: 'SERVICE_DEGRADED',
+      message:
+        'A required service is temporarily unavailable. Retry shortly. If this continues, contact an organization administrator.',
     };
   }
 
@@ -177,6 +178,12 @@ export function canManageDeveloperPlatform(
 }
 
 export function canManageIntegrationLifecycle(
+  role: MembershipRole | undefined
+): boolean {
+  return isPrivilegedMembershipRole(role);
+}
+
+export function canViewOperationalDiagnostics(
   role: MembershipRole | undefined
 ): boolean {
   return isPrivilegedMembershipRole(role);
