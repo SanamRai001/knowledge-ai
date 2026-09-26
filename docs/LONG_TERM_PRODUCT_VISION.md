@@ -1,13 +1,21 @@
 # Knowledge AI — Long-Term Product Vision
 
 Status: **North-star product and architecture specification**  
-Last updated: **2026-09-17**
+Last reviewed against current product: **2026-09-26**
 
-> This document describes what Knowledge AI should become over time. It is intentionally broader than the current MVP and broader than any hackathon version.
+> This document remains the long-range north star.
 >
-> It is **not** a claim that every capability below exists today.
+> Many capabilities that were originally described here as future work now exist in the implemented product, including structured data, Insights, Living Company Knowledge, safe Actions, Watch, Integrations, controlled Automation, durable production state, worker execution, and production hardening.
 >
-> The current `PRODUCT_DIRECTION.md` remains the near-term product contract for trustworthy document Q&A. This file defines the destination we are building toward so future developers and AI coding agents understand the larger system without repeatedly reinventing its purpose.
+> Do **not** use this file to determine current implementation status or committed next work.
+>
+> Use `docs/CURRENT_PRODUCT_STATE_AND_ROADMAP.md` for:
+>
+> - what is implemented today
+> - the committed L1–L5 launch roadmap
+> - optional future ideas that are not yet promises
+>
+> This vision file should stay broader and more aspirational than the current roadmap.
 
 ---
 
