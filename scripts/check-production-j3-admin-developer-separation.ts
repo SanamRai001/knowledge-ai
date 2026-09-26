@@ -209,14 +209,14 @@ async function main() {
 
   const policyPut =
     automationRouter.indexOf(
-      "'/policy',"
+      "automationRouter.put(\n  '/policy',"
     );
   assert(
     policyPut >= 0 &&
       automationRouter
         .slice(
           policyPut,
-          policyPut + 250
+          policyPut + 300
         )
         .includes(
           'requireOwnerOrAdmin'
