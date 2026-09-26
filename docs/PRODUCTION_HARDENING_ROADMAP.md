@@ -196,7 +196,8 @@ The implementation sequence is deliberately split into small slices:
 41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — COMPLETE, workflow `36171328745`
 42. **H4 — Staging Promotion + Rollback Release Gate** — COMPLETE, workflow `36175108771`
 43. **I1 — Load, Abuse, and Security Test Foundation** — COMPLETE, workflow `36218326048`
-44. **I2 — Distributed Abuse & Auth-State Hardening** — NEXT
+44. **I2 — Distributed Abuse & Auth-State Hardening** — COMPLETE, workflow `36221948773`
+45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -283,6 +284,8 @@ H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 
 I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
+
+I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -762,22 +765,24 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening I2 — Distributed Abuse & Auth-State Hardening**
+**Production Hardening I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress**
 
-Keep I2 limited to removing the process-local security assumptions exposed by I1.
+Keep I3 limited to the remaining Track I matrix.
 
-1. replace process-local API-key quota state with one shared/durable enforcement boundary suitable for multiple web replicas
-2. preserve the existing 100 requests / 60 seconds / key contract unless measured evidence justifies a different threshold
-3. add a deterministic two-instance test proving one API key cannot obtain a separate quota bucket from each web process
-4. add dedicated human-login abuse throttling with non-enumerating failures and bounded retention
-5. replace process-local Google/OneDrive OAuth state with shared one-time state so start and callback may land on different web replicas
-6. preserve OAuth account binding, 10-minute expiry, one-time replay rejection, Google refresh-token requirements, and OneDrive PKCE S256
-7. keep sensitive OneDrive PKCE verifier/state material inside the existing F2 managed-secret boundary where appropriate
-8. add cross-replica OAuth success/replay/cross-account abuse tests
-9. add cleanup/retention behavior for rate-limit and OAuth-attempt state so abuse state cannot grow without bound
-10. record the remaining I3 matrix for prompt-injection/evidence boundaries, race/idempotency stress, and sustained Watch/Integration/Automation worker load
+1. add a prompt-injection/evidence-boundary adversarial corpus for document, Dataset, and mixed-source query flows
+2. prove lower-authority/untrusted content cannot silently override stronger source-authority evidence
+3. add adversarial cross-tenant retrieval/query isolation cases
+4. add concurrent D1 Action confirmation race/idempotency stress
+5. add concurrent D2 Automation execution race/idempotency stress
+6. add concurrent D3 Watch completion race/idempotency stress
+7. run sustained Watch worker pressure with measured lease/retry/dead-letter outcomes
+8. run sustained Integration worker pressure while verifying C6 cursor/checkpoint correctness
+9. run sustained Automation worker pressure while verifying D2 company-state mutation idempotency
+10. define explicit bounded thresholds for queue depth, retries, dead letters, latency/error rate, and isolation failures in CI/staging
 
-Do not start Track J UX/admin cleanup or make production-scale claims in I2.
+Use measured thresholds only. Do not claim broad production capacity from bounded tests.
+
+Do not start Track J UX/admin cleanup in I3.
 ---
 
 # Track A closure note
