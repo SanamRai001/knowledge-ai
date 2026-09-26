@@ -200,7 +200,8 @@ The implementation sequence is deliberately split into small slices:
 45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228815635`
 46. **J1 — Production UX/Admin Forensic Audit** — COMPLETE, workflow `36231584786`
 47. **J2 — Session + Role-Aware Application Shell** — COMPLETE, workflow `36233824606`
-48. **J3 — Admin/Developer Surface Separation** — NEXT
+48. **J3 — Admin/Developer Surface Separation** — COMPLETE, workflow `36236249878`
+49. **J4 — Organization/Member Administration** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -291,6 +292,8 @@ I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
 I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
+
+J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -770,22 +773,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J3 — Admin/Developer Surface Separation**
+**Production Hardening J4 — Organization/Member Administration**
 
-Keep this slice limited to privileged-control separation inside existing production workspaces.
+Keep this slice limited to supported account/member administration.
 
-1. split Platform API key administration from general Developer API documentation/explorer use
-2. preserve stable API v1 documentation, manifest, scopes, governed extension inventory, and safe read explorer
-3. make OWNER/ADMIN key-management controls explicit and unavailable to MEMBER users
-4. audit Integration workspace controls against existing backend privileges; keep ordinary connection status/history visible where policy allows
-5. hide or disable privileged Integration lifecycle actions for users lacking the required capability without weakening server enforcement
-6. consume `/api/automation/context` so Automation policy/control affordances reflect the authenticated actor's real capabilities
-7. keep ordinary Automation run/history visibility available where the backend allows it
-8. remove dead-end privileged buttons rather than letting normal users discover authorization only after clicking
-9. add focused J3 role/capability UI drift proofs and preserve all J2 session/degraded shell behavior
-10. stop before J4 organization/member administration
+1. audit existing user, account-membership, session, and account-selection backend contracts before adding UI
+2. define the smallest supported OWNER/ADMIN member-management API surface where a required mutation contract does not yet exist
+3. add an account member list showing identity, role, status, and membership state without exposing secrets
+4. add invite/join lifecycle only where backed by explicit durable server contracts
+5. make role changes OWNER/ADMIN-controlled with server-side validation and protection against unsafe self-demotion/last-owner loss where applicable
+6. expose membership activation/deactivation/status controls only when supported by the backend model
+7. keep account selection tied to the authenticated session/membership boundary rather than arbitrary account IDs
+8. ensure MEMBER users can inspect only the organization information permitted by policy and cannot see privileged mutation controls
+9. add focused J4 cross-account/role UI and HTTP proofs while preserving J2/J3 shell/capability behavior
+10. stop before J5 production recovery/diagnostics UX
 
-Do not redesign Ask, Insights, Company Knowledge, Actions, Watch, Datasets, Documents, or core Automation/Integration workflows merely for visual novelty.
+Do not invent frontend mutations on top of nonexistent backend contracts. Audit and define the server contract first.
 
 ---
 
