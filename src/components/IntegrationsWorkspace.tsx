@@ -117,7 +117,13 @@ function attentionCopy(connection: PublicIntegrationConnection): {
   }
 }
 
-export const IntegrationsWorkspace: React.FC = () => {
+interface IntegrationsWorkspaceProps {
+  canManageLifecycle: boolean;
+}
+
+export const IntegrationsWorkspace: React.FC<
+  IntegrationsWorkspaceProps
+> = ({ canManageLifecycle }) => {
   const [connections, setConnections] = useState<PublicIntegrationConnection[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConnectionDetail | null>(null);
@@ -320,6 +326,13 @@ export const IntegrationsWorkspace: React.FC = () => {
     provider: ProviderKey,
     connectionId?: string
   ) => {
+    if (!canManageLifecycle) {
+      setError(
+        'OWNER or ADMIN membership is required to connect or reauthorize integrations.'
+      );
+      return;
+    }
+
     const key = 'oauth:' + provider + ':' + (connectionId || 'new');
     setBusy(key);
     setError(null);
@@ -365,6 +378,16 @@ export const IntegrationsWorkspace: React.FC = () => {
     connection: PublicIntegrationConnection,
     action: 'sync' | 'pause' | 'resume' | 'reset-cursor'
   ) => {
+    if (
+      action !== 'sync' &&
+      !canManageLifecycle
+    ) {
+      setError(
+        'OWNER or ADMIN membership is required for Integration lifecycle administration.'
+      );
+      return;
+    }
+
     const key = connection.id + ':' + action;
     setBusy(key);
     setError(null);
@@ -447,6 +470,13 @@ export const IntegrationsWorkspace: React.FC = () => {
   };
 
   const disconnect = async (connection: PublicIntegrationConnection) => {
+    if (!canManageLifecycle) {
+      setError(
+        'OWNER or ADMIN membership is required to disconnect integrations.'
+      );
+      return;
+    }
+
     const key = connection.id + ':disconnect';
     setBusy(key);
     setError(null);
@@ -583,6 +613,9 @@ export const IntegrationsWorkspace: React.FC = () => {
             provider="GOOGLE_DRIVE"
             connected={providersConnected.has('GOOGLE_DRIVE')}
             busy={busy?.startsWith('oauth:GOOGLE_DRIVE') || false}
+            canManageLifecycle={
+              canManageLifecycle
+            }
             onConnect={() => beginOAuth('GOOGLE_DRIVE')}
           >
             {googlePickerClientId && googlePickerAppId ? (
@@ -626,6 +659,9 @@ export const IntegrationsWorkspace: React.FC = () => {
             provider="MICROSOFT_ONEDRIVE"
             connected={providersConnected.has('MICROSOFT_ONEDRIVE')}
             busy={busy?.startsWith('oauth:MICROSOFT_ONEDRIVE') || false}
+            canManageLifecycle={
+              canManageLifecycle
+            }
             onConnect={() => beginOAuth('MICROSOFT_ONEDRIVE')}
           />
         </section>
@@ -706,6 +742,9 @@ export const IntegrationsWorkspace: React.FC = () => {
               <ConnectionPanel
                 detail={detail}
                 busy={busy}
+                canManageLifecycle={
+                  canManageLifecycle
+                }
                 onAction={runAction}
                 onReauthorize={(connection) =>
                   beginOAuth(
@@ -751,9 +790,17 @@ const ProviderCard: React.FC<{
   provider: ProviderKey;
   connected: boolean;
   busy: boolean;
+  canManageLifecycle: boolean;
   onConnect: () => void;
   children?: React.ReactNode;
-}> = ({ provider, connected, busy, onConnect, children }) => (
+}> = ({
+  provider,
+  connected,
+  busy,
+  canManageLifecycle,
+  onConnect,
+  children,
+}) => (
   <article className="rounded-2xl border border-slate-200 bg-white p-5">
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-start gap-3">
@@ -782,20 +829,31 @@ const ProviderCard: React.FC<{
     </div>
 
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={onConnect}
-        disabled={busy}
-        className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-      >
-        {busy ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <KeyRound className="w-3.5 h-3.5" />
-        )}
-        {connected ? 'Connect another' : 'Connect'}
-      </button>
-      {children}
+      {canManageLifecycle ? (
+        <>
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <KeyRound className="w-3.5 h-3.5" />
+            )}
+            {connected ? 'Connect another' : 'Connect'}
+          </button>
+          {children}
+        </>
+      ) : (
+        <div
+          id={'integration-admin-boundary-' + provider.toLowerCase()}
+          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] leading-4 text-slate-500"
+        >
+          Connection administration requires OWNER or ADMIN membership.
+        </div>
+      )}
     </div>
   </article>
 );
@@ -803,13 +861,21 @@ const ProviderCard: React.FC<{
 const ConnectionPanel: React.FC<{
   detail: ConnectionDetail;
   busy: string | null;
+  canManageLifecycle: boolean;
   onAction: (
     connection: PublicIntegrationConnection,
     action: 'sync' | 'pause' | 'resume' | 'reset-cursor'
   ) => Promise<void>;
   onReauthorize: (connection: PublicIntegrationConnection) => void;
   onDisconnect: (connection: PublicIntegrationConnection) => Promise<void>;
-}> = ({ detail, busy, onAction, onReauthorize, onDisconnect }) => {
+}> = ({
+  detail,
+  busy,
+  canManageLifecycle,
+  onAction,
+  onReauthorize,
+  onDisconnect,
+}) => {
   const {
     connection,
     syncJobs,
@@ -866,53 +932,92 @@ const ConnectionPanel: React.FC<{
                     workerBusy
                   }
                 />
-                <ActionButton
-                  label="Pause"
-                  icon={Pause}
-                  onClick={() => onAction(connection, 'pause')}
-                />
+                {canManageLifecycle && (
+                  <ActionButton
+                    label="Pause"
+                    icon={Pause}
+                    onClick={() =>
+                      onAction(
+                        connection,
+                        'pause'
+                      )
+                    }
+                  />
+                )}
               </>
             )}
 
-            {connection.status === 'PAUSED' && (
-              <ActionButton
-                label="Resume"
-                icon={Play}
-                onClick={() => onAction(connection, 'resume')}
-              />
-            )}
+            {canManageLifecycle &&
+              connection.status === 'PAUSED' && (
+                <ActionButton
+                  label="Resume"
+                  icon={Play}
+                  onClick={() =>
+                    onAction(
+                      connection,
+                      'resume'
+                    )
+                  }
+                />
+              )}
 
-            {(connection.attentionReason === 'REAUTHORIZE' ||
-              connection.attentionReason === 'PERMISSION_LOST') && (
-              <ActionButton
-                id="integration-reauthorize-button"
-                label="Reauthorize"
-                icon={KeyRound}
-                onClick={() => onReauthorize(connection)}
-              />
-            )}
+            {canManageLifecycle &&
+              (connection.attentionReason === 'REAUTHORIZE' ||
+                connection.attentionReason === 'PERMISSION_LOST') && (
+                <ActionButton
+                  id="integration-reauthorize-button"
+                  label="Reauthorize"
+                  icon={KeyRound}
+                  onClick={() =>
+                    onReauthorize(connection)
+                  }
+                />
+              )}
 
-            {connection.attentionReason === 'CURSOR_RESET_REQUIRED' && (
-              <ActionButton
-                id="integration-reset-cursor-button"
-                label="Reset checkpoint"
-                icon={RotateCcw}
-                onClick={() => onAction(connection, 'reset-cursor')}
-              />
-            )}
+            {canManageLifecycle &&
+              connection.attentionReason === 'CURSOR_RESET_REQUIRED' && (
+                <ActionButton
+                  id="integration-reset-cursor-button"
+                  label="Reset checkpoint"
+                  icon={RotateCcw}
+                  onClick={() =>
+                    onAction(
+                      connection,
+                      'reset-cursor'
+                    )
+                  }
+                />
+              )}
 
-            <button
-              id="integration-disconnect-button"
-              type="button"
-              onClick={() => onDisconnect(connection)}
-              disabled={busy === connection.id + ':disconnect'}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[10px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-            >
-              <Unplug className="w-3.5 h-3.5" />
-              Disconnect
-            </button>
+            {canManageLifecycle && (
+              <button
+                id="integration-disconnect-button"
+                type="button"
+                onClick={() =>
+                  onDisconnect(connection)
+                }
+                disabled={
+                  busy ===
+                  connection.id +
+                    ':disconnect'
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[10px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              >
+                <Unplug className="w-3.5 h-3.5" />
+                Disconnect
+              </button>
+            )}
           </div>
         </div>
+
+        {!canManageLifecycle && (
+          <div
+            id="integration-lifecycle-readonly"
+            className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[11px] leading-5 text-slate-500"
+          >
+            You can inspect connection health, history, imports, and run synchronization. Connecting, reauthorizing, pausing, resetting, and disconnecting require OWNER or ADMIN membership.
+          </div>
+        )}
 
         {attention && (
           <div
