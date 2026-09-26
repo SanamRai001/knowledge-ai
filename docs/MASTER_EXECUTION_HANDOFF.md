@@ -860,11 +860,13 @@ Complete when extensions can add domain value without bypassing:
 
 The original Phase 0–8 product capability roadmap is complete.
 
-### Exact next implementation task
+### Historical next task at Phase 8 closure
 
-Continue with **Production Hardening A1 — persistence forensic audit**.
+> Historical context only. This was the next task when Product Phase 8 first closed; A1 and the full A–J hardening program are now complete.
 
-Read `docs/PRODUCTION_HARDENING_ROADMAP.md` and inventory every mutable runtime store before introducing PostgreSQL.
+The hardening program originally continued with **Production Hardening A1 — persistence forensic audit**.
+
+The instructions below are retained as historical execution context, not as the current task.
 
 1. audit existing public/developer endpoints, API-key auth, scopes, and DeveloperPlatform UI
 2. define versioned external contracts for Sources, Ask, Insights, Actions, Watch, and Audit
