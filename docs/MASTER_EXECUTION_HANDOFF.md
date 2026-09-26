@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J6 — Copy + Dead Surface Cleanup.**
+> **Production hardening A–J is COMPLETE. Do not invent a J7; define the next roadmap explicitly before new implementation.**
 
 Phases 0–8 are complete.
 
@@ -1111,7 +1111,7 @@ Track A relational milestones:
 - J3 Admin/Developer Surface Separation — COMPLETE, workflow `36236249878`
 - J4 Organization/Member Administration — COMPLETE, workflow `36252491424`
 - J5 Production Recovery/Diagnostics UX — COMPLETE, workflow `36254240629`
-- J6 Copy + Dead Surface Cleanup — NEXT
+- J6 Copy + Dead Surface Cleanup — COMPLETE, workflow `36256098747`
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1303,17 +1303,24 @@ J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
 
 J5 evidence: `docs/PRODUCTION_J5_RECOVERY_DIAGNOSTICS_UX.md`.
 
-Next, do **J6 only — Copy + Dead Surface Cleanup**:
+J6 evidence: `docs/PRODUCTION_J6_COPY_DEAD_SURFACE_CLEANUP.md`.
 
-1. inventory browser-visible phase/prototype wording in supported components
-2. replace phase-numbered product copy with capability/user language without changing behavior
-3. verify the orphan Phase7/8/9 components have no supported imports
-4. remove those orphan components after that proof is explicit
-5. clean remaining prototype/test-era wording only from supported frontend product copy
-6. preserve historical phase terminology in docs/tests/scripts/migrations/evidence
-7. preserve J2/J3/J4/J5 authorization, session, admin, and diagnostics contracts
-8. do not rename stable API routes, telemetry events, persistence identifiers, or migrations
-9. add J6 copy/dead-surface drift proof
-10. stop before new capabilities or a broad visual redesign
+The defined **Production Hardening A–J roadmap is complete**.
 
-Do not redesign the product in J6. This is cleanup of obsolete UI/code and browser-visible wording only.
+J6 is the final named phase in this roadmap. Do not create J7 implicitly.
+
+Before writing more production code:
+
+1. verify the latest `main` Quality Gate and release evidence
+2. choose the next objective explicitly
+3. author a new roadmap for that objective before implementation
+4. prefer staging/production measurements over speculative hardening
+
+Reasonable next objectives are:
+
+- execute a real staging promotion through H4 and collect release/readiness evidence
+- perform production launch/readiness verification using G2/G3/H4
+- define the next product-capability roadmap
+- open a targeted follow-up only when observed evidence demonstrates a gap
+
+Completed hardening phases should only be reopened for regressions.
