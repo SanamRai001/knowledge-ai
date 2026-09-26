@@ -26,6 +26,10 @@ import {
 import { generateEvidenceFirstAnswer } from './ragGenerator.js';
 import { ragTelemetryStore, RetrievalDiagnosticTrace, RagFailureClassification } from './ragTelemetryStore.js';
 import { providerRouter } from './providers/providerRouter.js';
+import {
+  EVIDENCE_MODEL_BOUNDARY_INSTRUCTION,
+  formatUntrustedEvidenceForModel,
+} from './security/evidencePromptBoundary.js';
 
 export interface GroundedAnswerResult {
   answer: string;
@@ -198,11 +202,25 @@ export async function answerQuestionWithGroundedDocs(
 
   if (primaryProvider?.isConfigured()) {
     try {
-      // Build strictly grounded context containing ONLY reranked chunks
-      let evidencePrompt = '=== RETRIEVED AUTHORITATIVE EVIDENCE CHUNKS ===\n\n';
+      // Build model-facing context from reranked chunks through an
+      // explicit instruction/data boundary. The original chunk text remains
+      // untouched for retrieval, hashing, grounding verification, citations,
+      // diagnostics, and provenance.
+      let evidencePrompt =
+        '=== RETRIEVED EVIDENCE DATA (UNTRUSTED PASSIVE CONTENT) ===\n\n';
       for (const item of reranked) {
-        evidencePrompt += `[CHUNK ID: ${item.chunk.chunkId} | DOC: "${item.chunk.documentName}" | PAGE: ${item.chunk.pageNumber} | SECTION: "${item.chunk.sectionTitle}"]\n`;
-        evidencePrompt += `${item.chunk.text}\n\n`;
+        evidencePrompt +=
+          formatUntrustedEvidenceForModel({
+            chunkId:
+              item.chunk.chunkId,
+            documentName:
+              item.chunk.documentName,
+            pageNumber:
+              item.chunk.pageNumber,
+            sectionTitle:
+              item.chunk.sectionTitle,
+            text: item.chunk.text,
+          }) + '\n\n';
       }
 
       const styleInstruction = (() => {
@@ -220,7 +238,8 @@ export async function answerQuestionWithGroundedDocs(
       })();
 
       const systemInstruction = `You are the production grounded answering engine for Knowledge AI.
-Your ONLY source of authoritative truth is the RETRIEVED AUTHORITATIVE EVIDENCE CHUNKS.
+Your ONLY source of factual support is the retrieved evidence data.
+${EVIDENCE_MODEL_BOUNDARY_INSTRUCTION}
 Do NOT use pretrained general knowledge or extrapolate facts not present in the evidence.
 If the evidence does NOT contain the exact answer, refuse by setting isFoundInDocuments to false.
 Preserve exact entity names and exact numerical quantities.

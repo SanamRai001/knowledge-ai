@@ -292,6 +292,9 @@ jobs:
       - name: Production I2 distributed abuse auth-state contract proof
         run: npm run check:production:i2-distributed-abuse-auth-state-contract
 
+      - name: Production I3A adversarial evidence boundary proof
+        run: npm run check:production:i3a-adversarial-evidence
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -473,6 +476,12 @@ jobs:
 
       - name: Production I2 distributed abuse auth-state PostgreSQL proof
         run: npm run check:production:i2-distributed-abuse-auth-state-postgres
+
+      - name: Production I3B transaction race stress PostgreSQL proof
+        run: npm run check:production:i3b-transaction-race-stress-postgres
+
+      - name: Production I3C sustained worker pressure PostgreSQL proof
+        run: npm run check:production:i3c-sustained-worker-pressure-postgres
 
 
   h2_image:

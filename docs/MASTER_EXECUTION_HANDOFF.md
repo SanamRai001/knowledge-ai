@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening I1 — Load, Abuse, and Security Test Foundation.**
+> **Continue with Production Hardening J1 — Production UX/Admin Forensic Audit.**
 
 Phases 0–8 are complete.
 
@@ -1104,7 +1104,9 @@ Track A relational milestones:
 - H3 Runtime Edge + Graceful Shutdown Hardening — COMPLETE, workflow `36171328745`
 - H4 Staging Promotion + Rollback Release Gate — COMPLETE, workflow `36175108771`
 - I1 Load, Abuse, and Security Test Foundation — COMPLETE, workflow `36218326048`
-- I2 Distributed Abuse & Auth-State Hardening — NEXT
+- I2 Distributed Abuse & Auth-State Hardening — COMPLETE, workflow `36221948773`
+- I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228815635`
+- J1 Production UX/Admin Forensic Audit — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1274,6 +1276,8 @@ I1 now provides measured concurrent tenant-isolation smoke, modern API-key abuse
 
 I2 now makes API-key quota enforcement and human-login throttling shared across PostgreSQL-backed web replicas, moves Google/OneDrive OAuth attempts to shared one-time relational state, keeps OneDrive PKCE verifier material encrypted behind the F2 SecretStore, preserves account binding/replay/expiry semantics, and adds bounded cleanup plus cross-replica proofs.
 
+I3 now adds an explicit untrusted-evidence prompt boundary, adversarial cross-tenant retrieval coverage, high-contention D1/D2/D3 transaction races, and bounded multi-worker Watch/Integration/Automation pressure with measured zero-error/retry/dead-letter/lease-loss acceptance thresholds.
+
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
@@ -1284,17 +1288,19 @@ I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 
 I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
-Next, do **I3 only — Deep Adversarial, Race/Idempotency & Sustained Worker Stress**:
+I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
-1. build a prompt-injection/evidence-boundary adversarial corpus for document, Dataset, and mixed-source queries
-2. stress source-authority conflicts and prove weaker/untrusted evidence cannot silently win
-3. add adversarial cross-tenant retrieval/query isolation cases
-4. stress concurrent D1 Action confirmation idempotency
-5. stress concurrent D2 Automation execution idempotency
-6. stress concurrent D3 Watch completion idempotency
-7. run sustained Watch worker pressure with measured lease/retry/dead-letter behavior
-8. run sustained Integration worker pressure with C6 checkpoint/cursor correctness
-9. run sustained Automation worker pressure with D2 mutation idempotency
-10. use explicit bounded CI/staging thresholds and stop before Track J UX/admin cleanup
+Next, do **J1 only — Production UX/Admin Forensic Audit**:
 
-Do not make production-scale claims from I3 synthetic tests.
+1. inventory normal-user navigation/routes
+2. inventory admin, developer, recovery, diagnostics, and platform-management surfaces
+3. map each privileged surface to OWNER/ADMIN/MEMBER/API-key authorization requirements
+4. identify duplicated navigation and ambiguous user/admin boundaries
+5. audit organization/member and source-authority administration UX
+6. audit onboarding, empty, permission-denied, degraded dependency, and recovery states
+7. audit deployment/provider/readiness diagnostics visibility
+8. identify stale prototype/internal wording exposed to production users
+9. define the smallest J2+ cleanup slices without changing core product flows
+10. add a focused executable drift proof before implementation
+
+Do not redesign core product flows for novelty.
