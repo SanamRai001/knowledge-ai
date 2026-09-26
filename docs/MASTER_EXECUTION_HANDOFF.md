@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J1 — Production UX/Admin Forensic Audit.**
+> **Continue with Production Hardening J2 — Session + Role-Aware Application Shell.**
 
 Phases 0–8 are complete.
 
@@ -1106,7 +1106,8 @@ Track A relational milestones:
 - I1 Load, Abuse, and Security Test Foundation — COMPLETE, workflow `36218326048`
 - I2 Distributed Abuse & Auth-State Hardening — COMPLETE, workflow `36221948773`
 - I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228815635`
-- J1 Production UX/Admin Forensic Audit — NEXT
+- J1 Production UX/Admin Forensic Audit — COMPLETE, workflow `36231584786`
+- J2 Session + Role-Aware Application Shell — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1290,17 +1291,17 @@ I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
 I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
-Next, do **J1 only — Production UX/Admin Forensic Audit**:
+Next, do **J2 only — Session + Role-Aware Application Shell**:
 
-1. inventory normal-user navigation/routes
-2. inventory admin, developer, recovery, diagnostics, and platform-management surfaces
-3. map each privileged surface to OWNER/ADMIN/MEMBER/API-key authorization requirements
-4. identify duplicated navigation and ambiguous user/admin boundaries
-5. audit organization/member and source-authority administration UX
-6. audit onboarding, empty, permission-denied, degraded dependency, and recovery states
-7. audit deployment/provider/readiness diagnostics visibility
-8. identify stale prototype/internal wording exposed to production users
-9. define the smallest J2+ cleanup slices without changing core product flows
-10. add a focused executable drift proof before implementation
+1. load `GET /api/auth/me` before initializing the main product shell
+2. represent auth bootstrap/loading, authenticated, session-required, permission-denied, throttled, and degraded-dependency states explicitly
+3. carry membership role (OWNER / ADMIN / MEMBER) into shell state
+4. make Header navigation role-aware without weakening server-side authorization
+5. remove Trust Checks from normal-user primary navigation
+6. prevent MEMBER users from selecting or deep-linking into the Developer key-management tab
+7. preserve Automation and Integrations as product surfaces; do not hide them wholesale merely because some controls inside them are privileged
+8. keep backend 401/403/429/503 codes visible enough for the shell to render the correct state
+9. add focused J2 UI/session drift proofs
+10. stop before J3 admin/developer workspace separation
 
-Do not redesign core product flows for novelty.
+Do not redesign Ask, Insights, Knowledge, Actions, Watch, Automation, Integrations, Documents, or Datasets workflows in J2.
