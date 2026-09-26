@@ -12,6 +12,7 @@ import {
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
+  GoogleDriveOAuthStateError,
   type GoogleDriveOAuthStateAccess,
   googleDriveOAuthStateRuntime,
 } from './googleDriveOAuthStateStore.js';
@@ -152,11 +153,29 @@ export class GoogleDriveOAuthService {
       );
     }
 
-    const attempt =
-      await this.stateStore.consume(
-        params.state,
-        params.expectedAccountId
-      );
+    let attempt;
+    try {
+      attempt =
+        await this.stateStore.consume(
+          params.state,
+          params.expectedAccountId
+        );
+    } catch (error) {
+      if (
+        error instanceof
+          GoogleDriveOAuthStateError &&
+        error.code ===
+          'OAUTH_ACCOUNT_MISMATCH'
+      ) {
+        throw new GoogleDriveOAuthError(
+          'OAUTH_ACCOUNT_MISMATCH',
+          403,
+          'Google Drive OAuth state belongs to a different account.'
+        );
+      }
+      throw error;
+    }
+
     if (
       params.expectedAccountId &&
       attempt.accountId !== params.expectedAccountId
