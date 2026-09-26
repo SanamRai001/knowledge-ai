@@ -304,6 +304,9 @@ jobs:
       - name: Production J3 admin/developer separation proof
         run: npm run check:production:j3-admin-developer-separation
 
+      - name: Production J4 organization member admin proof
+        run: npm run check:production:j4-organization-member-admin
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -491,6 +494,9 @@ jobs:
 
       - name: Production I3C sustained worker pressure PostgreSQL proof
         run: npm run check:production:i3c-sustained-worker-pressure-postgres
+
+      - name: Production J4 organization member admin PostgreSQL proof
+        run: npm run check:production:j4-organization-member-admin-postgres
 
 
   h2_image:
