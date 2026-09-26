@@ -67,15 +67,15 @@ async function main() {
         'id="nav-tab-developer"'
       ) &&
       header.includes(
-        'id="btn-open-test-suite"'
-      ) &&
-      !header.includes(
         'membershipRole'
       ) &&
+      header.includes(
+        'canManageDeveloperPlatform'
+      ) &&
       !header.includes(
-        'currentUserRole'
+        'id="btn-open-test-suite"'
       ),
-    'J1 current-state finding changed: the common header is expected to expose developer/trust controls without role context until J2.'
+    'J1 historical finding must advance with J2: Developer navigation is now role-aware and Trust Checks are removed from the normal header.'
   );
 
   assert(
@@ -83,10 +83,16 @@ async function main() {
       app.includes(
         '<DeveloperPlatform'
       ) &&
-      !app.includes(
-        "fetch('/api/auth/me"
+      app.includes(
+        "'/api/auth/me'"
+      ) &&
+      app.includes(
+        '<SessionBoundary'
+      ) &&
+      app.includes(
+        '!canManageDeveloper'
       ),
-    'J1 current-state finding changed: App should remain non-role-aware until the J2 shell cutover.'
+    'J1 historical finding must advance with J2 session bootstrap and Developer deep-link protection.'
   );
 
   assert(
@@ -142,8 +148,13 @@ async function main() {
     workspace.includes(
       "workspaceRouter.post('/run-tests'"
     ) &&
-      header.includes('Trust Checks'),
-    'J1 current-state finding changed: browser trust-suite tooling must remain visible until its J2/J3 disposition is implemented.'
+      !header.includes(
+        'Trust Checks'
+      ) &&
+      !app.includes(
+        'TestSuiteModal'
+      ),
+    'J1 historical finding must advance with J2: server trust tooling may remain, but it is no longer exposed in the normal product shell.'
   );
 
   assert(
@@ -191,7 +202,7 @@ async function main() {
     'PRODUCTION_J1_UX_ADMIN_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'Flat role-unaware navigation, privileged surface mismatch, Trust Checks exposure, missing membership administration, orphan phase UI, and stale phase wording remain explicitly tracked for J2+ cleanup.'
+    'J1 audit remains guarded after J2: session/role-aware shell and Trust Checks cleanup advanced, while admin/developer separation, membership administration, orphan phase UI, and stale phase wording remain tracked for J3+.'
   );
 }
 
