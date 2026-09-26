@@ -270,6 +270,8 @@ automationRouter.get('/context', (_req, res) => {
       role,
       source: requestIdentity.source,
       capabilities: {
+        canManagePolicy:
+          role === 'OWNER' || role === 'ADMIN',
         canControlEmergencyStop:
           role === 'OWNER' || role === 'ADMIN',
         canResolveApprovals:
