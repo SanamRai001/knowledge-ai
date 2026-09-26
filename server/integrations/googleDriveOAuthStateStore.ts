@@ -30,7 +30,7 @@ function hashState(state: string): string {
 }
 
 export class GoogleDriveOAuthStateError extends Error {
-  public readonly statusCode = 400;
+  public readonly statusCode: number;
   public readonly code:
     | 'OAUTH_STATE_INVALID'
     | 'OAUTH_STATE_EXPIRED'
@@ -46,7 +46,7 @@ export class GoogleDriveOAuthStateError extends Error {
     super(message);
     this.name = 'GoogleDriveOAuthStateError';
     this.code = code;
-    (this as any).statusCode =
+    this.statusCode =
       code ===
         'OAUTH_ACCOUNT_MISMATCH'
         ? 403
