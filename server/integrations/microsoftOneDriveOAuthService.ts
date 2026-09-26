@@ -10,8 +10,8 @@ import {
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
-  MicrosoftOneDriveOAuthStateStore,
-  microsoftOneDriveOAuthStateStore,
+  type MicrosoftOneDriveOAuthStateAccess,
+  microsoftOneDriveOAuthStateRuntime,
 } from './microsoftOneDriveOAuthStateStore.js';
 import {
   MicrosoftOneDriveCredentialSecret,
@@ -69,8 +69,9 @@ export class MicrosoftOneDriveOAuthError extends Error {
 
 export class MicrosoftOneDriveOAuthService {
   constructor(
-    private readonly stateStore: MicrosoftOneDriveOAuthStateStore =
-      microsoftOneDriveOAuthStateStore,
+    private readonly stateStore:
+      MicrosoftOneDriveOAuthStateAccess =
+        microsoftOneDriveOAuthStateRuntime,
     private readonly credentialStore: IntegrationCredentialAccess =
       integrationOAuthSecretRuntime,
     private readonly fetchImpl: FetchLike = fetch
@@ -115,7 +116,7 @@ export class MicrosoftOneDriveOAuthService {
     }
 
     const { state, codeChallenge, attempt } =
-      this.stateStore.create({
+      await this.stateStore.create({
         accountId: params.accountId,
         displayName,
         redirectUri: config.redirectUri,
@@ -165,7 +166,11 @@ export class MicrosoftOneDriveOAuthService {
       );
     }
 
-    const attempt = this.stateStore.consume(params.state);
+    const attempt =
+      await this.stateStore.consume(
+        params.state,
+        params.expectedAccountId
+      );
     if (
       params.expectedAccountId &&
       attempt.accountId !== params.expectedAccountId
