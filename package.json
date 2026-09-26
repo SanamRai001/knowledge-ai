@@ -145,6 +145,8 @@
     "check:production:i1-load-abuse-security-contract": "tsx scripts/check-production-i1-load-abuse-security-contract.ts",
     "check:production:i1-abuse-boundaries": "tsx scripts/check-production-i1-abuse-boundaries.ts",
     "check:production:i1-concurrent-isolation-postgres": "tsx scripts/check-production-i1-concurrent-isolation-postgres.ts",
+    "check:production:i2-distributed-abuse-auth-state-contract": "tsx scripts/check-production-i2-distributed-abuse-auth-state-contract.ts",
+    "check:production:i2-distributed-abuse-auth-state-postgres": "tsx scripts/check-production-i2-distributed-abuse-auth-state-postgres.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
     "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
