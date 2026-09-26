@@ -620,11 +620,13 @@ Do not redesign core product flows merely for novelty.
 
 ---
 
-# Exact next implementation task
+# Historical roadmap kickoff
 
-## Production Hardening A1 — persistence forensic audit
+## A1 — persistence forensic audit
 
-Do **not** start by installing PostgreSQL and converting files blindly.
+> Historical context: this was the first implementation task when the A–J hardening roadmap began. It is complete and is **not** the current task.
+
+At the time, the rule was: do **not** start by installing PostgreSQL and converting files blindly.
 
 First:
 
