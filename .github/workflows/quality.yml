@@ -316,6 +316,9 @@ jobs:
       - name: Production J5 recovery diagnostics UI proof
         run: npm run check:production:j5-recovery-diagnostics-ui
 
+      - name: Production J6 copy and dead-surface cleanup proof
+        run: npm run check:production:j6-copy-dead-surface-cleanup
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
