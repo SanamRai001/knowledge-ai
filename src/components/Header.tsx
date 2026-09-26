@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
 import {
-  canManageDeveloperPlatform,
   type MembershipRole,
 } from '../session';
 
@@ -265,25 +264,21 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Quality</span>
         </button>
 
-        {canManageDeveloperPlatform(
-          membershipRole
-        ) && (
-          <button
-            id="nav-tab-developer"
-            onClick={() =>
-              onTabChange('developer')
-            }
-            className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-              currentTab ===
-              'developer'
-                ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
-                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-            }`}
-          >
-            <Code2 className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Developers</span>
-          </button>
-        )}
+        <button
+          id="nav-tab-developer"
+          onClick={() =>
+            onTabChange('developer')
+          }
+          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            currentTab ===
+            'developer'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+          }`}
+        >
+          <Code2 className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Developers</span>
+        </button>
 
       </div>
     </header>
