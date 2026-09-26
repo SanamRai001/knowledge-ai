@@ -81,10 +81,12 @@ function main() {
   );
 
   assert(
-    automation.includes('context?.capabilities.canControlEmergencyStop') &&
+    automation.includes('context?.capabilities.canManagePolicy') &&
+      automation.includes('automation-policy-admin-boundary') &&
+      automation.includes('context?.capabilities.canControlEmergencyStop') &&
       automation.includes('context?.capabilities.canResolveApprovals') &&
       automation.includes('context?.capabilities.canCompensate'),
-    'Dangerous Automation controls must respect authenticated capability context in the UI.'
+    'Automation policy/control/approval/recovery affordances must respect authenticated capability context in the UI.'
   );
 
   assert(
