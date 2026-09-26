@@ -28,7 +28,8 @@ function main() {
 
   assert(
     app.includes('<IntegrationsWorkspace') &&
-      app.includes("currentTab === 'integrations'") &&
+      (app.includes("currentTab === 'integrations'") ||
+        app.includes("effectiveTab === 'integrations'")) &&
       app.includes("get('tab')") &&
       app.includes("'integrations'"),
     'App must mount Integrations and restore the OAuth return tab from the URL.'

@@ -18,15 +18,22 @@ import { KnowledgeVersioningView } from './components/KnowledgeVersioningView';
 import { EvaluationCenter } from './components/EvaluationCenter';
 import { DeveloperPlatform } from './components/DeveloperPlatform';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
-import { TestSuiteModal } from './components/TestSuiteModal';
 import { NewKnowledgeBaseModal } from './components/NewKnowledgeBaseModal';
+import { SessionBoundary } from './components/SessionBoundary';
 import {
   KnowledgeBase,
   KnowledgeDocument,
   SpecializedAI,
   EvaluationTestCase,
-  TestResultItem,
 } from './types';
+import {
+  ApiRequestError,
+  canManageDeveloperPlatform,
+  readApiResponse,
+  shellStateFromError,
+  type AuthMeResponse,
+  type ShellState,
+} from './session';
 import { AlertCircle, X } from 'lucide-react';
 
 export default function App() {
@@ -60,32 +67,161 @@ export default function App() {
   const [isSavingAiConfig, setIsSavingAiConfig] = useState(false);
   const [isRunningEvaluation, setIsRunningEvaluation] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [authContext, setAuthContext] =
+    useState<AuthMeResponse | null>(null);
+  const [shellState, setShellState] =
+    useState<ShellState>({
+      status: 'bootstrapping',
+    });
+  const [isLoggingIn, setIsLoggingIn] =
+    useState(false);
 
   // Modals state
   const [viewingDocument, setViewingDocument] = useState<KnowledgeDocument | null>(null);
   const [viewingInitialPage, setViewingInitialPage] = useState<number>(1);
   const [isNewKbModalOpen, setIsNewKbModalOpen] = useState(false);
-  const [isTestSuiteModalOpen, setIsTestSuiteModalOpen] = useState(false);
-  const [testResults, setTestResults] = useState<TestResultItem[]>([]);
-  const [isRunningTests, setIsRunningTests] = useState(false);
 
-  // Fetch active knowledge base on mount
   const fetchActiveKb = useCallback(async () => {
-    try {
-      const res = await fetch('/api/kb');
-      if (!res.ok) throw new Error('Failed to load active knowledge base');
-      const data = await res.json();
-      setActiveKb(data.kb);
-      setAllKbs(data.allKbs || []);
-    } catch (err: any) {
-      console.error('Fetch KB error:', err);
-      setGlobalError(err.message || 'Failed to connect to Knowledge AI server.');
-    }
+    const res = await fetch('/api/kb', {
+      credentials: 'same-origin',
+    });
+    const data =
+      await readApiResponse<any>(
+        res,
+        'Failed to load active knowledge base'
+      );
+    setActiveKb(data.kb);
+    setAllKbs(data.allKbs || []);
+    return data;
   }, []);
 
+  const applyRequestFailure = useCallback(
+    (
+      error: unknown,
+      fallbackMessage: string
+    ) => {
+      const next = shellStateFromError(
+        error,
+        fallbackMessage
+      );
+      if (
+        next.status ===
+          'session-required' ||
+        next.status ===
+          'permission-denied' ||
+        next.status ===
+          'rate-limited' ||
+        next.status === 'degraded'
+      ) {
+        setShellState(next);
+        return;
+      }
+
+      setGlobalError(
+        next.message || fallbackMessage
+      );
+    },
+    []
+  );
+
+  const bootstrapShell = useCallback(
+    async () => {
+      setShellState({
+        status: 'bootstrapping',
+      });
+      setGlobalError(null);
+
+      try {
+        const authResponse = await fetch(
+          '/api/auth/me',
+          {
+            credentials: 'same-origin',
+          }
+        );
+        const context =
+          await readApiResponse<AuthMeResponse>(
+            authResponse,
+            'Failed to load your session.'
+          );
+
+        if (
+          !context.membership ||
+          context.membership.status !==
+            'ACTIVE'
+        ) {
+          throw new ApiRequestError({
+            status: 403,
+            code:
+              'AUTH_ACCOUNT_MEMBERSHIP_REQUIRED',
+            message:
+              'An active account membership is required.',
+          });
+        }
+
+        setAuthContext(context);
+        await fetchActiveKb();
+        setShellState({
+          status: 'authenticated',
+        });
+      } catch (error) {
+        setAuthContext(null);
+        setActiveKb(null);
+        setAllKbs([]);
+        setShellState(
+          shellStateFromError(
+            error,
+            'Knowledge AI could not initialize.'
+          )
+        );
+      }
+    },
+    [fetchActiveKb]
+  );
+
   useEffect(() => {
-    fetchActiveKb();
-  }, [fetchActiveKb]);
+    void bootstrapShell();
+  }, [bootstrapShell]);
+
+  const handleLogin = useCallback(
+    async (
+      email: string,
+      password: string
+    ) => {
+      setIsLoggingIn(true);
+      try {
+        const response = await fetch(
+          '/api/auth/login',
+          {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              email,
+              password,
+            }),
+          }
+        );
+        await readApiResponse(
+          response,
+          'Sign in failed.'
+        );
+        await bootstrapShell();
+      } catch (error) {
+        setShellState(
+          shellStateFromError(
+            error,
+            'Sign in failed.'
+          )
+        );
+      } finally {
+        setIsLoggingIn(false);
+      }
+    },
+    [bootstrapShell]
+  );
 
   // Upload PDF files
   const handleUploadFiles = async (files: FileList | File[]) => {
@@ -104,18 +240,22 @@ export default function App() {
         body: formData,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to upload and process PDF documents');
-      }
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to upload and process PDF documents'
+        );
 
       if (data.kb) {
         setActiveKb(data.kb);
       }
-      fetchActiveKb();
+      await fetchActiveKb();
     } catch (err: any) {
       console.error('Upload error:', err);
-      setGlobalError(err.message || 'File upload failed');
+      applyRequestFailure(
+        err,
+        'File upload failed'
+      );
     } finally {
       setIsUploading(false);
     }
@@ -129,17 +269,21 @@ export default function App() {
       const res = await fetch('/api/kb/documents/sample', {
         method: 'POST',
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load sample documents');
-      }
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to load sample documents'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
-      fetchActiveKb();
+      await fetchActiveKb();
     } catch (err: any) {
       console.error('Load samples error:', err);
-      setGlobalError(err.message || 'Failed to load sample documents');
+      applyRequestFailure(
+        err,
+        'Failed to load sample documents'
+      );
     } finally {
       setIsLoadingSamples(false);
     }
@@ -151,15 +295,21 @@ export default function App() {
       const res = await fetch(`/api/kb/documents/${id}`, {
         method: 'DELETE',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to remove document');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to remove document'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
-      fetchActiveKb();
+      await fetchActiveKb();
     } catch (err: any) {
       console.error('Remove document error:', err);
-      setGlobalError(err.message || 'Failed to remove document');
+      applyRequestFailure(
+        err,
+        'Failed to remove document'
+      );
     }
   };
 
@@ -169,15 +319,21 @@ export default function App() {
       const res = await fetch(`/api/kb/documents/${id}/retry`, {
         method: 'POST',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to retry document');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to retry document'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
-      fetchActiveKb();
+      await fetchActiveKb();
     } catch (err: any) {
       console.error('Retry document error:', err);
-      setGlobalError(err.message || 'Failed to retry document');
+      applyRequestFailure(
+        err,
+        'Failed to retry document'
+      );
     }
   };
 
@@ -189,13 +345,19 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to switch knowledge base');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to switch knowledge base'
+        );
       setActiveKb(data.kb);
       setAllKbs(data.allKbs || []);
     } catch (err: any) {
       console.error('Switch KB error:', err);
-      setGlobalError(err.message || 'Failed to switch knowledge base');
+      applyRequestFailure(
+        err,
+        'Failed to switch knowledge base'
+      );
     }
   };
 
@@ -207,13 +369,19 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create knowledge base');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to create knowledge base'
+        );
       setActiveKb(data.kb);
       setAllKbs(data.allKbs || []);
     } catch (err: any) {
       console.error('Create KB error:', err);
-      setGlobalError(err.message || 'Failed to create knowledge base');
+      applyRequestFailure(
+        err,
+        'Failed to create knowledge base'
+      );
     }
   };
 
@@ -226,13 +394,19 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update knowledge base');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to update knowledge base'
+        );
       setActiveKb(data.kb);
       setAllKbs(data.allKbs || []);
     } catch (err: any) {
       console.error('Update KB error:', err);
-      setGlobalError(err.message || 'Failed to update knowledge base');
+      applyRequestFailure(
+        err,
+        'Failed to update knowledge base'
+      );
     }
   };
 
@@ -247,14 +421,20 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update Specialized AI configuration');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to update Specialized AI configuration'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Save AI config error:', err);
-      setGlobalError(err.message || 'Failed to update Specialized AI');
+      applyRequestFailure(
+        err,
+        'Failed to update Specialized AI'
+      );
     } finally {
       setIsSavingAiConfig(false);
     }
@@ -269,14 +449,20 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create snapshot');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to create snapshot'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Create version error:', err);
-      setGlobalError(err.message || 'Failed to create version snapshot');
+      applyRequestFailure(
+        err,
+        'Failed to create version snapshot'
+      );
     }
   };
 
@@ -287,14 +473,20 @@ export default function App() {
       const res = await fetch(`/api/kb/${activeKb.id}/versions/${versionId}/rollback`, {
         method: 'POST',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to rollback version');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to rollback version'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Rollback error:', err);
-      setGlobalError(err.message || 'Failed to rollback version');
+      applyRequestFailure(
+        err,
+        'Failed to rollback version'
+      );
     }
   };
 
@@ -307,14 +499,20 @@ export default function App() {
       const res = await fetch(`/api/kb/${activeKb.id}/evaluations/run`, {
         method: 'POST',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to execute evaluation suite');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to execute evaluation suite'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Evaluation run error:', err);
-      setGlobalError(err.message || 'Failed to run evaluation benchmark');
+      applyRequestFailure(
+        err,
+        'Failed to run evaluation benchmark'
+      );
     } finally {
       setIsRunningEvaluation(false);
     }
@@ -329,14 +527,20 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tc),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add test case');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to add test case'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Add test case error:', err);
-      setGlobalError(err.message || 'Failed to add test case');
+      applyRequestFailure(
+        err,
+        'Failed to add test case'
+      );
     }
   };
 
@@ -347,41 +551,64 @@ export default function App() {
       const res = await fetch(`/api/kb/${activeKb.id}/evaluations/test-cases/${id}`, {
         method: 'DELETE',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete test case');
+      const data =
+        await readApiResponse<any>(
+          res,
+          'Failed to delete test case'
+        );
       if (data.kb) {
         setActiveKb(data.kb);
       }
     } catch (err: any) {
       console.error('Delete test case error:', err);
-      setGlobalError(err.message || 'Failed to delete test case');
+      applyRequestFailure(
+        err,
+        'Failed to delete test case'
+      );
     }
   };
 
-  // Run the supported production trust regression suite.
-  const handleRunTestSuite = async () => {
-    setIsRunningTests(true);
-    try {
-      const res = await fetch('/api/kb/run-tests', {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Test suite failed');
-      setTestResults(data.results || []);
-    } catch (err: any) {
-      console.error('Test runner error:', err);
-      setGlobalError(err.message || 'Failed to execute test suite');
-    } finally {
-      setIsRunningTests(false);
+  const membershipRole =
+    authContext?.membership?.role;
+  const canManageDeveloper =
+    canManageDeveloperPlatform(
+      membershipRole
+    );
+  const effectiveTab: ActiveTab =
+    currentTab === 'developer' &&
+    !canManageDeveloper
+      ? 'playground'
+      : currentTab;
+
+  const handleTabChange = (
+    tab: ActiveTab
+  ) => {
+    if (
+      tab === 'developer' &&
+      !canManageDeveloper
+    ) {
+      setCurrentTab('playground');
+      return;
     }
+    setCurrentTab(tab);
   };
 
-  const handleOpenTestSuiteModal = () => {
-    setIsTestSuiteModalOpen(true);
-    if (testResults.length === 0) {
-      handleRunTestSuite();
-    }
-  };
+  if (
+    shellState.status !==
+      'authenticated' ||
+    !authContext?.membership
+  ) {
+    return (
+      <SessionBoundary
+        state={shellState}
+        onRetry={() => {
+          void bootstrapShell();
+        }}
+        onLogin={handleLogin}
+        isLoggingIn={isLoggingIn}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-white text-slate-900 font-sans antialiased">
@@ -389,12 +616,13 @@ export default function App() {
       <Header
         activeKb={activeKb}
         allKbs={allKbs}
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        currentTab={effectiveTab}
+        onTabChange={handleTabChange}
         onNewKb={() => setIsNewKbModalOpen(true)}
         onSwitchKb={handleSwitchKb}
-        onOpenTestSuite={handleOpenTestSuiteModal}
-        isTesting={isRunningTests}
+        membershipRole={
+          authContext.membership.role
+        }
       />
 
       {/* Global Error Banner */}
@@ -419,7 +647,7 @@ export default function App() {
       {/* Primary Tab Workspaces */}
       <div className="flex-1 flex overflow-hidden">
         {/* Ask: unified structured-data + document knowledge experience */}
-        {currentTab === 'playground' && (
+        {effectiveTab === 'playground' && (
           <UnifiedAskView
             activeKnowledgeBaseId={activeKb?.id}
             activeKnowledgeBaseName={activeKb?.name}
@@ -429,7 +657,7 @@ export default function App() {
         )}
 
         {/* Proactive discovery */}
-        {currentTab === 'insights' && (
+        {effectiveTab === 'insights' && (
           <InsightsWorkspace
             activeKnowledgeBaseId={activeKb?.id}
             activeKnowledgeBaseName={activeKb?.name}
@@ -442,7 +670,7 @@ export default function App() {
         )}
 
         {/* Living company knowledge: entities, relationships, truth sources, and history */}
-        {currentTab === 'company' && (
+        {effectiveTab === 'company' && (
           <CompanyKnowledgeWorkspace
             activeKnowledgeBaseId={activeKb?.id}
             activeKnowledgeBaseName={activeKb?.name}
@@ -455,19 +683,19 @@ export default function App() {
         )}
 
         {/* Safe natural-language write proposals and audit history */}
-        {currentTab === 'actions' && <ActionsWorkspace />}
+        {effectiveTab === 'actions' && <ActionsWorkspace />}
 
         {/* Governed automatic execution, approvals, recovery, and quality */}
-        {currentTab === 'automation' && <AutomationWorkspace />}
+        {effectiveTab === 'automation' && <AutomationWorkspace />}
 
         {/* Continuous monitoring, reminders, and alert lifecycle */}
-        {currentTab === 'watch' && <WatchWorkspace />}
+        {effectiveTab === 'watch' && <WatchWorkspace />}
 
         {/* External provider connections and sync history */}
-        {currentTab === 'integrations' && <IntegrationsWorkspace />}
+        {effectiveTab === 'integrations' && <IntegrationsWorkspace />}
 
         {/* Structured business datasets */}
-        {currentTab === 'datasets' && (
+        {effectiveTab === 'datasets' && (
           <DatasetWorkspace
             preferredDatasetId={preferredDatasetId}
             onDatasetChange={(datasetId) => {
@@ -481,7 +709,7 @@ export default function App() {
         )}
 
         {/* Documents: knowledge base and versions */}
-        {currentTab === 'knowledge' && activeKb && (
+        {effectiveTab === 'knowledge' && activeKb && (
           <KnowledgeVersioningView
             activeKb={activeKb}
             onUploadFiles={handleUploadFiles}
@@ -501,7 +729,7 @@ export default function App() {
         )}
 
         {/* Specialized AI configuration */}
-        {currentTab === 'config' && activeKb && (
+        {effectiveTab === 'config' && activeKb && (
           <SpecializedAIConfig
             specializedAi={
               activeKb.specializedAi || {
@@ -526,7 +754,7 @@ export default function App() {
         )}
 
         {/* Evaluation benchmark center */}
-        {currentTab === 'evaluations' && activeKb && (
+        {effectiveTab === 'evaluations' && activeKb && (
           <EvaluationCenter
             activeKb={activeKb}
             onRunEvaluation={handleRunEvaluation}
@@ -537,9 +765,12 @@ export default function App() {
         )}
 
         {/* Developer platform and REST API */}
-        {currentTab === 'developer' && (
-          <DeveloperPlatform activeKb={activeKb} />
-        )}
+        {effectiveTab === 'developer' &&
+          canManageDeveloper && (
+            <DeveloperPlatform
+              activeKb={activeKb}
+            />
+          )}
 
       </div>
 
@@ -548,15 +779,6 @@ export default function App() {
         document={viewingDocument}
         initialPageNumber={viewingInitialPage}
         onClose={() => setViewingDocument(null)}
-      />
-
-      {/* Acceptance Test Suite Modal */}
-      <TestSuiteModal
-        isOpen={isTestSuiteModalOpen}
-        onClose={() => setIsTestSuiteModalOpen(false)}
-        results={testResults}
-        onRunTests={handleRunTestSuite}
-        isRunning={isRunningTests}
       />
 
       {/* New Knowledge Base Modal */}

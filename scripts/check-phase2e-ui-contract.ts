@@ -23,7 +23,8 @@ function main() {
 
   assert(
     app.includes('<InsightsWorkspace') &&
-      app.includes("currentTab === 'insights'"),
+      (app.includes("currentTab === 'insights'") ||
+        app.includes("effectiveTab === 'insights'")),
     'App must mount the proactive Insights workspace.'
   );
 

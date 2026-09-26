@@ -199,7 +199,8 @@ The implementation sequence is deliberately split into small slices:
 44. **I2 — Distributed Abuse & Auth-State Hardening** — COMPLETE, workflow `36221948773`
 45. **I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress** — COMPLETE, workflow `36228815635`
 46. **J1 — Production UX/Admin Forensic Audit** — COMPLETE, workflow `36231584786`
-47. **J2 — Session + Role-Aware Application Shell** — NEXT
+47. **J2 — Session + Role-Aware Application Shell** — COMPLETE, workflow `36233824606`
+48. **J3 — Admin/Developer Surface Separation** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -769,22 +770,23 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J2 — Session + Role-Aware Application Shell**
+**Production Hardening J3 — Admin/Developer Surface Separation**
 
-Do not redesign first.
+Keep this slice limited to privileged-control separation inside existing production workspaces.
 
-1. inventory every normal-user navigation surface and route
-2. inventory every admin/developer/platform-management surface and required role boundary
-3. identify duplicated or ambiguous navigation between product, admin, developer, recovery, and diagnostics surfaces
-4. audit organization/member administration UX against the existing OWNER/ADMIN/MEMBER authorization model
-5. audit source-authority administration and provenance visibility
-6. audit onboarding, first-run, empty-state, degraded-dependency, recovery, and permission-denied UX
-7. audit deployment/provider/readiness diagnostics and decide which belong to operators vs normal users
-8. identify stale prototype wording or implementation details that should no longer appear in the production UI
-9. define the smallest J2+ implementation slices that improve operability without changing core Phase 0–8 flows
-10. add an executable drift proof for the chosen navigation/admin boundary before implementing cleanup
+1. split Platform API key administration from general Developer API documentation/explorer use
+2. preserve stable API v1 documentation, manifest, scopes, governed extension inventory, and safe read explorer
+3. make OWNER/ADMIN key-management controls explicit and unavailable to MEMBER users
+4. audit Integration workspace controls against existing backend privileges; keep ordinary connection status/history visible where policy allows
+5. hide or disable privileged Integration lifecycle actions for users lacking the required capability without weakening server enforcement
+6. consume `/api/automation/context` so Automation policy/control affordances reflect the authenticated actor's real capabilities
+7. keep ordinary Automation run/history visibility available where the backend allows it
+8. remove dead-end privileged buttons rather than letting normal users discover authorization only after clicking
+9. add focused J3 role/capability UI drift proofs and preserve all J2 session/degraded shell behavior
+10. stop before J4 organization/member administration
 
-Do not redesign core product flows merely for novelty.
+Do not redesign Ask, Insights, Company Knowledge, Actions, Watch, Datasets, Documents, or core Automation/Integration workflows merely for visual novelty.
+
 ---
 
 # Track A closure note

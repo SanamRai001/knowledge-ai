@@ -23,13 +23,15 @@ function main() {
 
   assert(
     app.includes('<DatasetWorkspace') &&
-      app.includes("currentTab === 'datasets'"),
+      (app.includes("currentTab === 'datasets'") ||
+        app.includes("effectiveTab === 'datasets'")),
     'App must mount the Datasets workspace.'
   );
 
   assert(
     app.includes('<UnifiedAskView') &&
-      app.includes("currentTab === 'playground'"),
+      (app.includes("currentTab === 'playground'") ||
+        app.includes("effectiveTab === 'playground'")),
     'Primary Ask tab must mount the unified Ask experience.'
   );
 

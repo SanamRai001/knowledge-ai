@@ -110,10 +110,16 @@ async function main() {
   }
 
   assert(
-    app.includes(
-      "fetch('/api/kb/run-tests'"
-    ),
-    'Trust Checks must use the supported /api/kb/run-tests endpoint.'
+    !app.includes(
+      "/api/kb/run-tests"
+    ) &&
+      !app.includes(
+        'TestSuiteModal'
+      ) &&
+      !header.includes(
+        'Trust Checks'
+      ),
+    'J2 must keep Trust Checks out of the normal browser shell while the supported server endpoint remains available for controlled tooling.'
   );
 
   assert(
@@ -192,7 +198,7 @@ async function main() {
     'PRODUCTION_B2D3B4_RETIRED_FRONTEND_SURFACE_CLEANUP_CHECK_PASSED'
   );
   console.log(
-    'Retired experimental tabs/components and stale frontend calls are removed; Trust Checks uses /api/kb/run-tests; Unified Ask stays on /api/query/ask; and reusable backend internals remain available.'
+    'Retired experimental tabs/components and stale frontend calls are removed; J2 no longer exposes Trust Checks in the normal browser shell; the authenticated /api/kb/run-tests server contract remains available for controlled tooling; Unified Ask stays on /api/query/ask; and reusable backend internals remain available.'
   );
 }
 

@@ -298,6 +298,9 @@ jobs:
       - name: Production J1 UX/Admin forensic audit proof
         run: npm run check:production:j1-ux-admin-forensic-audit
 
+      - name: Production J2 role-aware shell proof
+        run: npm run check:production:j2-role-aware-shell
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
