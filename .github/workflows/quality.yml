@@ -301,6 +301,9 @@ jobs:
       - name: Production J2 role-aware shell proof
         run: npm run check:production:j2-role-aware-shell
 
+      - name: Production J3 admin/developer separation proof
+        run: npm run check:production:j3-admin-developer-separation
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
