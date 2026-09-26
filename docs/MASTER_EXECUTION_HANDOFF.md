@@ -1103,7 +1103,8 @@ Track A relational milestones:
 - H2 Reproducible Build + Production Image Foundation — COMPLETE, workflow `36167552759`
 - H3 Runtime Edge + Graceful Shutdown Hardening — COMPLETE, workflow `36171328745`
 - H4 Staging Promotion + Rollback Release Gate — COMPLETE, workflow `36175108771`
-- I1 Load, Abuse, and Security Test Foundation — NEXT
+- I1 Load, Abuse, and Security Test Foundation — COMPLETE, workflow `36218326048`
+- I2 Distributed Abuse & Auth-State Hardening — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1275,17 +1276,19 @@ H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 
 H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
 
-Next, do **I1 only — Load, Abuse, and Security Test Foundation**:
+I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 
-1. inventory production-facing HTTP/auth/upload/OAuth/provider/worker surfaces requiring adversarial or load coverage
-2. define measurable thresholds for concurrency, latency, errors, retries, payload limits, and isolation failures
-3. create one reusable isolated-environment load/security harness with no production credentials/data
-4. prove concurrent HUMAN_SESSION and API_KEY tenant isolation
-5. prove API-key abuse/rate-limit behavior against deterministic thresholds
-6. prove general request-body and upload-limit enforcement at/over boundaries
-7. add malformed PDF/XLSX parser-failure fixtures with durable-state integrity checks
-8. add OAuth callback/state replay plus origin/CSRF abuse coverage
-9. add SSRF regression coverage for remote-provider/import URL boundaries
-10. record the remaining Track I test matrix for prompt-injection/evidence boundaries, race/idempotency, and sustained workers
+Next, do **I2 only — Distributed Abuse & Auth-State Hardening**:
 
-Do not start Track J UX/admin cleanup or vendor-specific production rollout automation in I1.
+1. replace process-local API-key rate-limit state with a shared/durable multi-replica enforcement boundary
+2. retain the measured 100 requests / 60 seconds / key contract unless new evidence deliberately changes it
+3. prove one API key shares one quota across two independent web instances
+4. add non-enumerating human-login attempt throttling with bounded cleanup
+5. replace in-memory Google/OneDrive OAuth attempt state with shared one-time state
+6. prove OAuth start on web instance A can complete on web instance B
+7. preserve state expiry, account binding, replay denial, Google scope/refresh rules, and OneDrive PKCE
+8. protect PKCE verifier/state secrets using the existing F2 secret boundary where appropriate
+9. test cross-replica replay/cross-account abuse and cleanup/retention
+10. stop before I3 prompt-injection/evidence, race/idempotency stress, sustained worker load, or Track J UI/admin cleanup
+
+Do not claim cluster capacity merely because distributed security-state tests pass.
