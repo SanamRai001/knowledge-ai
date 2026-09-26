@@ -328,7 +328,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
 
       {/* Footer Info */}
       <div className="p-3 border-t border-slate-200 bg-white text-[11px] text-slate-500 text-center">
-        <span>Knowledge Isolation Active • Phase 1 Core</span>
+        <span>Knowledge isolation active</span>
       </div>
     </aside>
   );
