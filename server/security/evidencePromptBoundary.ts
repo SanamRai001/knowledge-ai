@@ -96,13 +96,25 @@ export function formatUntrustedEvidenceForModel(
     UNTRUSTED_EVIDENCE_BEGIN,
     'Chunk metadata (data only):',
     'chunk_id=' +
-      JSON.stringify(input.chunkId),
+      JSON.stringify(
+        neutralizeInstructionLikeEvidence(
+          input.chunkId
+        )
+      ),
     'document_name=' +
-      JSON.stringify(input.documentName),
+      JSON.stringify(
+        neutralizeInstructionLikeEvidence(
+          input.documentName
+        )
+      ),
     'page=' +
       String(input.pageNumber),
     'section=' +
-      JSON.stringify(input.sectionTitle),
+      JSON.stringify(
+        neutralizeInstructionLikeEvidence(
+          input.sectionTitle
+        )
+      ),
     'content:',
     neutralizeInstructionLikeEvidence(
       input.text
