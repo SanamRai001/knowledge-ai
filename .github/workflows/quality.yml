@@ -283,6 +283,12 @@ jobs:
       - name: Production H4 immutable Action pin proof
         run: npm run check:production:h4-action-pins
 
+      - name: Production I1 load abuse security contract proof
+        run: npm run check:production:i1-load-abuse-security-contract
+
+      - name: Production I1 adversarial boundary proof
+        run: npm run check:production:i1-abuse-boundaries
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
@@ -458,6 +464,9 @@ jobs:
 
       - name: Production H4 migration gate PostgreSQL proof
         run: npm run check:production:h4-migration-gate-postgres
+
+      - name: Production I1 concurrent identity isolation PostgreSQL proof
+        run: npm run check:production:i1-concurrent-isolation-postgres
 
 
   h2_image:
