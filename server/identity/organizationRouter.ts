@@ -15,6 +15,9 @@ import {
 import {
   organizationMemberAdminService,
 } from './organizationMemberAdminService.js';
+import {
+  operatorDiagnosticsService,
+} from '../operations/operatorDiagnosticsService.js';
 
 export const organizationRouter =
   Router();
@@ -137,6 +140,21 @@ organizationRouter.patch(
               req.body?.status,
           });
       res.json({ member });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+);
+
+organizationRouter.get(
+  '/diagnostics',
+  requireOwnerOrAdmin,
+  async (_req, res) => {
+    try {
+      res.json(
+        await operatorDiagnosticsService
+          .summary()
+      );
     } catch (error) {
       handleError(error, res);
     }
