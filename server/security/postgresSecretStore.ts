@@ -853,6 +853,76 @@ export class PostgresSecretStore
     return deleted;
   }
 
+  async cleanupUnreferencedOAuthAttemptSecrets(params: {
+    olderThanMs?: number;
+    limit?: number;
+  } = {}): Promise<number> {
+    const cutoff = new Date(
+      Date.now() -
+        Math.max(
+          0,
+          params.olderThanMs ??
+            10 * 60 * 1000
+        )
+    );
+    const limit =
+      Math.max(
+        1,
+        Math.min(
+          500,
+          params.limit ?? 64
+        )
+      );
+
+    const result =
+      await postgresPool().query<{
+        id: string;
+        account_id: string;
+        provider: string | null;
+      }>(
+        `SELECT
+           s.id,
+           s.account_id,
+           s.provider
+         FROM account_secrets s
+         WHERE s.purpose =
+             'INTEGRATION_OAUTH_ATTEMPT'
+           AND s.status = 'ACTIVE'
+           AND s.created_at <= $1
+           AND NOT EXISTS (
+             SELECT 1
+             FROM integration_oauth_attempts a
+             WHERE a.account_id =
+                 s.account_id
+               AND a.secret_ref = s.id
+           )
+         ORDER BY s.created_at ASC,
+                  s.id ASC
+         LIMIT $2`,
+        [cutoff, limit]
+      );
+
+    let deleted = 0;
+    for (const row of result.rows) {
+      const removed =
+        await this.delete({
+          accountId:
+            row.account_id,
+          secretId: row.id,
+          purpose:
+            'INTEGRATION_OAUTH_ATTEMPT',
+          provider:
+            row.provider ??
+            undefined,
+        });
+      if (removed) {
+        deleted += 1;
+      }
+    }
+
+    return deleted;
+  }
+
   async findMetadata(
     accountId: string,
     secretIdValue: string
