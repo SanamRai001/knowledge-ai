@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J2 — Session + Role-Aware Application Shell.**
+> **Continue with Production Hardening J3 — Admin/Developer Surface Separation.**
 
 Phases 0–8 are complete.
 
@@ -1107,7 +1107,8 @@ Track A relational milestones:
 - I2 Distributed Abuse & Auth-State Hardening — COMPLETE, workflow `36221948773`
 - I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228815635`
 - J1 Production UX/Admin Forensic Audit — COMPLETE, workflow `36231584786`
-- J2 Session + Role-Aware Application Shell — NEXT
+- J2 Session + Role-Aware Application Shell — COMPLETE, workflow `36233824606`
+- J3 Admin/Developer Surface Separation — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1291,17 +1292,17 @@ I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
 I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
-Next, do **J2 only — Session + Role-Aware Application Shell**:
+Next, do **J3 only — Admin/Developer Surface Separation**:
 
-1. load `GET /api/auth/me` before initializing the main product shell
-2. represent auth bootstrap/loading, authenticated, session-required, permission-denied, throttled, and degraded-dependency states explicitly
-3. carry membership role (OWNER / ADMIN / MEMBER) into shell state
-4. make Header navigation role-aware without weakening server-side authorization
-5. remove Trust Checks from normal-user primary navigation
-6. prevent MEMBER users from selecting or deep-linking into the Developer key-management tab
-7. preserve Automation and Integrations as product surfaces; do not hide them wholesale merely because some controls inside them are privileged
-8. keep backend 401/403/429/503 codes visible enough for the shell to render the correct state
-9. add focused J2 UI/session drift proofs
-10. stop before J3 admin/developer workspace separation
+1. separate Platform API key administration from the general Developer documentation/explorer experience
+2. keep the stable Platform API manifest, scopes, extension inventory, API docs, and bounded read explorer intact
+3. make key create/revoke/usage administration explicitly OWNER/ADMIN-only in the UI
+4. preserve ordinary Integration connection status/history where server policy allows it
+5. make privileged Integration connect/reauthorize/revoke/disconnect controls capability-aware rather than exposing dead-end actions
+6. load and honor `/api/automation/context` so Automation policy creation/editing/approval/control affordances match the current actor
+7. preserve ordinary Automation run/history visibility where permitted
+8. keep J2 session/login/permission/rate-limit/degraded shell behavior unchanged
+9. add focused J3 privilege-surface drift proofs
+10. stop before J4 organization/member administration
 
-Do not redesign Ask, Insights, Knowledge, Actions, Watch, Automation, Integrations, Documents, or Datasets workflows in J2.
+Do not redesign normal Ask, Insights, Company Knowledge, Actions, Watch, Dataset, or Document workflows in J3.
