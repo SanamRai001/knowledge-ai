@@ -23,7 +23,8 @@ function main() {
 
   assert(
     app.includes('<WatchWorkspace') &&
-      app.includes("currentTab === 'watch'"),
+      (app.includes("currentTab === 'watch'") ||
+        app.includes("effectiveTab === 'watch'")),
     'App must mount the first-class Watch workspace.'
   );
 
