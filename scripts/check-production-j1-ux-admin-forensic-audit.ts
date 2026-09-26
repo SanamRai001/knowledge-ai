@@ -69,13 +69,10 @@ async function main() {
       header.includes(
         'membershipRole'
       ) &&
-      header.includes(
-        'canManageDeveloperPlatform'
-      ) &&
       !header.includes(
         'id="btn-open-test-suite"'
       ),
-    'J1 historical finding must advance with J2: Developer navigation is now role-aware and Trust Checks are removed from the normal header.'
+    'J1 historical finding must advance with J3: Developer docs remain first-class and Trust Checks stay removed.'
   );
 
   assert(
@@ -90,9 +87,9 @@ async function main() {
         '<SessionBoundary'
       ) &&
       app.includes(
-        '!canManageDeveloper'
+        'membershipRole={'
       ),
-    'J1 historical finding must advance with J2 session bootstrap and Developer deep-link protection.'
+    'J1 historical finding must advance with J3 safe Developer access inside the authenticated shell.'
   );
 
   assert(
@@ -102,10 +99,16 @@ async function main() {
       developer.includes(
         "'/api/platform-management/usage'"
       ) &&
+      developer.includes(
+        'developer-admin-boundary'
+      ) &&
+      developer.includes(
+        'if (!canManageKeys)'
+      ) &&
       platformManagement.includes(
         'platformManagementRouter.use(requireOwnerOrAdmin)'
       ),
-    'J1 requires the mismatch between globally visible Developers UI and OWNER/ADMIN key management to remain detectable until J2/J3.'
+    'J1 historical Developer/admin mismatch must be resolved by J3 while server OWNER/ADMIN authorization remains authoritative.'
   );
 
   assert(
@@ -202,7 +205,7 @@ async function main() {
     'PRODUCTION_J1_UX_ADMIN_FORENSIC_AUDIT_CHECK_PASSED'
   );
   console.log(
-    'J1 audit remains guarded after J2: session/role-aware shell and Trust Checks cleanup advanced, while admin/developer separation, membership administration, orphan phase UI, and stale phase wording remain tracked for J3+.'
+    'J1 audit remains guarded after J3: session-aware shell, Trust Checks cleanup, and admin/developer separation advanced, while membership administration, orphan phase UI, and stale phase wording remain tracked for J4+.'
   );
 }
 
