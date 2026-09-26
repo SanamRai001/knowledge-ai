@@ -102,13 +102,16 @@ async function main() {
       'id="organization-no-invite-contract"'
     ) &&
       organization.includes(
-        'does not yet define a durable'
+        'Invitations'
+      ) &&
+      organization.includes(
+        'invitation/join contract'
       ) &&
       !organization.includes(
-        '/invite'
+        "'/invite"
       ) &&
       !organization.includes(
-        '/invitations'
+        '"/invite'
       ) &&
       !organization.includes(
         'Invite member'
