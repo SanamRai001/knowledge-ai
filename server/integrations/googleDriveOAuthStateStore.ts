@@ -6,6 +6,9 @@ import {
   distributedSecurityState,
   hashOAuthState,
 } from '../security/distributedSecurityState.js';
+import {
+  cleanupExpiredOAuthSecurityState,
+} from './oauthAttemptSecurityCleanup.js';
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 
@@ -229,9 +232,8 @@ export class GoogleDriveOAuthStateRuntime
         },
       });
 
-    await distributedSecurityState
-      .cleanupExpiredOAuthAttempts({})
-      .catch(() => []);
+    await cleanupExpiredOAuthSecurityState()
+      .catch(() => undefined);
 
     return {
       state,
