@@ -10,8 +10,8 @@ const USAGE_FILE = path.join(DATA_DIR, 'api_usage.json');
 
 // Rate limiting in-memory bucket: keyId -> timestamps[]
 const rateLimitBuckets = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100; // 100 req/min
+export const API_KEY_RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+export const API_KEY_RATE_LIMIT_MAX_REQUESTS = 100; // 100 req/min
 
 export class ApiKeyStore {
   private keys: Map<string, ApiKey> = new Map();
@@ -292,7 +292,7 @@ export class ApiKeyStore {
   /**
    * Check rate limits (100 req/min/key).
    */
-  checkRateLimit(keyId: string, maxRequests: number = RATE_LIMIT_MAX_REQUESTS): {
+  checkRateLimit(keyId: string, maxRequests: number = API_KEY_RATE_LIMIT_MAX_REQUESTS): {
     allowed: boolean;
     remaining: number;
     resetSeconds: number;
@@ -301,11 +301,11 @@ export class ApiKeyStore {
     let timestamps = rateLimitBuckets.get(keyId) || [];
 
     // Filter out timestamps outside window
-    timestamps = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    timestamps = timestamps.filter((t) => now - t < API_KEY_RATE_LIMIT_WINDOW_MS);
 
     if (timestamps.length >= maxRequests) {
       const oldest = timestamps[0];
-      const resetSeconds = Math.max(1, Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000));
+      const resetSeconds = Math.max(1, Math.ceil((API_KEY_RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000));
       rateLimitBuckets.set(keyId, timestamps);
       return { allowed: false, remaining: 0, resetSeconds };
     }

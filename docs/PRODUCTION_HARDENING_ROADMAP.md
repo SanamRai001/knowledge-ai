@@ -195,7 +195,8 @@ The implementation sequence is deliberately split into small slices:
 40. **H2 — Reproducible Build + Production Image Foundation** — COMPLETE, workflow `36167552759`
 41. **H3 — Runtime Edge + Graceful Shutdown Hardening** — COMPLETE, workflow `36171328745`
 42. **H4 — Staging Promotion + Rollback Release Gate** — COMPLETE, workflow `36175108771`
-43. **I1 — Load, Abuse, and Security Test Foundation** — NEXT
+43. **I1 — Load, Abuse, and Security Test Foundation** — COMPLETE, workflow `36218326048`
+44. **I2 — Distributed Abuse & Auth-State Hardening** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -280,6 +281,8 @@ H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
 
 H4 evidence: `docs/PRODUCTION_H4_STAGING_PROMOTION_RELEASE_GATE.md`.
+
+I1 evidence: `docs/PRODUCTION_I1_LOAD_ABUSE_SECURITY_FOUNDATION.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -759,22 +762,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening I1 — Load, Abuse, and Security Test Foundation**
+**Production Hardening I2 — Distributed Abuse & Auth-State Hardening**
 
-Keep I1 limited to a measured, repeatable adversarial/load test foundation. Do not claim production scale from synthetic happy-path tests.
+Keep I2 limited to removing the process-local security assumptions exposed by I1.
 
-1. inventory every production-facing HTTP/auth/upload/OAuth/provider/worker surface that needs Track I coverage
-2. define explicit measurable thresholds for concurrency, latency, error rate, retry behavior, payload size, and isolation failures
-3. add a reusable load/security test harness that can target an isolated test deployment without embedding credentials or production data
-4. add concurrent cross-account isolation tests covering HUMAN_SESSION and API_KEY request paths
-5. add API-key abuse/rate-limit tests with deterministic threshold assertions
-6. add boundary tests for existing general body/upload limits and oversized request rejection
-7. add malformed PDF/XLSX ingestion fixtures that prove parser failures are bounded and do not corrupt durable source/runtime state
-8. add OAuth callback/state replay and origin/CSRF abuse tests without weakening the B2/F2 identity/secret contracts
-9. add SSRF regression coverage for provider/import URL boundaries that currently accept or construct remote URLs
-10. document the remaining Track I matrix (prompt injection/evidence boundary, race/idempotency, sustained Watch/Integration/Automation workers) and stop before broad product UX/admin cleanup
+1. replace process-local API-key quota state with one shared/durable enforcement boundary suitable for multiple web replicas
+2. preserve the existing 100 requests / 60 seconds / key contract unless measured evidence justifies a different threshold
+3. add a deterministic two-instance test proving one API key cannot obtain a separate quota bucket from each web process
+4. add dedicated human-login abuse throttling with non-enumerating failures and bounded retention
+5. replace process-local Google/OneDrive OAuth state with shared one-time state so start and callback may land on different web replicas
+6. preserve OAuth account binding, 10-minute expiry, one-time replay rejection, Google refresh-token requirements, and OneDrive PKCE S256
+7. keep sensitive OneDrive PKCE verifier/state material inside the existing F2 managed-secret boundary where appropriate
+8. add cross-replica OAuth success/replay/cross-account abuse tests
+9. add cleanup/retention behavior for rate-limit and OAuth-attempt state so abuse state cannot grow without bound
+10. record the remaining I3 matrix for prompt-injection/evidence boundaries, race/idempotency stress, and sustained Watch/Integration/Automation worker load
 
-Do not start Track J UI/admin cleanup or make unsupported “handles N users” claims in I1.
+Do not start Track J UX/admin cleanup or make production-scale claims in I2.
 ---
 
 # Track A closure note

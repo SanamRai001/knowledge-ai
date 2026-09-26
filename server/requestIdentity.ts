@@ -32,21 +32,26 @@ export type RequestIdentityErrorCode =
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
   | 'AMBIGUOUS_CREDENTIALS'
-  | 'ACCOUNT_SELECTION_REQUIRED';
+  | 'ACCOUNT_SELECTION_REQUIRED'
+  | 'RATE_LIMITED';
 
 export class RequestIdentityError extends Error {
   public statusCode: number;
   public code: RequestIdentityErrorCode;
+  public readonly retryAfterSeconds?: number;
 
   constructor(
     code: RequestIdentityErrorCode,
     statusCode: number,
-    message: string
+    message: string,
+    retryAfterSeconds?: number
   ) {
     super(message);
     this.name = 'RequestIdentityError';
     this.code = code;
     this.statusCode = statusCode;
+    this.retryAfterSeconds =
+      retryAfterSeconds;
   }
 }
 
@@ -93,6 +98,19 @@ function resolveApiKeyIdentity(
       revoked ? 'FORBIDDEN' : 'UNAUTHORIZED',
       revoked ? 403 : 401,
       validation.error || 'Invalid API key.'
+    );
+  }
+
+  const rateLimit =
+    apiKeyStore.checkRateLimit(
+      validation.apiKey.id
+    );
+  if (!rateLimit.allowed) {
+    throw new RequestIdentityError(
+      'RATE_LIMITED',
+      429,
+      'Rate limit exceeded. Please try again later.',
+      rateLimit.resetSeconds
     );
   }
 
