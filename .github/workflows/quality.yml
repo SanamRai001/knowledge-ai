@@ -477,6 +477,9 @@ jobs:
       - name: Production I2 distributed abuse auth-state PostgreSQL proof
         run: npm run check:production:i2-distributed-abuse-auth-state-postgres
 
+      - name: Production I3B transaction race stress PostgreSQL proof
+        run: npm run check:production:i3b-transaction-race-stress-postgres
+
 
   h2_image:
     name: Production H2 Image Smoke
