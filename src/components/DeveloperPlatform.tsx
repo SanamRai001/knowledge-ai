@@ -30,9 +30,14 @@ import type {
   ApiUsage,
   KnowledgeBase,
 } from '../types';
+import {
+  canManageDeveloperPlatform,
+  type MembershipRole,
+} from '../session';
 
 interface DeveloperPlatformProps {
   activeKb: KnowledgeBase | null;
+  membershipRole: MembershipRole;
 }
 
 type PlatformTab =
@@ -106,7 +111,14 @@ function csrfToken(): string {
 
 export const DeveloperPlatform: React.FC<
   DeveloperPlatformProps
-> = ({ activeKb: _activeKb }) => {
+> = ({
+  activeKb: _activeKb,
+  membershipRole,
+}) => {
+  const canManageKeys =
+    canManageDeveloperPlatform(
+      membershipRole
+    );
   const [tab, setTab] = useState<PlatformTab>('overview');
   const [manifest, setManifest] =
     useState<PlatformManifest | null>(null);
@@ -166,6 +178,11 @@ export const DeveloperPlatform: React.FC<
   }, []);
 
   const fetchKeys = useCallback(async () => {
+    if (!canManageKeys) {
+      setKeys([]);
+      return;
+    }
+
     const response = await fetch('/api/platform-management/keys');
     const body = await response.json();
     if (!response.ok) {
@@ -174,9 +191,14 @@ export const DeveloperPlatform: React.FC<
       );
     }
     setKeys(body.keys || []);
-  }, []);
+  }, [canManageKeys]);
 
   const fetchUsage = useCallback(async () => {
+    if (!canManageKeys) {
+      setUsage(null);
+      return;
+    }
+
     const response = await fetch('/api/platform-management/usage');
     const body = await response.json();
     if (!response.ok) {
@@ -185,7 +207,7 @@ export const DeveloperPlatform: React.FC<
       );
     }
     setUsage(body);
-  }, []);
+  }, [canManageKeys]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -193,8 +215,9 @@ export const DeveloperPlatform: React.FC<
     try {
       await Promise.all([
         fetchManifest(),
-        fetchKeys(),
-        fetchUsage(),
+        ...(canManageKeys
+          ? [fetchKeys(), fetchUsage()]
+          : []),
       ]);
     } catch (err: any) {
       setError(
@@ -203,11 +226,26 @@ export const DeveloperPlatform: React.FC<
     } finally {
       setIsLoading(false);
     }
-  }, [fetchKeys, fetchManifest, fetchUsage]);
+  }, [
+    canManageKeys,
+    fetchKeys,
+    fetchManifest,
+    fetchUsage,
+  ]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (
+      !canManageKeys &&
+      (tab === 'keys' ||
+        tab === 'usage')
+    ) {
+      setTab('overview');
+    }
+  }, [canManageKeys, tab]);
 
   const stableKeys = useMemo(
     () =>
@@ -263,6 +301,13 @@ export const DeveloperPlatform: React.FC<
   }, [readOperations, explorerOperationId]);
 
   const createKey = async () => {
+    if (!canManageKeys) {
+      setError(
+        'OWNER or ADMIN membership is required to manage Platform API keys.'
+      );
+      return;
+    }
+
     if (selectedScopes.length === 0) {
       setError('Select at least one platform scope.');
       return;
@@ -309,6 +354,13 @@ export const DeveloperPlatform: React.FC<
   };
 
   const revokeKey = async (keyId: string) => {
+    if (!canManageKeys) {
+      setError(
+        'OWNER or ADMIN membership is required to manage Platform API keys.'
+      );
+      return;
+    }
+
     setBusyKey('revoke:' + keyId);
     setError(null);
     try {
@@ -475,14 +527,19 @@ export const DeveloperPlatform: React.FC<
       note: 'Explicit least privilege',
       icon: ShieldCheck,
     },
-    {
-      label: 'Scoped keys',
-      value: stableKeys.filter(
-        (key) => key.status === 'active'
-      ).length,
-      note: 'Active platform credentials',
-      icon: Key,
-    },
+    ...(canManageKeys
+      ? [
+          {
+            label: 'Scoped keys',
+            value: stableKeys.filter(
+              (key) =>
+                key.status === 'active'
+            ).length,
+            note: 'Active platform credentials',
+            icon: Key,
+          },
+        ]
+      : []),
     {
       label: 'Registered extensions',
       value:
@@ -492,6 +549,40 @@ export const DeveloperPlatform: React.FC<
       note: 'Tools, detectors, domain packs',
       icon: Package,
     },
+  ];
+
+  const platformTabs: Array<[
+    PlatformTab,
+    string,
+    React.ComponentType<{
+      className?: string;
+    }>,
+  ]> = [
+    ['overview', 'Overview', Gauge],
+    ...(canManageKeys
+      ? ([['keys', 'API Keys', Key]] as Array<
+          [
+            PlatformTab,
+            string,
+            React.ComponentType<{
+              className?: string;
+            }>,
+          ]
+        >)
+      : []),
+    ['capabilities', 'Extensions', Sparkles],
+    ['explorer', 'API Explorer', Terminal],
+    ...(canManageKeys
+      ? ([['usage', 'Usage', Activity]] as Array<
+          [
+            PlatformTab,
+            string,
+            React.ComponentType<{
+              className?: string;
+            }>,
+          ]
+        >)
+      : []),
   ];
 
   return (
@@ -543,6 +634,15 @@ export const DeveloperPlatform: React.FC<
           </button>
         </header>
 
+        {!canManageKeys && (
+          <div
+            id="developer-admin-boundary"
+            className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800"
+          >
+            Stable API documentation, extension contracts, and the read explorer are available to your membership. Platform API key creation, revocation, and account usage administration require OWNER or ADMIN membership.
+          </div>
+        )}
+
         {(notice || error) && (
           <div
             className={
@@ -579,13 +679,8 @@ export const DeveloperPlatform: React.FC<
         </div>
 
         <nav className="mb-5 flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5">
-          {[
-            ['overview', 'Overview', Gauge],
-            ['keys', 'API Keys', Key],
-            ['capabilities', 'Extensions', Sparkles],
-            ['explorer', 'API Explorer', Terminal],
-            ['usage', 'Usage', Activity],
-          ].map(([id, label, Icon]: any) => (
+          {platformTabs.map(
+            ([id, label, Icon]) => (
             <button
               key={id}
               id={'platform-tab-' + id}
@@ -601,7 +696,8 @@ export const DeveloperPlatform: React.FC<
               <Icon className="w-3.5 h-3.5" />
               {label}
             </button>
-          ))}
+          )
+          )}
         </nav>
 
         {tab === 'overview' && manifest && (
@@ -717,7 +813,9 @@ export const DeveloperPlatform: React.FC<
           </div>
         )}
 
-        {tab === 'keys' && manifest && (
+        {canManageKeys &&
+          tab === 'keys' &&
+          manifest && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5">
             <section className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100">

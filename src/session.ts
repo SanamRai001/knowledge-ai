@@ -159,8 +159,20 @@ export function shellStateFromError(
   };
 }
 
-export function canManageDeveloperPlatform(
+export function isPrivilegedMembershipRole(
   role: MembershipRole | undefined
 ): boolean {
   return role === 'OWNER' || role === 'ADMIN';
+}
+
+export function canManageDeveloperPlatform(
+  role: MembershipRole | undefined
+): boolean {
+  return isPrivilegedMembershipRole(role);
+}
+
+export function canManageIntegrationLifecycle(
+  role: MembershipRole | undefined
+): boolean {
+  return isPrivilegedMembershipRole(role);
 }

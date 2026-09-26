@@ -44,9 +44,6 @@ async function main() {
       header.includes(
         '<span>Developers</span>'
       ) &&
-      header.includes(
-        'canManageDeveloperPlatform'
-      ) &&
       appSource.includes(
         '<DeveloperPlatform'
       ) &&
@@ -54,9 +51,15 @@ async function main() {
         "effectiveTab === 'developer'"
       ) &&
       appSource.includes(
-        'canManageDeveloper &&'
+        'membershipRole={'
+      ) &&
+      ui.includes(
+        'canManageDeveloperPlatform'
+      ) &&
+      ui.includes(
+        'developer-admin-boundary'
       ),
-    'Developer Platform must remain a real first-class OWNER/ADMIN workspace behind the J2 role-aware shell.'
+    'Developer Platform must remain first-class while J3 separates stable docs/explorer access from OWNER/ADMIN key administration.'
   );
 
   assert(
@@ -70,9 +73,11 @@ async function main() {
   assert(
     ui.includes('/api/platform-management/keys') &&
       ui.includes('/api/platform-management/usage') &&
+      ui.includes('if (!canManageKeys)') &&
+      ui.includes('...(canManageKeys') &&
       !ui.includes('/api/v1/developer/keys') &&
       !ui.includes('/api/v1/developer/usage'),
-    'Developer UI must use the account-scoped control plane rather than legacy hard-coded management routes.'
+    'Developer UI must use the account-scoped control plane only behind the J3 OWNER/ADMIN UI capability boundary.'
   );
 
   assert(
@@ -174,7 +179,7 @@ async function main() {
 
   console.log('PHASE_8E_PLATFORM_UI_CHECK_PASSED');
   console.log(
-    'Developer workspace wiring, human-admin Platform Management contract, PostgreSQL-aware key control plane, stable-scope allowlisting, stable/legacy namespace separation, governed extension inventory, read-only API explorer, and usage/audit visibility are verified.'
+    'Developer workspace wiring, J3-separated human-admin Platform Management, stable member-visible docs/explorer, PostgreSQL-aware key control plane, stable-scope allowlisting, governed extension inventory, and bounded usage/audit visibility are verified.'
   );
 }
 

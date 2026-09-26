@@ -1041,7 +1041,7 @@ Do this:
 
 As of this document version:
 
-> **Continue with Production Hardening J3 — Admin/Developer Surface Separation.**
+> **Continue with Production Hardening J4 — Organization/Member Administration.**
 
 Phases 0–8 are complete.
 
@@ -1108,7 +1108,8 @@ Track A relational milestones:
 - I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228815635`
 - J1 Production UX/Admin Forensic Audit — COMPLETE, workflow `36231584786`
 - J2 Session + Role-Aware Application Shell — COMPLETE, workflow `36233824606`
-- J3 Admin/Developer Surface Separation — NEXT
+- J3 Admin/Developer Surface Separation — COMPLETE, workflow `36236249878`
+- J4 Organization/Member Administration — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
 
@@ -1280,6 +1281,8 @@ I2 now makes API-key quota enforcement and human-login throttling shared across 
 
 I3 now adds an explicit untrusted-evidence prompt boundary, adversarial cross-tenant retrieval coverage, high-contention D1/D2/D3 transaction races, and bounded multi-worker Watch/Integration/Automation pressure with measured zero-error/retry/dead-letter/lease-loss acceptance thresholds.
 
+J3 now separates member-safe Developer documentation/explorer from OWNER/ADMIN Platform key administration, keeps Integration status/history/sync distinct from privileged lifecycle controls, and makes Automation privileged affordances consume backend capability context while preserving J2 session/error behavior.
+
 H2 evidence: `docs/PRODUCTION_H2_REPRODUCIBLE_BUILD_IMAGE.md`.
 
 H3 evidence: `docs/PRODUCTION_H3_RUNTIME_EDGE_SHUTDOWN.md`.
@@ -1292,17 +1295,19 @@ I2 evidence: `docs/PRODUCTION_I2_DISTRIBUTED_ABUSE_AUTH_STATE.md`.
 
 I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 
-Next, do **J3 only — Admin/Developer Surface Separation**:
+J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 
-1. separate Platform API key administration from the general Developer documentation/explorer experience
-2. keep the stable Platform API manifest, scopes, extension inventory, API docs, and bounded read explorer intact
-3. make key create/revoke/usage administration explicitly OWNER/ADMIN-only in the UI
-4. preserve ordinary Integration connection status/history where server policy allows it
-5. make privileged Integration connect/reauthorize/revoke/disconnect controls capability-aware rather than exposing dead-end actions
-6. load and honor `/api/automation/context` so Automation policy creation/editing/approval/control affordances match the current actor
-7. preserve ordinary Automation run/history visibility where permitted
-8. keep J2 session/login/permission/rate-limit/degraded shell behavior unchanged
-9. add focused J3 privilege-surface drift proofs
-10. stop before J4 organization/member administration
+Next, do **J4 only — Organization/Member Administration**:
 
-Do not redesign normal Ask, Insights, Company Knowledge, Actions, Watch, Dataset, or Document workflows in J3.
+1. audit existing user/account-membership/session/account-selection server contracts first
+2. define only the missing durable OWNER/ADMIN member-management endpoints required by the product UI
+3. add a member list with user identity, role, and membership status
+4. add invite/join lifecycle only when backed by explicit server state and validation
+5. add role changes with OWNER/ADMIN enforcement and last-owner/self-demotion safety where applicable
+6. expose membership activation/deactivation only where the backend status model supports it
+7. keep account selection session/membership bound; never trust arbitrary frontend account IDs
+8. hide privileged member mutation controls from MEMBER users while preserving allowed organization visibility
+9. add J4 cross-account, authorization, and UI drift proofs
+10. stop before J5 production recovery/diagnostics UX
+
+Do not build organization/member UI on top of nonexistent backend mutation contracts. Audit and define the server contract first.

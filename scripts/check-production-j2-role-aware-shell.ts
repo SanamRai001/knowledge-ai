@@ -137,28 +137,28 @@ async function main() {
       'membershipRole: MembershipRole'
     ) &&
       header.includes(
-        'canManageDeveloperPlatform'
-      ) &&
-      header.includes(
         'id="nav-tab-developer"'
       ),
-    'J2 Header must be membership-role aware and gate Developer navigation.'
+    'J2 Header must remain membership-role aware after J3 separates safe Developer docs from administration.'
   );
 
   assert(
     app.includes(
-      "currentTab === 'developer'"
+      "effectiveTab === 'developer'"
     ) &&
       app.includes(
-        '!canManageDeveloper'
+        '<DeveloperPlatform'
       ) &&
       app.includes(
-        "effectiveTab === 'developer'"
+        'membershipRole={'
       ) &&
-      app.includes(
-        'canManageDeveloper &&'
+      developer.includes(
+        'canManageDeveloperPlatform'
+      ) &&
+      developer.includes(
+        'developer-admin-boundary'
       ),
-    'J2 must prevent MEMBER deep links from mounting DeveloperPlatform.'
+    'J2 historical Developer gating must advance in J3: safe docs remain reachable while privileged key administration is role-gated inside the workspace.'
   );
 
   assert(
@@ -196,15 +196,21 @@ async function main() {
   assert(
     developer.includes(
       "'/api/platform-management/keys'"
-    ),
-    'J2 must not rewrite the Developer workspace itself; J3 owns admin/developer separation.'
+    ) &&
+      developer.includes(
+        'if (!canManageKeys)'
+      ) &&
+      developer.includes(
+        '...(canManageKeys'
+      ),
+    'J3 must preserve J2 session safety while preventing MEMBER users from invoking Platform Management calls.'
   );
 
   console.log(
     'PRODUCTION_J2_ROLE_AWARE_SHELL_CHECK_PASSED'
   );
   console.log(
-    'Session-first bootstrap, structured auth/degraded states, role-aware Developer gating, Trust Checks removal, and preserved core product navigation are verified.'
+    'Session-first bootstrap, structured auth/degraded states, J3-safe Developer separation, Trust Checks removal, and preserved core product navigation are verified.'
   );
 }
 
