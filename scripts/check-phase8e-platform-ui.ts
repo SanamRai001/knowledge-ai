@@ -38,11 +38,25 @@ async function main() {
   );
 
   assert(
-    header.includes("currentTab === 'developer'") &&
-      header.includes('nav-tab-developer') &&
-      header.includes('<span>Developers</span>') &&
-      appSource.includes('<DeveloperPlatform'),
-    'Developer Platform must be a real first-class application workspace.'
+    header.includes(
+      'nav-tab-developer'
+    ) &&
+      header.includes(
+        '<span>Developers</span>'
+      ) &&
+      header.includes(
+        'canManageDeveloperPlatform'
+      ) &&
+      appSource.includes(
+        '<DeveloperPlatform'
+      ) &&
+      appSource.includes(
+        "effectiveTab === 'developer'"
+      ) &&
+      appSource.includes(
+        'canManageDeveloper &&'
+      ),
+    'Developer Platform must remain a real first-class OWNER/ADMIN workspace behind the J2 role-aware shell.'
   );
 
   assert(
