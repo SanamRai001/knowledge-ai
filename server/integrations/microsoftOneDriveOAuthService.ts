@@ -10,6 +10,7 @@ import {
 import { publicConnection } from './integrationStore.js';
 import { integrationRuntimeService } from './integrationRuntimeService.js';
 import {
+  MicrosoftOneDriveOAuthStateError,
   type MicrosoftOneDriveOAuthStateAccess,
   microsoftOneDriveOAuthStateRuntime,
 } from './microsoftOneDriveOAuthStateStore.js';
@@ -166,11 +167,29 @@ export class MicrosoftOneDriveOAuthService {
       );
     }
 
-    const attempt =
-      await this.stateStore.consume(
-        params.state,
-        params.expectedAccountId
-      );
+    let attempt;
+    try {
+      attempt =
+        await this.stateStore.consume(
+          params.state,
+          params.expectedAccountId
+        );
+    } catch (error) {
+      if (
+        error instanceof
+          MicrosoftOneDriveOAuthStateError &&
+        error.code ===
+          'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH'
+      ) {
+        throw new MicrosoftOneDriveOAuthError(
+          'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH',
+          403,
+          'OneDrive OAuth state belongs to a different account.'
+        );
+      }
+      throw error;
+    }
+
     if (
       params.expectedAccountId &&
       attempt.accountId !== params.expectedAccountId
