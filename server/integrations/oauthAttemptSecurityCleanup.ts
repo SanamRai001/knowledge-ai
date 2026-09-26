@@ -21,7 +21,33 @@ export async function cleanupExpiredOAuthSecurityState(): Promise<{
             .oauthAttemptsBatchSize,
       });
 
-  const secretsDeleted =
+  let secretsDeleted = 0;
+
+  for (const attempt of expired) {
+    if (!attempt.secretRef) {
+      continue;
+    }
+
+    const deleted =
+      await postgresSecretStore
+        .delete({
+          accountId:
+            attempt.accountId,
+          secretId:
+            attempt.secretRef,
+          purpose:
+            'INTEGRATION_OAUTH_ATTEMPT',
+          provider:
+            attempt.provider,
+        })
+        .catch(() => false);
+
+    if (deleted) {
+      secretsDeleted += 1;
+    }
+  }
+
+  secretsDeleted +=
     await postgresSecretStore
       .cleanupUnreferencedOAuthAttemptSecrets({
         olderThanMs:
