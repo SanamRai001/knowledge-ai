@@ -1105,7 +1105,7 @@ Track A relational milestones:
 - H4 Staging Promotion + Rollback Release Gate — COMPLETE, workflow `36175108771`
 - I1 Load, Abuse, and Security Test Foundation — COMPLETE, workflow `36218326048`
 - I2 Distributed Abuse & Auth-State Hardening — COMPLETE, workflow `36221948773`
-- I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228011034`
+- I3 Deep Adversarial, Race/Idempotency & Sustained Worker Stress — COMPLETE, workflow `36228815635`
 - J1 Production UX/Admin Forensic Audit — NEXT
 
 A7G evidence: `docs/PRODUCTION_A7G_CORE_METADATA_RUNTIME.md`.
