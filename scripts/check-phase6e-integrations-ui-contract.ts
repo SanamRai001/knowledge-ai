@@ -95,8 +95,13 @@ function main() {
       workspace.includes('integration-disconnect-button') &&
       workspace.includes('Sync now') &&
       workspace.includes('Pause') &&
-      workspace.includes('Resume'),
-    'Integrations UI must expose the valid lifecycle and explicit recovery controls.'
+      workspace.includes('Resume') &&
+      workspace.includes('canManageLifecycle') &&
+      workspace.includes('integration-lifecycle-readonly') &&
+      workspace.includes(
+        "action !== 'sync'"
+      ),
+    'Integrations UI must preserve sync/status visibility while J3 gates lifecycle and recovery administration to OWNER/ADMIN.'
   );
 
   assert(
@@ -144,7 +149,7 @@ function main() {
 
   console.log('PHASE_6E_INTEGRATIONS_UI_CONTRACT_CHECK_PASSED');
   console.log(
-    'First-class navigation, real OAuth flows, Google Picker, Phase 6D recovery actions, sync history, provenance, browser callback UX, and secret-safe frontend boundaries are present.'
+    'First-class navigation, real OAuth flows, J3 lifecycle capability separation, sync visibility/history, provenance, browser callback UX, and secret-safe frontend boundaries are present.'
   );
 }
 
