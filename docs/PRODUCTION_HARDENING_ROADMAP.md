@@ -203,7 +203,7 @@ The implementation sequence is deliberately split into small slices:
 48. **J3 — Admin/Developer Surface Separation** — COMPLETE, workflow `36236249878`
 49. **J4 — Organization/Member Administration** — COMPLETE, workflow `36252491424`
 50. **J5 — Production Recovery/Diagnostics UX** — COMPLETE, workflow `36254240629`
-51. **J6 — Copy + Dead Surface Cleanup** — NEXT
+51. **J6 — Copy + Dead Surface Cleanup** — COMPLETE, workflow `36256098747`
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -300,6 +300,10 @@ J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
 
 J5 evidence: `docs/PRODUCTION_J5_RECOVERY_DIAGNOSTICS_UX.md`.
+
+J6 removed orphan Phase7/8/9 frontend surfaces, replaced browser-visible phase-numbered copy with capability language, preserved stable API/historical engineering identifiers, and closed the defined A–J production-hardening roadmap without introducing a redesign.
+
+J6 evidence: `docs/PRODUCTION_J6_COPY_DEAD_SURFACE_CLEANUP.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -779,22 +783,34 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J6 — Copy + Dead Surface Cleanup**
+**Production hardening roadmap — COMPLETE**
 
-Keep this slice limited to frontend/product-language cleanup already identified by J1.
+J6 is the final phase defined in the current A–J production-hardening roadmap.
 
-1. inventory supported browser-visible copy for historical phase/prototype wording
-2. replace phase-numbered product language with capability/user language while preserving behavior
-3. confirm `Phase7ReadinessView.tsx`, `Phase8OperationalDashboard.tsx`, and `Phase9SaaSPlatformView.tsx` have no supported imports
-4. remove those orphan components once absence of imports is executable-proofed
-5. clean remaining prototype/test-era wording from supported frontend surfaces only
-6. preserve phase names in engineering docs, scripts, migrations, tests, and evidence files where they are legitimate historical identifiers
-7. preserve J2 session/degraded states, J3 admin/developer separation, J4 organization administration, and J5 diagnostics behavior
-8. do not rename stable API routes, persistence identifiers, migration versions, telemetry events, or backend contracts merely for cosmetic cleanup
-9. add focused J6 dead-surface/copy drift proof and keep all prior UX/admin proofs green
-10. stop before any new product capability or visual redesign
+The completed hardening program now covers:
 
-Do not perform a broad redesign in J6. Remove obsolete frontend debt and clean user-facing language only.
+- relational/runtime authority and tenant isolation
+- human identity and privileged administration
+- legacy/prototype route retirement
+- durable source/document/Dataset/integration/workspace state
+- transactional Action/Automation/Watch correctness
+- durable worker/queue execution
+- managed-secret boundaries
+- observability/readiness and backup/recovery
+- reproducible production packaging and release promotion
+- abuse/race/security stress hardening
+- production UX/admin/recovery cleanup
+
+Do **not** invent J7 or continue implementation under an undefined phase.
+
+Before further implementation, author an explicit next roadmap based on one of:
+
+1. staging/release execution using the existing H4 promotion gate
+2. production launch/readiness verification using G2/G3/H4 contracts
+3. a new product-capability roadmap
+4. a measured follow-up from staging/production evidence
+
+Reopen a completed hardening phase only for a demonstrated regression.
 
 ---
 
