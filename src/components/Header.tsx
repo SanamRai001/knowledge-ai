@@ -4,7 +4,6 @@ import {
   TableProperties,
   Plus,
   ShieldCheck,
-  RefreshCw,
   MessageSquare,
   Lightbulb,
   BookOpen,
@@ -17,6 +16,10 @@ import {
   Gauge,
 } from 'lucide-react';
 import { KnowledgeBase } from '../types';
+import {
+  canManageDeveloperPlatform,
+  type MembershipRole,
+} from '../session';
 
 export type ActiveTab = 'playground' | 'insights' | 'company' | 'actions' | 'automation' | 'watch' | 'integrations' | 'knowledge' | 'datasets' | 'config' | 'evaluations' | 'developer';
 
@@ -27,8 +30,7 @@ interface HeaderProps {
   onTabChange: (tab: ActiveTab) => void;
   onNewKb: () => void;
   onSwitchKb: (id: string) => void;
-  onOpenTestSuite: () => void;
-  isTesting: boolean;
+  membershipRole: MembershipRole;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,8 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onNewKb,
   onSwitchKb,
-  onOpenTestSuite,
-  isTesting,
+  membershipRole,
 }) => {
   const specializedName = activeKb?.specializedAi?.name || 'Assistant';
   const versionTag = activeKb?.currentVersion || 'v1.0';
@@ -105,19 +106,12 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline">New Workspace</span>
           </button>
 
-          <button
-            id="btn-open-test-suite"
-            onClick={onOpenTestSuite}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
-            title="Run trust and regression checks"
+          <span
+            id="membership-role-badge"
+            className="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
           >
-            {isTesting ? (
-              <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-            ) : (
-              <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            )}
-            <span>Trust Checks</span>
-          </button>
+            {membershipRole}
+          </span>
         </div>
       </div>
 
@@ -271,18 +265,25 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Quality</span>
         </button>
 
-        <button
-          id="nav-tab-developer"
-          onClick={() => onTabChange('developer')}
-          className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-            currentTab === 'developer'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-          }`}
-        >
-          <Code2 className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Developers</span>
-        </button>
+        {canManageDeveloperPlatform(
+          membershipRole
+        ) && (
+          <button
+            id="nav-tab-developer"
+            onClick={() =>
+              onTabChange('developer')
+            }
+            className={`flex items-center gap-1.5 py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+              currentTab ===
+              'developer'
+                ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+            }`}
+          >
+            <Code2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Developers</span>
+          </button>
+        )}
 
       </div>
     </header>
