@@ -307,6 +307,9 @@ jobs:
       - name: Production J4 organization member admin proof
         run: npm run check:production:j4-organization-member-admin
 
+      - name: Production J4 organization member UI proof
+        run: npm run check:production:j4-organization-member-ui
+
       - name: Arithmetic grounding proof guard
         run: npx tsx scripts/check-arithmetic-grounding.ts
 
