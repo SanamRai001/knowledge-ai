@@ -202,7 +202,8 @@ The implementation sequence is deliberately split into small slices:
 47. **J2 — Session + Role-Aware Application Shell** — COMPLETE, workflow `36233824606`
 48. **J3 — Admin/Developer Surface Separation** — COMPLETE, workflow `36236249878`
 49. **J4 — Organization/Member Administration** — COMPLETE, workflow `36252491424`
-50. **J5 — Production Recovery/Diagnostics UX** — NEXT
+50. **J5 — Production Recovery/Diagnostics UX** — COMPLETE, workflow `36254240629`
+51. **J6 — Copy + Dead Surface Cleanup** — NEXT
 
 B2A evidence: `docs/PRODUCTION_B2A_HUMAN_IDENTITY_FOUNDATION.md`.
 
@@ -297,6 +298,8 @@ I3 evidence: `docs/PRODUCTION_I3_DEEP_ADVERSARIAL_STRESS.md`.
 J3 evidence: `docs/PRODUCTION_J3_ADMIN_DEVELOPER_SEPARATION.md`.
 
 J4 evidence: `docs/PRODUCTION_J4_ORGANIZATION_MEMBER_ADMIN.md`.
+
+J5 evidence: `docs/PRODUCTION_J5_RECOVERY_DIAGNOSTICS_UX.md`.
 
 B2A added durable users, OWNER/ADMIN/MEMBER account memberships, hashed opaque browser sessions, membership-bound selected accounts, and session-scoped selected workspaces.
 
@@ -776,22 +779,22 @@ Remaining local workspace/document and analytical row payloads are explicit **Tr
 
 ## Current exact task
 
-**Production Hardening J5 — Production Recovery/Diagnostics UX**
+**Production Hardening J6 — Copy + Dead Surface Cleanup**
 
-Keep this slice limited to safe production diagnostics and recovery guidance already supported by the hardened backend.
+Keep this slice limited to frontend/product-language cleanup already identified by J1.
 
-1. inventory the existing G2 readiness/degraded-state and G3/H4 recovery/promotion contracts before adding browser UI
-2. define which diagnostics are safe for ordinary authenticated members versus privileged/operator roles
-3. surface dependency/readiness degradation with stable user-facing explanations rather than generic failure banners
-4. add an operator/admin diagnostics surface only for capabilities backed by current authorization contracts
-5. expose safe recovery or operational links/actions only where a real server contract exists
-6. never expose secrets, credentials, bucket names, KMS material, database connection data, internal stack traces, or low-level topology to ordinary members
-7. preserve J2 session-required/permission/degraded states and J3/J4 capability-aware navigation
-8. keep liveness/readiness semantics aligned with G2 and release/recovery evidence aligned with G3/H4
-9. add focused J5 authorization, redaction, degraded-state, and UI drift proofs
-10. stop before any new product capability or unsupported infrastructure-control workflow
+1. inventory supported browser-visible copy for historical phase/prototype wording
+2. replace phase-numbered product language with capability/user language while preserving behavior
+3. confirm `Phase7ReadinessView.tsx`, `Phase8OperationalDashboard.tsx`, and `Phase9SaaSPlatformView.tsx` have no supported imports
+4. remove those orphan components once absence of imports is executable-proofed
+5. clean remaining prototype/test-era wording from supported frontend surfaces only
+6. preserve phase names in engineering docs, scripts, migrations, tests, and evidence files where they are legitimate historical identifiers
+7. preserve J2 session/degraded states, J3 admin/developer separation, J4 organization administration, and J5 diagnostics behavior
+8. do not rename stable API routes, persistence identifiers, migration versions, telemetry events, or backend contracts merely for cosmetic cleanup
+9. add focused J6 dead-surface/copy drift proof and keep all prior UX/admin proofs green
+10. stop before any new product capability or visual redesign
 
-Do not invent recovery buttons on top of nonexistent backend operations. Prefer explanation and evidence over unsafe mutation.
+Do not perform a broad redesign in J6. Remove obsolete frontend debt and clean user-facing language only.
 
 ---
 
