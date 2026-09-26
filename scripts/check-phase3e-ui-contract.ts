@@ -22,7 +22,8 @@ function main() {
 
   assert(
     app.includes('<CompanyKnowledgeWorkspace') &&
-      app.includes("currentTab === 'company'"),
+      (app.includes("currentTab === 'company'") ||
+        app.includes("effectiveTab === 'company'")),
     'App must mount the living Company Knowledge workspace.'
   );
 
