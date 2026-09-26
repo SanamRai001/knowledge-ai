@@ -1,6 +1,6 @@
 # Production I3 — Deep Adversarial, Race/Idempotency & Sustained Worker Stress
 
-Status: **COMPLETE** — authoritative implementation Quality Gate `36228011034`.
+Status: **IMPLEMENTED** — awaiting integrated Quality Gate validation including I3C.
 
 ## Scope
 
@@ -171,11 +171,16 @@ These are **bounded CI/staging acceptance thresholds**, not a production through
 
 ## Quality Gate
 
-Authoritative implementation gate:
+Integrated validation is pending after adding the I3C sustained worker-pressure proof to the PostgreSQL Quality Gate.
 
-`36228011034`
+Already verified on prior branch runs:
 
-Verified green:
+- I3A adversarial evidence proof
+- I3B PostgreSQL race/idempotency proof
+
+The phase is not complete until I3C is also executed by the integrated Quality Gate.
+
+Required final green set:
 
 - I3A adversarial evidence proof
 - I3B PostgreSQL race/idempotency proof
