@@ -420,7 +420,7 @@ export const SpecializedAIConfig: React.FC<SpecializedAIConfigProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">
             <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <Brain className="w-4 h-4 text-purple-600" />
-              Memory Retrieval Governance (Phase 4)
+              Memory Retrieval Governance
             </h3>
 
             <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-purple-50/50 border border-purple-200">
