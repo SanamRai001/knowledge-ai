@@ -16,6 +16,7 @@ import {
   HumanLoginThrottleService,
 } from '../server/identity/humanLoginThrottleService.js';
 import {
+  GoogleDriveOAuthError,
   GoogleDriveOAuthService,
 } from '../server/integrations/googleDriveOAuthService.js';
 import {
@@ -23,6 +24,7 @@ import {
   GoogleDriveOAuthStateRuntime,
 } from '../server/integrations/googleDriveOAuthStateStore.js';
 import {
+  MicrosoftOneDriveOAuthError,
   MicrosoftOneDriveOAuthService,
 } from '../server/integrations/microsoftOneDriveOAuthService.js';
 import {
@@ -379,9 +381,10 @@ async function main() {
   } catch (error) {
     googleCrossDenied =
       error instanceof
-        GoogleDriveOAuthStateError &&
+        GoogleDriveOAuthError &&
       error.code ===
-        'OAUTH_ACCOUNT_MISMATCH';
+        'OAUTH_ACCOUNT_MISMATCH' &&
+      error.statusCode === 403;
   }
   assert(
     googleCrossDenied,
@@ -590,9 +593,10 @@ async function main() {
   } catch (error) {
     oneDriveCrossDenied =
       error instanceof
-        MicrosoftOneDriveOAuthStateError &&
+        MicrosoftOneDriveOAuthError &&
       error.code ===
-        'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH';
+        'ONEDRIVE_OAUTH_ACCOUNT_MISMATCH' &&
+      error.statusCode === 403;
   }
   assert(
     oneDriveCrossDenied,
