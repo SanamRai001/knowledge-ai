@@ -155,6 +155,7 @@
     "check:production:j3-admin-developer-separation": "tsx scripts/check-production-j3-admin-developer-separation.ts",
     "check:production:j4-organization-member-admin": "tsx scripts/check-production-j4-organization-member-admin.ts",
     "check:production:j4-organization-member-admin-postgres": "tsx scripts/check-production-j4-organization-member-admin-postgres.ts",
+    "check:production:j4-organization-member-ui": "tsx scripts/check-production-j4-organization-member-ui.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
     "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
