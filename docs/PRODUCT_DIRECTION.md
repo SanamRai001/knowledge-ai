@@ -14,13 +14,23 @@
 
 ## Positioning
 
-**Knowledge AI is a trustworthy private document assistant for teams.**
+**Knowledge AI is a trustworthy private company intelligence platform for teams.**
 
-The product is not sold as “GraphRAG”, “CRAG”, “multi-agent mediation”, or a collection of AI phases. Those systems are internal mechanisms used to make the answer more reliable.
+It helps teams bring company knowledge and structured data into one governed system that can:
 
-The user-facing promise is simpler:
+- answer questions with evidence
+- surface useful Insights
+- maintain Living Company Knowledge
+- propose and confirm safe Actions
+- Watch important conditions
+- connect external sources
+- run controlled low-risk Automation
 
-> Upload authoritative company documents, ask questions, receive source-backed answers, and get a clear refusal when the evidence is not there.
+The product is not sold as “GraphRAG”, “CRAG”, “multi-agent mediation”, or a collection of AI phases. Those are implementation mechanisms.
+
+The user-facing promise is:
+
+> Bring your company's information. Knowledge AI turns it into a living, explainable understanding of the business that can answer, discover, update, and monitor—without giving up provenance, permissions, or safe approval boundaries.
 
 ## Primary users
 
@@ -53,24 +63,36 @@ Conversational context should resolve references such as “it”, “that polic
 
 ## Default product surface
 
-The normal user experience should emphasize:
+The normal authenticated experience should emphasize:
 
+- **Home / attention**
 - **Ask**
-- **Documents**
-- **Sources / citations**
-- **Assistant settings**
-- **Quality**
+- **Insights**
+- **Knowledge**
+- **Watch**
 
-Advanced capabilities should remain available for developers/admins:
+Task-oriented surfaces may include:
 
-- retrieval diagnostics
-- cognitive execution traces
-- GraphRAG traversal
-- CRAG decisions
-- provider telemetry
-- memory / learning experiments
-- orchestration
-- API / SaaS tooling
+- **Actions / approvals**
+- **Integrations**
+- **Automation**
+
+Privileged/admin surfaces include:
+
+- organization/member administration
+- Platform/API-key administration
+- integration lifecycle controls
+- Automation policy administration
+- operator diagnostics/recovery
+
+Developer-facing capabilities should remain separate from normal product navigation:
+
+- stable API documentation/explorer
+- provider/system diagnostics where authorized
+- benchmark/evaluation tooling
+- internal retrieval/orchestration implementation details
+
+The normal user should not need to understand GraphRAG, CRAG, internal phase numbers, or retired prototype surfaces.
 
 ## Trust contract
 
