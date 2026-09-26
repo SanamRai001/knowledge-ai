@@ -98,21 +98,30 @@ npm run lint
 npm run build
 ```
 
-## Product priorities
+## Current priorities
 
-Development should prioritize, in order:
+The core product and A–J hardening roadmaps are complete.
 
-1. Retrieval correctness
-2. Citation correctness
-3. Unsupported-question refusal accuracy
-4. Hallucination reduction
-5. Honest telemetry
-6. Secure private-workspace boundaries
-7. Reliable provider failover
-8. User experience
-9. Additional model providers
+Current execution priority is:
 
-Adding more AI providers is valuable only after the baseline system is measured honestly. A second provider should primarily improve failover, difficult-query verification, or disagreement detection—not add complexity without measurable gains.
+1. Real staging promotion through the existing release gate
+2. Staging failure/recovery rehearsal
+3. Real pilot onboarding
+4. Measured pilot quality fixes
+5. Explicit production launch readiness
+
+Trust priorities remain non-negotiable throughout launch:
+
+- retrieval correctness
+- citation correctness
+- unsupported-question refusal accuracy
+- tenant isolation
+- transactional/idempotent writes
+- durable restart/recovery behavior
+- honest telemetry and readiness
+- safe role/approval boundaries
+
+New model providers, integrations, infrastructure, and commercial features should be added only when measured product or operational evidence justifies them.
 
 ## Success metrics
 
