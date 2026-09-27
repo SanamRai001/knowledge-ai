@@ -100,8 +100,8 @@ jobs:
 
       - name: Verify CycloneDX SBOM
         env:
-          KNOWLEDGE_AI_SBOM_PATH: artifacts/knowledge-ai.sbom.cdx.json
-        run: npm run check:production:h4-sbom -- artifacts/knowledge-ai.sbom.cdx.json
+          H4_SBOM_PATH: artifacts/knowledge-ai.sbom.cdx.json
+        run: npm run check:production:h4-sbom
 
       - name: Derive immutable image identity
         id: meta
