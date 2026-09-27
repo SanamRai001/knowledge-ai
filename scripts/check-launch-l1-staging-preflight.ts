@@ -1,3 +1,4 @@
+import fs from 'fs';
 import {
   StagingPreflightError,
   validateStagingPreflight,
@@ -214,6 +215,82 @@ async function main() {
   expectFailure(
     sharedRuntime,
     'STAGING_RUNTIME_ROLES_NOT_SEPARATED'
+  );
+
+  const workflow =
+    fs.readFileSync(
+      '.github/workflows/staging-release-candidate.yml',
+      'utf8'
+    );
+  const pkg = JSON.parse(
+    fs.readFileSync(
+      'package.json',
+      'utf8'
+    )
+  );
+
+  for (const required of [
+    'workflow_dispatch:',
+    'environment: staging',
+    'packages: write',
+    'Checkout exact source commit',
+    'npm audit --omit=dev --audit-level=high',
+    'npm run check:production:h4-action-pins',
+    'npm run release:staging-preflight',
+    'docker build --tag',
+    'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25',
+    'docker push',
+    'npm run release:manifest',
+    'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+  ]) {
+    assert(
+      workflow.includes(required),
+      'L1 staging release-candidate workflow is missing: ' +
+        required
+    );
+  }
+
+  assert(
+    workflow.indexOf(
+      'Validate real staging environment contract'
+    ) <
+      workflow.indexOf(
+        'Push immutable release candidate'
+      ) &&
+      workflow.indexOf(
+        'Scan release candidate image'
+      ) <
+        workflow.indexOf(
+          'Push immutable release candidate'
+        ) &&
+      workflow.indexOf(
+        'Push immutable release candidate'
+      ) <
+        workflow.indexOf(
+          'Generate H4 release manifest'
+        ),
+    'L1 release-candidate ordering must validate/scan before push and generate the manifest from the pushed immutable digest.'
+  );
+
+  assert(
+    workflow.includes(
+      'This workflow prepares the exact artifact for staging. L1 is not complete until a real provider deploys this digest'
+    ),
+    'L1 workflow must not claim staging promotion completion before an actual provider deployment.'
+  );
+
+  assert(
+    pkg.scripts?.[
+      'release:staging-preflight'
+    ] ===
+      'node dist/private/staging-preflight.cjs' &&
+      typeof pkg.scripts?.[
+        'check:launch:l1-staging-preflight'
+      ] === 'string' &&
+      pkg.scripts?.build?.includes(
+        'staging-preflight.cjs'
+      ),
+    'L1 staging preflight must be compiled into the release package and registered as a quality proof.'
   );
 
   console.log(
