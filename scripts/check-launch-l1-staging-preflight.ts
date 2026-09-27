@@ -288,6 +288,9 @@ async function main() {
         'check:launch:l1-staging-preflight'
       ] === 'string' &&
       pkg.scripts?.build?.includes(
+        'npm run build:ops'
+      ) &&
+      pkg.scripts?.['build:ops']?.includes(
         'staging-preflight.cjs'
       ),
     'L1 staging preflight must be compiled into the release package and registered as a quality proof.'
