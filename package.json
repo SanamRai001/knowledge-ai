@@ -65,6 +65,7 @@
     "release:gate": "node dist/private/release-gate.cjs",
     "release:migration-gate": "node dist/private/release-migration-gate.cjs",
     "release:readiness-smoke": "node dist/private/release-readiness-smoke.cjs",
+    "release:staging-preflight": "node dist/private/staging-preflight.cjs",
     "check:production-a2-postgres": "tsx scripts/check-production-a2-postgres.ts",
     "check:production-a3-postgres": "tsx scripts/check-production-a3-postgres.ts",
     "check:production-a4-postgres": "tsx scripts/check-production-a4-postgres.ts",
@@ -159,18 +160,20 @@
     "check:production:j5-recovery-diagnostics": "tsx scripts/check-production-j5-recovery-diagnostics.ts",
     "check:production:j5-recovery-diagnostics-ui": "tsx scripts/check-production-j5-recovery-diagnostics-ui.ts",
     "check:production:j6-copy-dead-surface-cleanup": "tsx scripts/check-production-j6-copy-dead-surface-cleanup.ts",
+    "check:launch:l1-staging-preflight": "tsx scripts/check-launch-l1-staging-preflight.ts",
     "clean:dist": "node scripts/clean-dist.mjs",
     "build:client": "vite build",
     "build:web": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/server.cjs",
     "build:worker": "esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/worker.cjs",
-    "build:ops": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-migrate.cjs && esbuild scripts/db-import-legacy.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-import-legacy.cjs && esbuild scripts/recovery-validate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/recovery-validate.cjs && esbuild scripts/release-manifest.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-manifest.cjs && esbuild scripts/release-gate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-gate.cjs && esbuild scripts/release-migration-gate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-migration-gate.cjs && esbuild scripts/release-readiness-smoke.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-readiness-smoke.cjs",
+    "build:ops": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-migrate.cjs && esbuild scripts/db-import-legacy.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/db-import-legacy.cjs && esbuild scripts/recovery-validate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/recovery-validate.cjs && esbuild scripts/release-manifest.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-manifest.cjs && esbuild scripts/release-gate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-gate.cjs && esbuild scripts/release-migration-gate.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-migration-gate.cjs && esbuild scripts/release-readiness-smoke.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/release-readiness-smoke.cjs && esbuild scripts/staging-preflight.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/private/staging-preflight.cjs"
     "db:migrate:dev": "tsx scripts/db-migrate.ts",
     "db:import-legacy:dev": "tsx scripts/db-import-legacy.ts",
     "recovery:validate:dev": "tsx scripts/recovery-validate.ts",
     "release:manifest:dev": "tsx scripts/release-manifest.ts",
     "release:gate:dev": "tsx scripts/release-gate.ts",
     "release:migration-gate:dev": "tsx scripts/release-migration-gate.ts",
-    "release:readiness-smoke:dev": "tsx scripts/release-readiness-smoke.ts"
+    "release:readiness-smoke:dev": "tsx scripts/release-readiness-smoke.ts",
+    "release:staging-preflight:dev": "tsx scripts/staging-preflight.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
