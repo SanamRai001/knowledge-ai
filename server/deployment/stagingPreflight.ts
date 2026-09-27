@@ -251,6 +251,18 @@ export function validateStagingPreflight(
     )
   );
 
+  if (
+    required(
+      env.SOURCE_STORAGE_BACKEND,
+      'SOURCE_STORAGE_BACKEND'
+    ).toLowerCase() !== 's3'
+  ) {
+    throw new StagingPreflightError(
+      'STAGING_STORAGE_BACKEND_INVALID',
+      'L1 staging must explicitly configure SOURCE_STORAGE_BACKEND=s3.'
+    );
+  }
+
   const storage =
     sourceStorageRuntimeConfig(env);
   const keyring =
