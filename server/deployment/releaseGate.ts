@@ -423,6 +423,18 @@ function assertSeparated(
   }
 }
 
+export function validateEnvironmentSeparation(
+  staging:
+    ReleaseEnvironmentIdentity,
+  production:
+    ReleaseEnvironmentIdentity
+): void {
+  assertSeparated(
+    staging,
+    production
+  );
+}
+
 export function validatePromotionGate(input: {
   manifest: ReleaseManifest;
   staging: StagingReleaseEvidence;
