@@ -32,24 +32,23 @@ function boolFromEnv(
   );
 }
 
-function s3ConfigFromEnv():
-  S3SourceByteStorageConfig {
+function s3ConfigFromEnv(
+  env: NodeJS.ProcessEnv = process.env
+): S3SourceByteStorageConfig {
   const bucket =
-    process.env.SOURCE_STORAGE_BUCKET?.trim() ||
+    env.SOURCE_STORAGE_BUCKET?.trim() ||
     '';
   const region =
-    process.env.SOURCE_STORAGE_REGION?.trim() ||
+    env.SOURCE_STORAGE_REGION?.trim() ||
     '';
   const endpoint =
-    process.env.SOURCE_STORAGE_ENDPOINT?.trim() ||
+    env.SOURCE_STORAGE_ENDPOINT?.trim() ||
     undefined;
   const accessKeyId =
-    process.env
-      .SOURCE_STORAGE_ACCESS_KEY_ID?.trim() ||
+    env.SOURCE_STORAGE_ACCESS_KEY_ID?.trim() ||
     undefined;
   const secretAccessKey =
-    process.env
-      .SOURCE_STORAGE_SECRET_ACCESS_KEY?.trim() ||
+    env.SOURCE_STORAGE_SECRET_ACCESS_KEY?.trim() ||
     undefined;
 
   if (!bucket || !region) {
@@ -74,16 +73,17 @@ function s3ConfigFromEnv():
     accessKeyId,
     secretAccessKey,
     forcePathStyle: boolFromEnv(
-      process.env
+      env
         .SOURCE_STORAGE_FORCE_PATH_STYLE
     ),
   };
 }
 
-export function sourceStorageRuntimeConfig() {
+export function sourceStorageRuntimeConfig(
+  env: NodeJS.ProcessEnv = process.env
+) {
   const backend =
-    process.env
-      .SOURCE_STORAGE_BACKEND
+    env.SOURCE_STORAGE_BACKEND
       ?.trim()
       .toLowerCase() || 's3';
 
@@ -95,7 +95,7 @@ export function sourceStorageRuntimeConfig() {
 
   return {
     backend,
-    s3: s3ConfigFromEnv(),
+    s3: s3ConfigFromEnv(env),
   };
 }
 
